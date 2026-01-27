@@ -266,6 +266,30 @@
         } else {
             console.warn('window.initLightbox 函数不存在');
         }
+        
+        // 重新初始化 Turnstile 人机验证
+        var turnstileContainer = document.getElementById('cf-turnstile');
+        if (turnstileContainer) {
+            // 等待 Turnstile 脚本加载完成
+            var checkTurnstile = setInterval(function() {
+                if (typeof window.turnstile !== 'undefined') {
+                    clearInterval(checkTurnstile);
+                    console.log('重新渲染 Turnstile widget');
+                    // 移除旧的 widget
+                    turnstileContainer.innerHTML = '';
+                    // 重新渲染
+                    window.turnstile.render('#cf-turnstile');
+                }
+            }, 100);
+            
+            // 超时保护，最多等待 5 秒
+            setTimeout(function() {
+                clearInterval(checkTurnstile);
+                if (typeof window.turnstile === 'undefined') {
+                    console.warn('Turnstile 加载超时');
+                }
+            }, 5000);
+        }
     };
     
     // 初始页面加载完成后执行初始化（移除pjax:ready事件监听，因为不是标准Pjax事件）
