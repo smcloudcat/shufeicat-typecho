@@ -160,7 +160,6 @@
         'a[href*="login"]',
         'a[href*="logout"]',
         'a[href*="feed"]',
-        // 排除密码保护文章的链接（通过特定class识别）
         '.password-protection a',
         'a[href*="password"]'
     ];
@@ -216,8 +215,6 @@
     // 页面加载出错
     document.addEventListener('pjax:error', function(e) {
         console.error('Pjax加载失败:', e);
-        // 403状态码可能是密码保护文章，直接跳转不经过Pjax
-        // 使用window.location.href确保正确跳转
         if (e.requestedUrl) {
             window.location.href = e.requestedUrl;
         } else {
@@ -231,123 +228,53 @@
     addAnimationStyles();
     initPjax();
     
-    // 监听页面切换完成
-    document.addEventListener('pjax:ready', function() {
-        console.log('Pjax页面切换完成');
-        
-        if (typeof window.onPjaxReady === 'function') {
-            window.onPjaxReady();
-        }
-        
-        window.dispatchEvent(new CustomEvent('pjax-ready'));
+    // 监听页面切换完成 - 使用多个事件确保触发
+    document.addEventListener('pjax:complete', function() {
+        console.log('pjax:complete 事件触发');
+        window.reinitPageFunctions();
+    });
+    
+    document.addEventListener('pjax:success', function() {
+        console.log('pjax:success 事件触发');
+        window.reinitPageFunctions();
     });
     
     // 重新初始化页面功能的函数
     window.reinitPageFunctions = function() {
-        // 重新初始化代码高亮
-        if (typeof Prism !== 'undefined') {
-            setTimeout(function() {
-                if (typeof initPrismHighlight === 'function') {
-                    initPrismHighlight();
-                } else {
-                    var codeBlocks = document.querySelectorAll('.post-content pre code');
-                    codeBlocks.forEach(function(code) {
-                        var className = code.className;
-                        var langMatch = className.match(/lang-(\w+)/);
-                        if (langMatch) {
-                            var language = langMatch[1];
-                            code.className = 'language-' + language;
-                            
-                            var tempDiv = document.createElement('div');
-                            tempDiv.innerHTML = code.innerHTML;
-                            code.innerHTML = tempDiv.textContent || tempDiv.innerText;
-                        }
-                    });
-                    Prism.highlightAll();
-                }
-            }, 100);
+        console.log('开始重新初始化页面功能...');
+        
+        // 调用全局函数初始化代码高亮
+        if (typeof window.initPrismHighlight === 'function') {
+            console.log('调用window.initPrismHighlight');
+            setTimeout(window.initPrismHighlight, 150);
+        } else {
+            console.warn('window.initPrismHighlight 函数不存在');
         }
         
-        // 重新初始化代码复制按钮
-        setTimeout(function() {
-            var preBlocks = document.querySelectorAll('.post-content pre');
-            preBlocks.forEach(function(pre) {
-                if (!pre.querySelector('.copy-code-btn')) {
-                    pre.setAttribute('tabindex', '0');
-                    
-                    var copyBtn = document.createElement('button');
-                    copyBtn.className = 'copy-code-btn';
-                    copyBtn.innerHTML = '<i class="fa fa-copy"></i> 复制';
-                    copyBtn.title = '复制代码';
-                    
-                    copyBtn.addEventListener('click', function(e) {
-                        e.stopPropagation();
-                        var code = pre.querySelector('code');
-                        if (code) {
-                            var tempDiv = document.createElement('div');
-                            tempDiv.innerHTML = code.innerHTML;
-                            var text = tempDiv.textContent || tempDiv.innerText || '';
-                            
-                            navigator.clipboard.writeText(text).then(function() {
-                                copyBtn.innerHTML = '<i class="fa fa-check"></i> 已复制';
-                                copyBtn.classList.add('copied');
-                                
-                                setTimeout(function() {
-                                    copyBtn.innerHTML = '<i class="fa fa-copy"></i> 复制';
-                                    copyBtn.classList.remove('copied');
-                                }, 2000);
-                            }).catch(function(err) {
-                                console.error('复制失败:', err);
-                                copyBtn.innerHTML = '<i class="fa fa-exclamation-triangle"></i> 失败';
-                            });
-                        }
-                    });
-                    
-                    pre.style.position = 'relative';
-                    pre.appendChild(copyBtn);
-                }
-            });
-        }, 200);
+        // 调用全局函数初始化代码复制按钮
+        if (typeof window.initCopyButtons === 'function') {
+            console.log('调用window.initCopyButtons');
+            setTimeout(window.initCopyButtons, 200);
+        } else {
+            console.warn('window.initCopyButtons 函数不存在');
+        }
         
-        // 重新初始化图片灯箱
-        setTimeout(function() {
-            if (typeof jQuery !== 'undefined' && typeof lightbox !== 'undefined') {
-                var postContent = document.querySelector('.post-content');
-                if (postContent) {
-                    var images = postContent.querySelectorAll('img');
-                    var imageIndex = 0;
-                    
-                    images.forEach(function(img) {
-                        if (img.closest('a')) return;
-                        
-                        var imgSrc = img.getAttribute('src');
-                        if (!imgSrc) return;
-                        
-                        var link = document.createElement('a');
-                        link.href = imgSrc;
-                        link.setAttribute('data-lightbox', 'post-images');
-                        link.setAttribute('data-title', img.getAttribute('alt') || '图片 ' + (imageIndex + 1));
-                        
-                        img.parentNode.insertBefore(link, img);
-                        link.appendChild(img);
-                        
-                        imageIndex++;
-                    });
-                }
-            }
-        }, 300);
+        // 调用全局函数初始化图片灯箱
+        if (typeof window.initLightbox === 'function') {
+            console.log('调用window.initLightbox');
+            setTimeout(window.initLightbox, 250);
+        } else {
+            console.warn('window.initLightbox 函数不存在');
+        }
     };
     
-    // 监听pjax:ready事件
-    document.addEventListener('pjax:ready', function() {
-        window.reinitPageFunctions();
-    });
-    
-    // 初始页面加载完成后执行初始化
+    // 初始页面加载完成后执行初始化（移除pjax:ready事件监听，因为不是标准Pjax事件）
     if (document.readyState === 'complete') {
+        console.log('页面已加载完成，执行初始化');
         window.reinitPageFunctions();
     } else {
         window.addEventListener('load', function() {
+            console.log('页面load事件触发，执行初始化');
             window.reinitPageFunctions();
         });
     }
