@@ -1653,7 +1653,7 @@ pre[class*="language-"].line-numbers > code {
     padding: 0;
     display: flex;
     justify-content: center;
-    gap: 8px;
+    gap: 0;
 }
 
 .page-navigator li {

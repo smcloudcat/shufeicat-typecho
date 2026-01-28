@@ -193,7 +193,7 @@ $this->need('header.php');
     <?php endif; ?>
 
     <nav class="page-navigator" id="ajax-page-nav">
-        <?php $this->pageNav('<i class="fa fa-angle-left"></i> ' . _t('上一页'), _t('下一页') . ' <i class="fa fa-angle-right"></i>'); ?>
+        <?php $this->pageNav('<i class="fa fa-angle-left"></i> ' . _t('上一页'), _t('下一页') . ' <i class="fa fa-angle-right"></i>', 2); ?>
     </nav>
 </div><!-- end #main-->
 
