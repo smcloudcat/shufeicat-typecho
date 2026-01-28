@@ -270,24 +270,32 @@
         // 重新初始化 Turnstile 人机验证
         var turnstileContainer = document.getElementById('cf-turnstile');
         if (turnstileContainer) {
+            // 记录当前容器的 ID 或直接使用引用
+            var containerSelector = '#cf-turnstile';
+            
             // 等待 Turnstile 脚本加载完成
             var checkTurnstile = setInterval(function() {
                 if (typeof window.turnstile !== 'undefined') {
                     clearInterval(checkTurnstile);
+                    
+                    // 检查是否已经渲染过（通过检查容器内是否有 iframe）
+                    if (turnstileContainer.querySelector('iframe')) {
+                        console.log('Turnstile widget 已存在，跳过重新渲染');
+                        return;
+                    }
+
                     console.log('重新渲染 Turnstile widget');
-                    // 移除旧的 widget
-                    turnstileContainer.innerHTML = '';
-                    // 重新渲染
-                    window.turnstile.render('#cf-turnstile');
+                    try {
+                        window.turnstile.render(containerSelector);
+                    } catch (e) {
+                        console.warn('Turnstile 渲染失败:', e);
+                    }
                 }
             }, 100);
             
             // 超时保护，最多等待 5 秒
             setTimeout(function() {
                 clearInterval(checkTurnstile);
-                if (typeof window.turnstile === 'undefined') {
-                    console.warn('Turnstile 加载超时');
-                }
             }, 5000);
         }
     };

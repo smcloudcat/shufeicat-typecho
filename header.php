@@ -27,19 +27,25 @@
         'normalize' => $themeUrl . 'assets/css/normalize.css',
         'grid' => $themeUrl . 'assets/css/grid.css',
         'style' => $themeUrl . 'assets/css/style.css',
-        'fontawesome' => 'https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css',
-        'prism' => 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css',
-        'lightbox' => 'https://cdn.jsdelivr.net/npm/lightbox2@2.11.4/dist/css/lightbox.min.css'
+        'fontawesome' => $themeUrl . 'assets/vendor/font-awesome/css/font-awesome.min.css',
+        'prism' => $themeUrl . 'assets/vendor/prismjs/themes/prism-tomorrow.min.css',
+        'lightbox' => $themeUrl . 'assets/vendor/lightbox2/css/lightbox.min.css'
     ];
     
     // 根据配置调整资源路径
     if ($resourceMode === 'cdn') {
-        // 使用官方CDN（保持默认）
+        // 使用官方CDN
+        $cssUrls['fontawesome'] = 'https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css';
+        $cssUrls['prism'] = 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css';
+        $cssUrls['lightbox'] = 'https://cdn.jsdelivr.net/npm/lightbox2@2.11.4/dist/css/lightbox.min.css';
     } elseif ($resourceMode === 'custom' && $customCdn) {
         // 使用自建CDN
         $cssUrls['normalize'] = $customCdn . '/assets/css/normalize.css';
         $cssUrls['grid'] = $customCdn . '/assets/css/grid.css';
         $cssUrls['style'] = $customCdn . '/assets/css/style.css';
+        $cssUrls['fontawesome'] = $customCdn . '/assets/vendor/font-awesome/css/font-awesome.min.css';
+        $cssUrls['prism'] = $customCdn . '/assets/vendor/prismjs/themes/prism-tomorrow.min.css';
+        $cssUrls['lightbox'] = $customCdn . '/assets/vendor/lightbox2/css/lightbox.min.css';
     }
     // local 模式使用默认的 themeUrl 路径
     ?>

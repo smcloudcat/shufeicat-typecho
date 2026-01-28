@@ -68,24 +68,34 @@ $themeUrl = rtrim($this->options->themeUrl, '/') . '/';
 
 // JS 资源路径配置
 $jsUrls = [
-    'jquery' => 'https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js',
+    'jquery' => $themeUrl . 'assets/vendor/jquery/jquery.min.js',
     'main' => $themeUrl . 'assets/js/main.js',
     'ajax' => $themeUrl . 'assets/js/ajax.js',
     'pjax' => $themeUrl . 'assets/js/pjax.js',
-    'pjax_lib' => 'https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js',
-    'prism' => 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js',
-    'prismAutoloader' => 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/autoloader/prism-autoloader.min.js',
-    'lightbox' => 'https://cdn.jsdelivr.net/npm/lightbox2@2.11.4/dist/js/lightbox.min.js'
+    'pjax_lib' => $themeUrl . 'assets/vendor/pjax/pjax.min.js',
+    'prism' => $themeUrl . 'assets/vendor/prismjs/prism.js',
+    'prismAutoloader' => $themeUrl . 'assets/vendor/prismjs/plugins/autoloader/prism-autoloader.min.js',
+    'lightbox' => $themeUrl . 'assets/vendor/lightbox2/js/lightbox.min.js'
 ];
 
 // 根据配置调整资源路径
 if ($resourceMode === 'cdn') {
-    // 使用官方CDN（保持默认）
+    // 使用官方CDN
+    $jsUrls['jquery'] = 'https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js';
+    $jsUrls['pjax_lib'] = 'https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js';
+    $jsUrls['prism'] = 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js';
+    $jsUrls['prismAutoloader'] = 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/autoloader/prism-autoloader.min.js';
+    $jsUrls['lightbox'] = 'https://cdn.jsdelivr.net/npm/lightbox2@2.11.4/dist/js/lightbox.min.js';
 } elseif ($resourceMode === 'custom' && $customCdn) {
     // 使用自建CDN
+    $jsUrls['jquery'] = $customCdn . '/assets/vendor/jquery/jquery.min.js';
     $jsUrls['main'] = $customCdn . '/assets/js/main.js';
     $jsUrls['ajax'] = $customCdn . '/assets/js/ajax.js';
     $jsUrls['pjax'] = $customCdn . '/assets/js/pjax.js';
+    $jsUrls['pjax_lib'] = $customCdn . '/assets/vendor/pjax/pjax.min.js';
+    $jsUrls['prism'] = $customCdn . '/assets/vendor/prismjs/prism.js';
+    $jsUrls['prismAutoloader'] = $customCdn . '/assets/vendor/prismjs/plugins/autoloader/prism-autoloader.min.js';
+    $jsUrls['lightbox'] = $customCdn . '/assets/vendor/lightbox2/js/lightbox.min.js';
 }
 // local 模式使用默认的 themeUrl 路径
 ?>
@@ -96,6 +106,13 @@ if ($resourceMode === 'cdn') {
 <!-- Prism.js 代码高亮脚本 - 使用Autoloader自动加载依赖 -->
 <script src="<?php echo $jsUrls['prism']; ?>"></script>
 <script src="<?php echo $jsUrls['prismAutoloader']; ?>"></script>
+<?php if ($resourceMode !== 'cdn'): ?>
+<script>
+    if (window.Prism && Prism.plugins && Prism.plugins.autoloader) {
+        Prism.plugins.autoloader.languages_path = '<?php echo (strpos($jsUrls['prismAutoloader'], 'http') === 0) ? dirname($jsUrls['prismAutoloader']) . '/../../components/' : $themeUrl . 'assets/vendor/prismjs/components/'; ?>';
+    }
+</script>
+<?php endif; ?>
 
 <!-- Lightbox2 图片灯箱脚本 -->
 <script src="<?php echo $jsUrls['lightbox']; ?>"></script>

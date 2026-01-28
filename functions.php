@@ -14,7 +14,7 @@ if (!defined('__TYPECHO_ROOT_DIR__')) exit;
  */
 function shufei_check_theme_update()
 {
-    $currentVersion = '1.0.1';
+    $currentVersion = '1.0.2';
     $blogUrl = '';
     
     if (defined('__TYPECHO_SITE_URL__')) {
@@ -52,7 +52,7 @@ function shufei_check_theme_update()
  */
 function shufei_get_theme_version()
 {
-    return '1.0.1';
+    return '1.0.2';
 }
 
 /**
@@ -305,9 +305,9 @@ function themeConfig($form)
     $customCdn = new \Typecho\Widget\Helper\Form\Element\Text(
         'customCdn',
         null,
-        null,
+        'https://cdn.lwcat.cn/shufeicat',
         _t('自建CDN地址'),
-        _t('介绍：当选择"自建CDN"模式时，请填写CDN基础地址，不要以斜杠结尾')
+        _t('介绍：当选择"自建CDN"模式时，请填写CDN基础地址（例如https://cdn.lwcat.cn/shufeicat），不要以斜杠结尾<br>把"assets"整个文件夹打包即可（包括assets这个文件夹）')
     );
     $customCdn->setAttribute('class', 'typecho-option cat-group-resource');
     $form->addInput($customCdn->addRule('url', _t('请填写一个合法的URL地址')));
