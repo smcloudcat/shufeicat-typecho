@@ -243,6 +243,14 @@
     window.reinitPageFunctions = function() {
         console.log('开始重新初始化页面功能...');
         
+        // 调用全局函数初始化移动端菜单
+        if (typeof window.initMobileMenu === 'function') {
+            console.log('调用window.initMobileMenu');
+            setTimeout(window.initMobileMenu, 100);
+        } else {
+            console.warn('window.initMobileMenu 函数不存在');
+        }
+        
         // 调用全局函数初始化代码高亮
         if (typeof window.initPrismHighlight === 'function') {
             console.log('调用window.initPrismHighlight');
@@ -268,25 +276,32 @@
         }
         
         // 重新初始化 Turnstile 人机验证
+        // 由于使用了 render=explicit 模式，需要手动渲染
         var turnstileContainer = document.getElementById('cf-turnstile');
         if (turnstileContainer) {
-            // 记录当前容器的 ID 或直接使用引用
-            var containerSelector = '#cf-turnstile';
+            // 检查是否已经渲染过（通过检查容器内是否有 iframe）
+            if (turnstileContainer.querySelector('iframe')) {
+                console.log('Turnstile widget 已存在，跳过重新渲染');
+                return;
+            }
+            
+            // 清空容器内容
+            turnstileContainer.innerHTML = '';
             
             // 等待 Turnstile 脚本加载完成
             var checkTurnstile = setInterval(function() {
                 if (typeof window.turnstile !== 'undefined') {
                     clearInterval(checkTurnstile);
                     
-                    // 检查是否已经渲染过（通过检查容器内是否有 iframe）
+                    // 再次检查，防止在等待期间已经被渲染
                     if (turnstileContainer.querySelector('iframe')) {
                         console.log('Turnstile widget 已存在，跳过重新渲染');
                         return;
                     }
-
-                    console.log('重新渲染 Turnstile widget');
+                    
+                    console.log('手动渲染 Turnstile widget');
                     try {
-                        window.turnstile.render(containerSelector);
+                        window.turnstile.render('#cf-turnstile');
                     } catch (e) {
                         console.warn('Turnstile 渲染失败:', e);
                     }

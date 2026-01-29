@@ -2,8 +2,6 @@
  * ShuFeiCat 主题主脚本
  * 包含返回顶部、移动端菜单、代码高亮、代码复制、Ajax加载等功能
  */
-
-// 将初始化函数暴露到全局作用域，供pjax.js调用
 window.initPrismHighlight = function() {
     if (typeof Prism === 'undefined') {
         setTimeout(window.initPrismHighlight, 100);
@@ -115,6 +113,85 @@ window.initCopyButtons = function() {
     });
 };
 
+// 初始化移动端菜单功能 - 控制左侧边栏
+window.initMobileMenu = function() {
+    const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+    const leftSidebar = document.getElementById('left-sidebar');
+    const bodyShade = document.getElementById('body-shade');
+    
+    if (!mobileMenuBtn || !leftSidebar) {
+        console.warn('移动端菜单元素未找到');
+        return;
+    }
+    
+    // 移除旧的事件监听器（通过克隆节点）
+    const newBtn = mobileMenuBtn.cloneNode(true);
+    mobileMenuBtn.parentNode.replaceChild(newBtn, mobileMenuBtn);
+    
+    const newShade = bodyShade ? bodyShade.cloneNode(true) : null;
+    if (bodyShade && newShade) {
+        bodyShade.parentNode.replaceChild(newShade, bodyShade);
+    }
+    
+    // 重新获取元素引用
+    const btn = document.getElementById('mobile-menu-btn');
+    const sidebar = document.getElementById('left-sidebar');
+    const shade = document.getElementById('body-shade');
+    
+    if (btn && sidebar) {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            this.classList.toggle('active');
+            sidebar.classList.toggle('admin-side-show');
+            
+            if (shade) {
+                shade.classList.toggle('active');
+            }
+            
+            // 切换按钮图标
+            if (this.classList.contains('active')) {
+                this.innerHTML = '<span class="hamburger-line" style="transform: rotate(45deg) translate(5px, 5px);"></span><span class="hamburger-line" style="opacity: 0;"></span><span class="hamburger-line" style="transform: rotate(-45deg) translate(5px, -5px);"></span>';
+                this.title = '关闭菜单';
+            } else {
+                this.innerHTML = '<span class="hamburger-line"></span><span class="hamburger-line"></span><span class="hamburger-line"></span>';
+                this.title = '展开菜单';
+            }
+        });
+        
+        // 点击遮罩层关闭菜单
+        if (shade) {
+            shade.addEventListener('click', function() {
+                btn.classList.remove('active');
+                sidebar.classList.remove('admin-side-show');
+                this.classList.remove('active');
+                
+                // 恢复按钮图标
+                btn.innerHTML = '<span class="hamburger-line"></span><span class="hamburger-line"></span><span class="hamburger-line"></span>';
+                btn.title = '展开菜单';
+            });
+        }
+        
+        // 点击侧边栏链接后关闭菜单
+        const sidebarLinks = sidebar.querySelectorAll('a');
+        sidebarLinks.forEach(function(link) {
+            link.addEventListener('click', function() {
+                if (window.innerWidth <= 992) {
+                    btn.classList.remove('active');
+                    sidebar.classList.remove('admin-side-show');
+                    
+                    if (shade) {
+                        shade.classList.remove('active');
+                    }
+                    
+                    // 恢复按钮图标
+                    btn.innerHTML = '<span class="hamburger-line"></span><span class="hamburger-line"></span><span class="hamburger-line"></span>';
+                    btn.title = '展开菜单';
+                }
+            });
+        });
+    }
+};
+
 document.addEventListener('DOMContentLoaded', function() {
     // 返回顶部功能
     const backToTop = document.getElementById('back-to-top');
@@ -136,63 +213,8 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // 移动端菜单功能 - 控制左侧边栏
-    const mobileMenuBtn = document.getElementById('mobile-menu-btn');
-    const leftSidebar = document.getElementById('left-sidebar');
-    const bodyShade = document.getElementById('body-shade');
-    
-    if (mobileMenuBtn && leftSidebar) {
-        mobileMenuBtn.addEventListener('click', function(e) {
-            e.stopPropagation();
-            this.classList.toggle('active');
-            leftSidebar.classList.toggle('admin-side-show');
-            
-            if (bodyShade) {
-                bodyShade.classList.toggle('active');
-            }
-            
-            // 切换按钮图标
-            if (this.classList.contains('active')) {
-                this.innerHTML = '<span class="hamburger-line" style="transform: rotate(45deg) translate(5px, 5px);"></span><span class="hamburger-line" style="opacity: 0;"></span><span class="hamburger-line" style="transform: rotate(-45deg) translate(5px, -5px);"></span>';
-                this.title = '关闭菜单';
-            } else {
-                this.innerHTML = '<span class="hamburger-line"></span><span class="hamburger-line"></span><span class="hamburger-line"></span>';
-                this.title = '展开菜单';
-            }
-        });
-        
-        // 点击遮罩层关闭菜单
-        if (bodyShade) {
-            bodyShade.addEventListener('click', function() {
-                mobileMenuBtn.classList.remove('active');
-                leftSidebar.classList.remove('admin-side-show');
-                this.classList.remove('active');
-                
-                // 恢复按钮图标
-                mobileMenuBtn.innerHTML = '<span class="hamburger-line"></span><span class="hamburger-line"></span><span class="hamburger-line"></span>';
-                mobileMenuBtn.title = '展开菜单';
-            });
-        }
-        
-        // 点击侧边栏链接后关闭菜单
-        const sidebarLinks = leftSidebar.querySelectorAll('a');
-        sidebarLinks.forEach(function(link) {
-            link.addEventListener('click', function() {
-                if (window.innerWidth <= 992) {
-                    mobileMenuBtn.classList.remove('active');
-                    leftSidebar.classList.remove('admin-side-show');
-                    
-                    if (bodyShade) {
-                        bodyShade.classList.remove('active');
-                    }
-                    
-                    // 恢复按钮图标
-                    mobileMenuBtn.innerHTML = '<span class="hamburger-line"></span><span class="hamburger-line"></span><span class="hamburger-line"></span>';
-                    mobileMenuBtn.title = '展开菜单';
-                }
-            });
-        });
-    }
+    // 初始化移动端菜单
+    window.initMobileMenu();
     
     // 延迟执行以确保Prism完全加载
     setTimeout(window.initPrismHighlight, 200);
@@ -202,4 +224,44 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 延迟执行以确保 jQuery 和 Lightbox 完全加载
     setTimeout(window.initLightbox, 300);
+    
+    // 初始化 Turnstile 人机验证（使用 explicit 模式需要手动渲染）
+    var turnstileContainer = document.getElementById('cf-turnstile');
+    if (turnstileContainer) {
+        // 检查是否已经渲染过（通过检查容器内是否有 iframe）
+        if (turnstileContainer.querySelector('iframe')) {
+            console.log('Turnstile widget 已存在，跳过初始渲染');
+        } else if (typeof window.turnstile !== 'undefined') {
+            console.log('初始页面加载，手动渲染 Turnstile');
+            try {
+                window.turnstile.render('#cf-turnstile');
+            } catch (e) {
+                console.warn('Turnstile 初始渲染失败:', e);
+            }
+        } else {
+            // 如果 Turnstile 脚本还未加载，等待加载完成
+            var checkTurnstile = setInterval(function() {
+                if (typeof window.turnstile !== 'undefined') {
+                    clearInterval(checkTurnstile);
+                    
+                    // 再次检查，防止在等待期间已经被渲染
+                    if (turnstileContainer.querySelector('iframe')) {
+                        console.log('Turnstile widget 已存在，跳过初始渲染');
+                        return;
+                    }
+                    
+                    console.log('Turnstile 脚本加载完成，手动渲染');
+                    try {
+                        window.turnstile.render('#cf-turnstile');
+                    } catch (e) {
+                        console.warn('Turnstile 渲染失败:', e);
+                    }
+                }
+            }, 100);
+            
+            setTimeout(function() {
+                clearInterval(checkTurnstile);
+            }, 5000);
+        }
+    }
 });
