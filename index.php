@@ -4,7 +4,7 @@
  *
  * @package ShuFeiCat
  * @author YunCat
- * @version 1.0.2
+ * @version 1.1.0
  * @link https://lwcat.cn
  */
 
