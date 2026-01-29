@@ -227,19 +227,24 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 初始化 Turnstile 人机验证（使用 explicit 模式需要手动渲染）
     var turnstileContainer = document.getElementById('cf-turnstile');
+    var turnstileRendering = false;
+    
     if (turnstileContainer) {
         // 检查是否已经渲染过（通过检查容器内是否有 iframe）
         if (turnstileContainer.querySelector('iframe')) {
             console.log('Turnstile widget 已存在，跳过初始渲染');
-        } else if (typeof window.turnstile !== 'undefined') {
+        } else if (typeof window.turnstile !== 'undefined' && !turnstileRendering) {
             console.log('初始页面加载，手动渲染 Turnstile');
+            turnstileRendering = true;
             try {
                 window.turnstile.render('#cf-turnstile');
             } catch (e) {
                 console.warn('Turnstile 初始渲染失败:', e);
             }
-        } else {
+            turnstileRendering = false;
+        } else if (!turnstileRendering) {
             // 如果 Turnstile 脚本还未加载，等待加载完成
+            turnstileRendering = true;
             var checkTurnstile = setInterval(function() {
                 if (typeof window.turnstile !== 'undefined') {
                     clearInterval(checkTurnstile);
@@ -247,6 +252,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     // 再次检查，防止在等待期间已经被渲染
                     if (turnstileContainer.querySelector('iframe')) {
                         console.log('Turnstile widget 已存在，跳过初始渲染');
+                        turnstileRendering = false;
                         return;
                     }
                     
@@ -256,11 +262,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     } catch (e) {
                         console.warn('Turnstile 渲染失败:', e);
                     }
+                    turnstileRendering = false;
                 }
             }, 100);
             
             setTimeout(function() {
                 clearInterval(checkTurnstile);
+                turnstileRendering = false;
             }, 5000);
         }
     }

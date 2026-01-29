@@ -5,6 +5,8 @@
  */
 
 (function() {
+    // Turnstile 渲染锁，防止重复渲染
+    var turnstileRendering = false;
     // 检查是否开启了pjax加载
     var pjaxEnabled = window.pjaxEnabled || false;
     var pjaxLoadStyle = window.pjaxLoadStyle || 'progress';
@@ -278,12 +280,15 @@
         // 重新初始化 Turnstile 人机验证
         // 由于使用了 render=explicit 模式，需要手动渲染
         var turnstileContainer = document.getElementById('cf-turnstile');
-        if (turnstileContainer) {
+        if (turnstileContainer && !turnstileRendering) {
             // 检查是否已经渲染过（通过检查容器内是否有 iframe）
             if (turnstileContainer.querySelector('iframe')) {
                 console.log('Turnstile widget 已存在，跳过重新渲染');
                 return;
             }
+            
+            // 设置渲染锁，防止重复渲染
+            turnstileRendering = true;
             
             // 清空容器内容
             turnstileContainer.innerHTML = '';
@@ -296,6 +301,7 @@
                     // 再次检查，防止在等待期间已经被渲染
                     if (turnstileContainer.querySelector('iframe')) {
                         console.log('Turnstile widget 已存在，跳过重新渲染');
+                        turnstileRendering = false;
                         return;
                     }
                     
@@ -305,12 +311,14 @@
                     } catch (e) {
                         console.warn('Turnstile 渲染失败:', e);
                     }
+                    turnstileRendering = false;
                 }
             }, 100);
             
             // 超时保护，最多等待 5 秒
             setTimeout(function() {
                 clearInterval(checkTurnstile);
+                turnstileRendering = false;
             }, 5000);
         }
     };
