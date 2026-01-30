@@ -5,8 +5,6 @@
  */
 
 (function() {
-    // Turnstile 渲染锁，防止重复渲染
-    var turnstileRendering = false;
     // 检查是否开启了pjax加载
     var pjaxEnabled = window.pjaxEnabled || false;
     var pjaxLoadStyle = window.pjaxLoadStyle || 'progress';
@@ -187,7 +185,7 @@
             debug: false
         });
         
-        console.log('Pjax已初始化，样式：' + pjaxLoadStyle);
+        console.log('Pjax已初始化 [V1.0.2]，样式：' + pjaxLoadStyle);
         return pjax;
     }
     
@@ -230,106 +228,109 @@
     addAnimationStyles();
     initPjax();
     
-    // 监听页面切换完成 - 使用多个事件确保触发
+    // 监听页面切换完成
     document.addEventListener('pjax:complete', function() {
-        console.log('pjax:complete 事件触发');
-        window.reinitPageFunctions();
-    });
-    
-    document.addEventListener('pjax:success', function() {
-        console.log('pjax:success 事件触发');
+        console.log('pjax:complete 事件触发 [V1.0.2]');
         window.reinitPageFunctions();
     });
     
     // 重新初始化页面功能的函数
     window.reinitPageFunctions = function() {
-        console.log('开始重新初始化页面功能...');
+        // 防止在短时间内重复执行
+        if (window.reinitTimer) clearTimeout(window.reinitTimer);
         
-        // 调用全局函数初始化移动端菜单
-        if (typeof window.initMobileMenu === 'function') {
-            console.log('调用window.initMobileMenu');
-            setTimeout(window.initMobileMenu, 100);
-        } else {
-            console.warn('window.initMobileMenu 函数不存在');
-        }
-        
-        // 调用全局函数初始化代码高亮
-        if (typeof window.initPrismHighlight === 'function') {
-            console.log('调用window.initPrismHighlight');
-            setTimeout(window.initPrismHighlight, 150);
-        } else {
-            console.warn('window.initPrismHighlight 函数不存在');
-        }
-        
-        // 调用全局函数初始化代码复制按钮
-        if (typeof window.initCopyButtons === 'function') {
-            console.log('调用window.initCopyButtons');
-            setTimeout(window.initCopyButtons, 200);
-        } else {
-            console.warn('window.initCopyButtons 函数不存在');
-        }
-        
-        // 调用全局函数初始化图片灯箱
-        if (typeof window.initLightbox === 'function') {
-            console.log('调用window.initLightbox');
-            setTimeout(window.initLightbox, 250);
-        } else {
-            console.warn('window.initLightbox 函数不存在');
-        }
-        
-        // 重新初始化 Turnstile 人机验证
-        // 由于使用了 render=explicit 模式，需要手动渲染
-        var turnstileContainer = document.getElementById('cf-turnstile');
-        if (turnstileContainer && !turnstileRendering) {
-            // 检查是否已经渲染过（通过检查容器内是否有 iframe）
-            if (turnstileContainer.querySelector('iframe')) {
-                console.log('Turnstile widget 已存在，跳过重新渲染');
-                return;
+        window.reinitTimer = setTimeout(function() {
+            console.log('开始重新初始化页面功能 [V1.0.2]...');
+            
+            // 调用全局函数初始化移动端菜单
+            if (typeof window.initMobileMenu === 'function') {
+                window.initMobileMenu();
             }
             
-            // 设置渲染锁，防止重复渲染
-            turnstileRendering = true;
+            // 调用全局函数初始化代码高亮
+            if (typeof window.initPrismHighlight === 'function') {
+                window.initPrismHighlight();
+            }
             
-            // 清空容器内容
-            turnstileContainer.innerHTML = '';
+            // 调用全局函数初始化代码复制按钮
+            if (typeof window.initCopyButtons === 'function') {
+                window.initCopyButtons();
+            }
             
-            // 等待 Turnstile 脚本加载完成
-            var checkTurnstile = setInterval(function() {
-                if (typeof window.turnstile !== 'undefined') {
-                    clearInterval(checkTurnstile);
-                    
-                    // 再次检查，防止在等待期间已经被渲染
-                    if (turnstileContainer.querySelector('iframe')) {
-                        console.log('Turnstile widget 已存在，跳过重新渲染');
-                        turnstileRendering = false;
+            // 调用全局函数初始化图片灯箱
+            if (typeof window.initLightbox === 'function') {
+                window.initLightbox();
+            }
+            
+            // 重新初始化 Turnstile 人机验证
+            var turnstileContainer = document.getElementById('cf-turnstile');
+            if (turnstileContainer) {
+                // 彻底检查容器内容，如果已经有 iframe，绝对不要重复渲染
+                if (turnstileContainer.querySelector('iframe')) {
+                    console.log('[Turnstile] 容器内已存在 iframe，跳过渲染');
+                    return;
+                }
+
+                // 如果已经有渲染好的 widget 记录，尝试重置
+                if (turnstileContainer.getAttribute('data-turnstile-rendered')) {
+                    var widgetId = turnstileContainer.getAttribute('data-turnstile-widget-id');
+                    if (widgetId && typeof window.turnstile !== 'undefined') {
+                        console.log('[Turnstile] 重置现有 widget:', widgetId);
+                        window.turnstile.reset(widgetId);
                         return;
                     }
-                    
-                    console.log('手动渲染 Turnstile widget');
-                    try {
-                        window.turnstile.render('#cf-turnstile');
-                    } catch (e) {
-                        console.warn('Turnstile 渲染失败:', e);
-                    }
-                    turnstileRendering = false;
                 }
-            }, 100);
-            
-            // 超时保护，最多等待 5 秒
-            setTimeout(function() {
-                clearInterval(checkTurnstile);
-                turnstileRendering = false;
-            }, 5000);
-        }
+                
+                // 使用全局变量作为渲染锁，确保全局唯一
+                if (window.turnstileIsRendering) {
+                    console.log('[Turnstile] 正在渲染中，跳过此请求');
+                    return;
+                }
+                window.turnstileIsRendering = true;
+                
+                var checkTurnstile = setInterval(function() {
+                    if (typeof window.turnstile !== 'undefined') {
+                        clearInterval(checkTurnstile);
+                        
+                        // 渲染前的最后一次容器检查
+                        if (turnstileContainer.querySelector('iframe')) {
+                            console.log('[Turnstile] 渲染前检查发现容器已占用，取消');
+                            window.turnstileIsRendering = false;
+                            return;
+                        }
+                        
+                        try {
+                            console.log('[Turnstile] 执行显式渲染');
+                            var widgetId = window.turnstile.render('#cf-turnstile');
+                            if (widgetId) {
+                                turnstileContainer.setAttribute('data-turnstile-rendered', 'true');
+                                turnstileContainer.setAttribute('data-turnstile-widget-id', widgetId);
+                            }
+                        } catch (e) {
+                            console.warn('[Turnstile] 渲染出错:', e);
+                        }
+                        window.turnstileIsRendering = false;
+                    }
+                }, 50);
+                
+                setTimeout(function() {
+                    if (window.turnstileIsRendering) {
+                        clearInterval(checkTurnstile);
+                        window.turnstileIsRendering = false;
+                        console.log('[Turnstile] 渲染超时');
+                    }
+                }, 3000);
+            }
+        }, 50); // 50ms 缓冲
     };
     
-    // 初始页面加载完成后执行初始化（移除pjax:ready事件监听，因为不是标准Pjax事件）
+    // 初始页面加载逻辑
     if (document.readyState === 'complete') {
-        console.log('页面已加载完成，执行初始化');
+        console.log('页面已加载完成 [V1.0.2]，执行初始化');
         window.reinitPageFunctions();
     } else {
         window.addEventListener('load', function() {
-            console.log('页面load事件触发，执行初始化');
+            console.log('页面load事件触发 [V1.0.2]，执行初始化');
             window.reinitPageFunctions();
         });
     }

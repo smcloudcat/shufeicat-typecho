@@ -67,11 +67,13 @@ $customCdn = !empty($this->options->customCdn) ? rtrim($this->options->customCdn
 $themeUrl = rtrim($this->options->themeUrl, '/') . '/';
 
 // JS 资源路径配置
+// 添加版本号以防止缓存问题
+$version = '1.0.2';
 $jsUrls = [
     'jquery' => $themeUrl . 'assets/vendor/jquery/jquery.min.js',
-    'main' => $themeUrl . 'assets/js/main.js',
-    'ajax' => $themeUrl . 'assets/js/ajax.js',
-    'pjax' => $themeUrl . 'assets/js/pjax.js',
+    'main' => $themeUrl . 'assets/js/main.js?v=' . $version,
+    'ajax' => $themeUrl . 'assets/js/ajax.js?v=' . $version,
+    'pjax' => $themeUrl . 'assets/js/pjax.js?v=' . $version,
     'pjax_lib' => $themeUrl . 'assets/vendor/pjax/pjax.min.js',
     'prism' => $themeUrl . 'assets/vendor/prismjs/prism.js',
     'prismAutoloader' => $themeUrl . 'assets/vendor/prismjs/plugins/autoloader/prism-autoloader.min.js',
@@ -89,9 +91,9 @@ if ($resourceMode === 'cdn') {
 } elseif ($resourceMode === 'custom' && $customCdn) {
     // 使用自建CDN
     $jsUrls['jquery'] = $customCdn . '/assets/vendor/jquery/jquery.min.js';
-    $jsUrls['main'] = $customCdn . '/assets/js/main.js';
-    $jsUrls['ajax'] = $customCdn . '/assets/js/ajax.js';
-    $jsUrls['pjax'] = $customCdn . '/assets/js/pjax.js';
+    $jsUrls['main'] = $customCdn . '/assets/js/main.js?v=' . $version;
+    $jsUrls['ajax'] = $customCdn . '/assets/js/ajax.js?v=' . $version;
+    $jsUrls['pjax'] = $customCdn . '/assets/js/pjax.js?v=' . $version;
     $jsUrls['pjax_lib'] = $customCdn . '/assets/vendor/pjax/pjax.min.js';
     $jsUrls['prism'] = $customCdn . '/assets/vendor/prismjs/prism.js';
     $jsUrls['prismAutoloader'] = $customCdn . '/assets/vendor/prismjs/plugins/autoloader/prism-autoloader.min.js';
@@ -117,15 +119,15 @@ if ($resourceMode === 'cdn') {
 <!-- Lightbox2 图片灯箱脚本 -->
 <script src="<?php echo $jsUrls['lightbox']; ?>"></script>
 
-<!-- 主题主脚本 -->
-<script src="<?php echo $jsUrls['main']; ?>"></script>
-
 <!-- Pjax加载配置 -->
 <script>
 window.pjaxEnabled = <?php echo (!empty($this->options->pjaxLoad) && $this->options->pjaxLoad === 'on') ? 'true' : 'false'; ?>;
 window.pjaxLoadStyle = '<?php echo !empty($this->options->pjaxLoadStyle) ? $this->options->pjaxLoadStyle : 'progress'; ?>';
 window.pjaxTimeout = <?php echo !empty($this->options->pjaxTimeout) ? intval($this->options->pjaxTimeout) : 10000; ?>;
 </script>
+
+<!-- 主题主脚本 -->
+<script src="<?php echo $jsUrls['main']; ?>"></script>
 
 <!-- Pjax库 -->
 <script src="<?php echo $jsUrls['pjax_lib']; ?>"></script>
