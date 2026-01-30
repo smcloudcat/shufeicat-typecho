@@ -85,7 +85,7 @@ img {
  * ============================================ */
 .left-sidebar {
     position: fixed;
-    left: 100px; /* 与头部导航栏左侧对齐 */
+    left: 150px; /* 与头部导航栏左侧对齐 */
     top: 70px; /* 紧贴头部导航栏 */
     bottom: 0;
     width: 180px;
@@ -209,14 +209,14 @@ img {
 
 /* 主内容区域调整 */
 #main {
-    margin-left: 180px; /* 100px左侧边距 + 180px侧边栏宽度 + 20px间距 */
-    margin-right: 350px; /* 100px右侧边距 + 220px侧边栏宽度 + 30px layout-wrapper padding */
+    margin-left: 190px; 
+    margin-right: 240px; 
 }
 
 /* 右侧边栏样式 */
 .right-sidebar {
     position: absolute;
-    right: 100px; /* 与头部导航栏右侧对齐 */
+    right: 150px; /* 与头部导航栏右侧对齐 */
     top: 100px; /* 70px头部 + 30px间距 */
     width: 220px;
     padding: 15px;
@@ -359,8 +359,8 @@ img {
     /* 布局定位：固定在顶部，左右各留30px与侧边栏对齐 */
     position: fixed;
     top: 0;
-    left: 100px;
-    right: 100px;
+    left: 150px;
+    right: 150px;
     height: 70px;
     
     /* 样式：干净的渐变背景 */
@@ -1633,7 +1633,7 @@ pre[class*="language-"].line-numbers > code {
     color: var(--text-secondary);
     font-size: 13px;
     margin-top: 40px;
-    max-width: 1300px;
+    max-width: 1200px;
     margin-left: auto;
     margin-right: auto;
     padding-left: 30px;
