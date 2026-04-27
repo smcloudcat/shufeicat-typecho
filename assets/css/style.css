@@ -219,6 +219,7 @@ img {
     right: 150px; /* 与头部导航栏右侧对齐 */
     top: 100px; /* 70px头部 + 30px间距 */
     width: 220px;
+    box-sizing: border-box;
     padding: 15px;
     max-height: calc(100vh - 100px);
     overflow-y: auto;
@@ -2215,6 +2216,42 @@ pre[class*="language-"].line-numbers > code {
     .page-navigator a,
     .page-navigator span {
         padding: 6px 12px;
+    }
+}
+
+/* ============================================
+ * 桌面端布局加固 - 确保头部与两侧侧边栏对齐
+ * ============================================ */
+@media (min-width: 993px) {
+    :root {
+        --sidebar-offset: 150px;
+    }
+    
+    /* 头部导航栏：固定在顶部，左右各留150px与侧边栏对齐 */
+    #header {
+        left: var(--sidebar-offset) !important;
+        right: var(--sidebar-offset) !important;
+        width: auto !important;               /* 由 left/right 自动计算宽度 */
+        margin: 0 !important;
+        position: fixed !important;
+    }
+    
+    /* 左侧边栏：紧贴头部下方，左侧对齐 */
+    .left-sidebar {
+        left: var(--sidebar-offset) !important;
+        top: 70px !important;                 /* 头部高度 */
+        position: fixed !important;
+    }
+    
+    /* 右侧边栏：右侧对齐 */
+    .right-sidebar {
+        right: var(--sidebar-offset) !important;
+        position: absolute !important;
+    }
+    
+    /* 主内容区右侧外边距相应调整，防止与右侧栏重叠 */
+    #main {
+        margin-right: 250px;                   /* 220 + 30 间隔，可根据需要微调 */
     }
 }
 
