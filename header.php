@@ -69,6 +69,10 @@
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
     <?php endif; ?>
     
+    <script>
+    window.themeUrl = '<?php echo rtrim($this->options->themeUrl, '/') . '/'; ?>';
+    </script>
+    
     <?php $this->header(); ?>
 </head>
 <body>

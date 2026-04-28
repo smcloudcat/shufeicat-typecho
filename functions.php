@@ -98,6 +98,7 @@ function themeConfig($form)
                     '<li data-id="cat-pjax">Pjax无刷新</li>' .
                     '<li data-id="cat-resource">资源加载</li>' .
                     '<li data-id="cat-article">文章缩略图</li>' .
+                    '<li data-id="cat-stats">文章统计</li>' .
                     '<li data-id="cat-mail">评论邮件通知</li>' .
                     '<li data-id="cat-ai">AI 评论审核</li>' .
                     '<li data-id="cat-verify">人机验证</li>' .
@@ -116,7 +117,7 @@ function themeConfig($form)
             'var c = document.getElementById("cat-tpl").querySelector(".cat-config-container");' .
             'var pWrap = c.querySelector("#cat-panes");' .
             'f.insertBefore(c, f.firstChild);' .
-            'var ids = ["cat-basic", "cat-avatar", "cat-pjax", "cat-resource", "cat-article", "cat-mail", "cat-ai", "cat-verify"];' .
+            'var ids = ["cat-basic", "cat-avatar", "cat-pjax", "cat-resource", "cat-article", "cat-stats", "cat-mail", "cat-ai", "cat-verify"];' .
             'ids.forEach(function(id) {' .
                 'var p = document.createElement("div");' .
                 'p.id = id; p.className = "cat-pane" + (id === "cat-basic" ? " active" : "");' .
@@ -321,6 +322,46 @@ function themeConfig($form)
     );
     $thumbnailSource->setAttribute('class', 'typecho-option cat-group-article');
     $form->addInput($thumbnailSource);
+
+    $statsEnabled = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'statsEnabled',
+        array('on' => _t('开启'), 'off' => _t('关闭')),
+        'on',
+        _t('文章统计功能'),
+        _t('介绍：开启后，将启用文章浏览量和点赞功能')
+    );
+    $statsEnabled->setAttribute('class', 'typecho-option cat-group-stats');
+    $form->addInput($statsEnabled);
+
+    $rankingEnabled = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'rankingEnabled',
+        array('on' => _t('开启'), 'off' => _t('关闭')),
+        'on',
+        _t('排行榜功能'),
+        _t('介绍：开启后，将在侧边栏显示文章排行榜')
+    );
+    $rankingEnabled->setAttribute('class', 'typecho-option cat-group-stats');
+    $form->addInput($rankingEnabled);
+
+    $rankingType = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'rankingType',
+        array('views' => _t('按浏览量'), 'likes' => _t('按点赞数')),
+        'views',
+        _t('排行榜排序方式'),
+        _t('介绍：选择侧边栏排行榜的排序依据')
+    );
+    $rankingType->setAttribute('class', 'typecho-option cat-group-stats');
+    $form->addInput($rankingType);
+
+    $rankingLimit = new \Typecho\Widget\Helper\Form\Element\Text(
+        'rankingLimit',
+        null,
+        '5',
+        _t('排行榜显示数量'),
+        _t('介绍：设置侧边栏排行榜显示的文章数量，默认为5篇')
+    );
+    $rankingLimit->setAttribute('class', 'typecho-option cat-group-stats');
+    $form->addInput($rankingLimit);
 
     $remoteImages = new \Typecho\Widget\Helper\Form\Element\Textarea(
         'remoteImages',
@@ -572,6 +613,7 @@ function themeFields($layout)
 /* 加载核心逻辑库 */
 @require_once dirname(__FILE__) . '/core/mail.php';
 @require_once dirname(__FILE__) . '/core/ai-moderation.php';
+@require_once dirname(__FILE__) . '/core/post-stats.php';
 
 /**
  * 核心逻辑钩子：评论安全性校验（包含AI审核）

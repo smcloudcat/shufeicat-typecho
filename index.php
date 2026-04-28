@@ -262,6 +262,37 @@ $this->need('header.php');
     </section>
     <?php endif; ?>
     
+    <!-- 文章排行榜 -->
+    <?php if (!empty($this->options->rankingEnabled) && $this->options->rankingEnabled === 'on'): ?>
+    <?php
+    $rankingType = !empty($this->options->rankingType) ? $this->options->rankingType : 'views';
+    $rankingLimit = !empty($this->options->rankingLimit) ? intval($this->options->rankingLimit) : 5;
+    $rankingPosts = shufei_get_ranking_posts($rankingType, $rankingLimit);
+    $rankingTitle = ($rankingType === 'likes') ? '点赞排行榜' : '阅读排行榜';
+    $rankingIcon = ($rankingType === 'likes') ? 'fa-thumbs-up' : 'fa-fire';
+    ?>
+    <section class="widget ranking-widget">
+        <h3 class="widget-title"><i class="fa <?php echo $rankingIcon; ?>"></i><?php _e($rankingTitle); ?></h3>
+        <ul class="widget-list ranking-list">
+            <?php foreach ($rankingPosts as $index => $post): ?>
+            <li class="ranking-item">
+                <a href="<?php echo Typecho_Common::url('archives/' . $post['cid'] . '/', $this->options->index); ?>">
+                    <span class="ranking-num ranking-num-<?php echo $index + 1; ?>"><?php echo $index + 1; ?></span>
+                    <span class="ranking-title"><?php echo htmlspecialchars($post['title']); ?></span>
+                    <span class="ranking-count">
+                        <?php if ($rankingType === 'likes'): ?>
+                        <i class="fa fa-thumbs-up"></i> <?php echo $post['likes']; ?>
+                        <?php else: ?>
+                        <i class="fa fa-eye"></i> <?php echo $post['views']; ?>
+                        <?php endif; ?>
+                    </span>
+                </a>
+            </li>
+            <?php endforeach; ?>
+        </ul>
+    </section>
+    <?php endif; ?>
+    
     <!-- 站点统计 -->
     <section class="widget">
         <h3 class="widget-title"><i class="fa fa-bar-chart"></i><?php _e('站点统计'); ?></h3>

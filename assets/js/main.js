@@ -192,6 +192,109 @@ window.initMobileMenu = function() {
     }
 };
 
+/**
+ * 文章点赞功能
+ */
+window.initPostLike = function() {
+    var likeBtn = document.querySelector('.post-like-btn');
+    if (!likeBtn) return;
+
+    likeBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (this.classList.contains('liked') || this.disabled) {
+            return;
+        }
+
+        var cid = this.getAttribute('data-cid');
+        if (!cid) return;
+
+        var btn = this;
+        var likeText = btn.querySelector('.like-text');
+
+        // 获取当前主题URL用于ajax请求
+        var themeUrl = window.themeUrl || '';
+
+        // 使用 XMLHttpRequest 替代 fetch 以兼容更多浏览器
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', themeUrl + 'core/ajax-handler.php?action=like', true);
+        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === 4) {
+                if (xhr.status === 200) {
+                    try {
+                        var data = JSON.parse(xhr.responseText);
+                        if (data.success) {
+                            btn.classList.add('liked');
+                            btn.disabled = true;
+                            if (likeText) likeText.textContent = '已点赞';
+
+                            // 更新点赞盒子中的点赞数
+                            var metaLikes = document.querySelector('.post-likes-count[data-cid="' + cid + '"]');
+                            if (metaLikes) metaLikes.textContent = data.likes;
+                        } else {
+                            alert(data.message || '点赞失败');
+                        }
+                    } catch (err) {
+                        console.error('解析响应失败:', err);
+                    }
+                } else {
+                    console.error('请求失败，状态码:', xhr.status);
+                }
+            }
+        };
+
+        xhr.onerror = function() {
+            console.error('网络请求失败');
+        };
+
+        xhr.send('cid=' + encodeURIComponent(cid));
+    });
+};
+
+/**
+ * 文章浏览量统计
+ */
+window.initPostViews = function() {
+    var viewsCount = document.querySelector('.post-views-count');
+    if (!viewsCount) return;
+
+    var cid = viewsCount.getAttribute('data-cid');
+    if (!cid) return;
+
+    var themeUrl = window.themeUrl || '';
+
+    // 使用延迟确保页面完全加载后再统计
+    setTimeout(function() {
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', themeUrl + 'core/ajax-handler.php?action=view', true);
+        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === 4 && xhr.status === 200) {
+                try {
+                    var data = JSON.parse(xhr.responseText);
+                    if (data.success) {
+                        viewsCount.textContent = data.views;
+                    }
+                } catch (err) {
+                    console.error('解析浏览量响应失败:', err);
+                }
+            }
+        };
+
+        xhr.onerror = function() {
+            console.error('浏览量统计网络请求失败');
+        };
+
+        xhr.send('cid=' + encodeURIComponent(cid));
+    }, 1500);
+};
+
 document.addEventListener('DOMContentLoaded', function() {
     // 返回顶部功能
     const backToTop = document.getElementById('back-to-top');
@@ -224,5 +327,11 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 延迟执行以确保 jQuery 和 Lightbox 完全加载
     setTimeout(window.initLightbox, 300);
+    
+    // 初始化点赞功能
+    window.initPostLike();
+    
+    // 初始化浏览量统计
+    window.initPostViews();
     
 });
