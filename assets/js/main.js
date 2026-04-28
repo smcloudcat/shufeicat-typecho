@@ -118,76 +118,107 @@ window.initMobileMenu = function() {
     const mobileMenuBtn = document.getElementById('mobile-menu-btn');
     const leftSidebar = document.getElementById('left-sidebar');
     const bodyShade = document.getElementById('body-shade');
-    
+
     if (!mobileMenuBtn || !leftSidebar) {
         console.warn('移动端菜单元素未找到');
         return;
     }
-    
+
     // 移除旧的事件监听器（通过克隆节点）
     const newBtn = mobileMenuBtn.cloneNode(true);
     mobileMenuBtn.parentNode.replaceChild(newBtn, mobileMenuBtn);
-    
+
     const newShade = bodyShade ? bodyShade.cloneNode(true) : null;
     if (bodyShade && newShade) {
         bodyShade.parentNode.replaceChild(newShade, bodyShade);
     }
-    
+
     // 重新获取元素引用
     const btn = document.getElementById('mobile-menu-btn');
     const sidebar = document.getElementById('left-sidebar');
     const shade = document.getElementById('body-shade');
-    
+
+    // 关闭菜单的通用函数
+    var closeSidebar = function() {
+        if (btn) {
+            btn.classList.remove('active');
+            btn.innerHTML = '<span class="hamburger-line"></span><span class="hamburger-line"></span><span class="hamburger-line"></span>';
+            btn.title = '展开菜单';
+        }
+        if (sidebar) {
+            sidebar.classList.remove('admin-side-show');
+        }
+        if (shade) {
+            shade.classList.remove('active');
+        }
+    };
+
+    // 打开菜单的通用函数
+    var openSidebar = function() {
+        if (btn) {
+            btn.classList.add('active');
+            btn.innerHTML = '<span class="hamburger-line" style="transform: rotate(45deg) translate(5px, 5px);"></span><span class="hamburger-line" style="opacity: 0;"></span><span class="hamburger-line" style="transform: rotate(-45deg) translate(5px, -5px);"></span>';
+            btn.title = '关闭菜单';
+        }
+        if (sidebar) {
+            sidebar.classList.add('admin-side-show');
+        }
+        if (shade) {
+            shade.classList.add('active');
+        }
+    };
+
     if (btn && sidebar) {
         btn.addEventListener('click', function(e) {
             e.stopPropagation();
-            this.classList.toggle('active');
-            sidebar.classList.toggle('admin-side-show');
-            
-            if (shade) {
-                shade.classList.toggle('active');
-            }
-            
-            // 切换按钮图标
-            if (this.classList.contains('active')) {
-                this.innerHTML = '<span class="hamburger-line" style="transform: rotate(45deg) translate(5px, 5px);"></span><span class="hamburger-line" style="opacity: 0;"></span><span class="hamburger-line" style="transform: rotate(-45deg) translate(5px, -5px);"></span>';
-                this.title = '关闭菜单';
+            var isOpen = sidebar.classList.contains('admin-side-show');
+            if (isOpen) {
+                closeSidebar();
             } else {
-                this.innerHTML = '<span class="hamburger-line"></span><span class="hamburger-line"></span><span class="hamburger-line"></span>';
-                this.title = '展开菜单';
+                openSidebar();
             }
         });
-        
+
         // 点击遮罩层关闭菜单
         if (shade) {
-            shade.addEventListener('click', function() {
-                btn.classList.remove('active');
-                sidebar.classList.remove('admin-side-show');
-                this.classList.remove('active');
-                
-                // 恢复按钮图标
-                btn.innerHTML = '<span class="hamburger-line"></span><span class="hamburger-line"></span><span class="hamburger-line"></span>';
-                btn.title = '展开菜单';
+            shade.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                closeSidebar();
             });
+            // 触摸事件也绑定
+            shade.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                closeSidebar();
+            }, { passive: false });
         }
-        
+
         // 点击侧边栏链接后关闭菜单
-        const sidebarLinks = sidebar.querySelectorAll('a');
+        var sidebarLinks = sidebar.querySelectorAll('a');
         sidebarLinks.forEach(function(link) {
             link.addEventListener('click', function() {
                 if (window.innerWidth <= 992) {
-                    btn.classList.remove('active');
-                    sidebar.classList.remove('admin-side-show');
-                    
-                    if (shade) {
-                        shade.classList.remove('active');
-                    }
-                    
-                    // 恢复按钮图标
-                    btn.innerHTML = '<span class="hamburger-line"></span><span class="hamburger-line"></span><span class="hamburger-line"></span>';
-                    btn.title = '展开菜单';
+                    closeSidebar();
                 }
             });
+        });
+
+        // 点击侧边栏外部关闭菜单（作为后备方案）
+        document.addEventListener('click', function(e) {
+            if (window.innerWidth <= 992 && sidebar.classList.contains('admin-side-show')) {
+                var isClickInsideSidebar = sidebar.contains(e.target);
+                var isClickOnBtn = btn.contains(e.target);
+                if (!isClickInsideSidebar && !isClickOnBtn) {
+                    closeSidebar();
+                }
+            }
+        });
+
+        // ESC键关闭菜单
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && sidebar.classList.contains('admin-side-show')) {
+                closeSidebar();
+            }
         });
     }
 };
