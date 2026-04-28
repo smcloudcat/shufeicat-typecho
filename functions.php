@@ -608,6 +608,8 @@ function themeFields($layout)
     $layout->addItem($thumbnail);
     $excerpt = new \Typecho\Widget\Helper\Form\Element\Text('excerpt', NULL, NULL, _t('文章简介'), _t('留空则自动截取文章内容'));
     $layout->addItem($excerpt);
+    $sticky = new \Typecho\Widget\Helper\Form\Element\Radio('sticky', array('0' => _t('普通文章'), '1' => _t('置顶文章')), '0', _t('文章置顶'), _t('选择置顶后，该文章将在首页顶部显示'));
+    $layout->addItem($sticky);
 }
 
 /* 加载核心逻辑库 */

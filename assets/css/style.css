@@ -2695,6 +2695,70 @@ pre[class*="language-"].line-numbers > code {
 }
 
 /* ============================================
+ * 置顶文章样式
+ * ============================================ */
+.post-sticky {
+    border: 2px solid #ff6b6b;
+    box-shadow: 0 5px 20px rgba(255, 107, 107, 0.15);
+}
+
+.post-sticky:hover {
+    box-shadow: 0 8px 30px rgba(255, 107, 107, 0.25);
+}
+
+.sticky-badge {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    z-index: 10;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 14px;
+    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a5a 100%);
+    color: #fff;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    box-shadow: 0 3px 10px rgba(255, 107, 107, 0.3);
+    animation: sticky-badge-pulse 2s ease-in-out infinite;
+}
+
+.sticky-badge i {
+    font-size: 13px;
+}
+
+@keyframes sticky-badge-pulse {
+    0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 3px 10px rgba(255, 107, 107, 0.3);
+    }
+    50% {
+        transform: scale(1.05);
+        box-shadow: 0 5px 15px rgba(255, 107, 107, 0.4);
+    }
+}
+
+/* 有背景图的置顶文章 */
+.post.has-thumbnail.post-sticky::before {
+    background: linear-gradient(to bottom, rgba(255, 107, 107, 0.15) 0%, rgba(0, 0, 0, 0.6) 100%);
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+    .sticky-badge {
+        top: 10px;
+        right: 10px;
+        padding: 5px 10px;
+        font-size: 11px;
+    }
+    
+    .sticky-badge i {
+        font-size: 11px;
+    }
+}
+
+/* ============================================
  * 文章点赞和浏览量样式
  * ============================================ */
 .post-actions {
