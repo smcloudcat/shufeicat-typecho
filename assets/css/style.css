@@ -3128,6 +3128,8 @@ pre[class*="language-"].line-numbers > code {
     padding: 10px 0;
     color: var(--text-color);
     transition: all 0.3s ease;
+    overflow: hidden;
+    min-width: 0;
 }
 
 .ranking-item a:hover {
@@ -3174,6 +3176,7 @@ pre[class*="language-"].line-numbers > code {
     text-overflow: ellipsis;
     white-space: nowrap;
     font-size: 13px;
+    min-width: 0;
 }
 
 .ranking-count {

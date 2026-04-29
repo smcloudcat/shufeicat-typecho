@@ -171,7 +171,7 @@ function shufei_get_ranking_posts($type = 'views', $limit = 5)
     
     $orderBy = ($type === 'likes') ? 'likes' : 'views';
     
-    $sql = "SELECT c.cid, c.title, c.slug, c.created, s.views, s.likes 
+    $sql = "SELECT c.cid, c.title, c.slug, c.created, c.type, s.views, s.likes 
         FROM `{$prefix}contents` c
         INNER JOIN `{$prefix}post_stats` s ON c.cid = s.cid
         WHERE c.type = 'post' AND c.status = 'publish'
@@ -180,15 +180,52 @@ function shufei_get_ranking_posts($type = 'views', $limit = 5)
     
     $posts = $db->fetchAll($sql);
     
-    // 如果没有统计数据，返回最新的文章
     if (empty($posts)) {
-        $sql = "SELECT cid, title, slug, created, 0 as views, 0 as likes 
+        $sql = "SELECT cid, title, slug, created, type, 0 as views, 0 as likes 
             FROM `{$prefix}contents`
             WHERE type = 'post' AND status = 'publish'
             ORDER BY created DESC
             LIMIT {$limit}";
         $posts = $db->fetchAll($sql);
     }
+    
+    foreach ($posts as &$post) {
+        $date = new \Typecho\Date($post['created']);
+        $post['year'] = $date->year;
+        $post['month'] = $date->month;
+        $post['day'] = $date->day;
+        $post['slug'] = urlencode($post['slug']);
+        
+        $categories = $db->fetchAll($db->select()->from($prefix . 'metas')
+            ->join($prefix . 'relationships', $prefix . 'relationships.mid = ' . $prefix . 'metas.mid')
+            ->where($prefix . 'relationships.cid = ?', $post['cid'])
+            ->where($prefix . 'metas.type = ?', 'category')
+            ->order($prefix . 'metas.order', \Typecho\Db::SORT_ASC));
+        
+        if (!empty($categories)) {
+            $post['category'] = urlencode($categories[0]['slug']);
+            
+            $parentSlugs = [];
+            $parentId = $categories[0]['parent'] ?? 0;
+            while ($parentId > 0) {
+                $parent = $db->fetchRow($db->select('mid', 'slug', 'parent')->from($prefix . 'metas')
+                    ->where('mid = ?', $parentId));
+                if ($parent) {
+                    $parentSlugs[] = urlencode($parent['slug']);
+                    $parentId = $parent['parent'];
+                } else {
+                    break;
+                }
+            }
+            $parentSlugs = array_reverse($parentSlugs);
+            $parentSlugs[] = urlencode($categories[0]['slug']);
+            $post['directory'] = implode('/', $parentSlugs);
+        } else {
+            $post['category'] = '';
+            $post['directory'] = '';
+        }
+    }
+    unset($post);
     
     return $posts;
 }

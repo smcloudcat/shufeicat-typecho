@@ -301,7 +301,7 @@ $this->need('header.php');
         <ul class="widget-list ranking-list">
             <?php foreach ($rankingPosts as $index => $post): ?>
             <li class="ranking-item">
-                <a href="<?php echo Typecho_Common::url('archives/' . $post['cid'] . '/', $this->options->index); ?>">
+                <a href="<?php echo \Typecho\Router::url('post', $post, $this->options->index); ?>">
                     <span class="ranking-num ranking-num-<?php echo $index + 1; ?>"><?php echo $index + 1; ?></span>
                     <span class="ranking-title"><?php echo htmlspecialchars($post['title']); ?></span>
                     <span class="ranking-count">
