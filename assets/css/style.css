@@ -371,9 +371,7 @@ img {
     top: 100px; /* 70px头部 + 30px间距 */
     width: 220px;
     box-sizing: border-box;
-    padding: 15px;
-    max-height: calc(100vh - 100px);
-    overflow-y: auto;
+    padding: 15px 0 15px 15px;
 }
 
 .right-sidebar .widget {
@@ -2487,11 +2485,11 @@ pre[class*="language-"].line-numbers > code {
 
     /* 主内容区：基于侧边栏宽度留出对称间隙 */
     #main {
-        margin-left: 220px;
-        margin-right: 240px;
+        margin-left: 235px;
+        margin-right: 235px;
         padding-left: 0;
         padding-right: 0;
-        width: calc(100% - 460px);
+        width: calc(100% - 470px);
         flex: none;
         max-width: none;
     }
