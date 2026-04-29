@@ -52,7 +52,7 @@ function shufei_check_theme_update()
  */
 function shufei_get_theme_version()
 {
-    return '1.1.2';
+    return '1.2.0';
 }
 
 /**
