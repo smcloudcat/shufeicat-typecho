@@ -118,10 +118,16 @@
                         <i class="fa fa-comments-o"></i>
                         <a itemprop="discussionUrl" href="<?php $this->permalink() ?>#comments"><?php $this->commentsNum(_t('暂无评论'), _t('1 条评论'), _t('%d 条评论')); ?></a>
                     </li>
+                    <?php if (!empty($this->options->statsEnabled) && $this->options->statsEnabled === 'on'): ?>
                     <li>
                         <i class="fa fa-eye"></i>
-                        <?php _e('阅读'); ?>: <?php $this->views(); ?>
+                        <?php _e('阅读'); ?>: <span class="post-views-count" data-cid="<?php echo $this->cid; ?>"><?php echo shufei_get_views($this->cid); ?></span>
                     </li>
+                    <li>
+                        <i class="fa fa-thumbs-o-up"></i>
+                        <?php _e('点赞'); ?>: <span class="post-likes-count" data-cid="<?php echo $this->cid; ?>"><?php echo shufei_get_likes($this->cid); ?></span>
+                    </li>
+                    <?php endif; ?>
                 </ul>
             </div>
         </header>
@@ -149,7 +155,32 @@
             <?php $this->tags(', ', true, 'none'); ?>
         </p>
         <?php endif; ?>
+        
     </article>
+
+    <?php if (!empty($this->options->statsEnabled) && $this->options->statsEnabled === 'on'): ?>
+    <div class="post-like-box">
+        <div class="like-box-inner">
+            <div class="like-box-stats">
+                <span class="like-stat-item">
+                    <i class="fa fa-eye"></i>
+                    <span class="stat-label">阅读</span>
+                    <span class="stat-value post-views-count" data-cid="<?php echo $this->cid; ?>"><?php echo shufei_get_views($this->cid); ?></span>
+                </span>
+                <span class="like-stat-divider">|</span>
+                <span class="like-stat-item">
+                    <i class="fa fa-thumbs-up"></i>
+                    <span class="stat-label">点赞</span>
+                    <span class="stat-value post-likes-count" data-cid="<?php echo $this->cid; ?>"><?php echo shufei_get_likes($this->cid); ?></span>
+                </span>
+            </div>
+            <button class="post-like-btn <?php echo shufei_has_liked($this->cid) ? 'liked' : ''; ?>" data-cid="<?php echo $this->cid; ?>" <?php echo shufei_has_liked($this->cid) ? 'disabled' : ''; ?>>
+                <i class="fa fa-thumbs-up"></i>
+                <span class="like-text"><?php echo shufei_has_liked($this->cid) ? '已点赞' : '点赞'; ?></span>
+            </button>
+        </div>
+    </div>
+    <?php endif; ?>
 
     <ul class="post-near">
         <li>
@@ -226,6 +257,37 @@
         <ul class="widget-list">
             <?php \Widget\Contents\Post\Date::alloc('type=month&format=F Y')
                 ->parse('<li><a href="{permalink}"><i class="fa fa-calendar-o"></i>{date}</a></li>'); ?>
+        </ul>
+    </section>
+    <?php endif; ?>
+    
+    <!-- 文章排行榜 -->
+    <?php if (!empty($this->options->rankingEnabled) && $this->options->rankingEnabled === 'on'): ?>
+    <?php
+    $rankingType = !empty($this->options->rankingType) ? $this->options->rankingType : 'views';
+    $rankingLimit = !empty($this->options->rankingLimit) ? intval($this->options->rankingLimit) : 5;
+    $rankingPosts = shufei_get_ranking_posts($rankingType, $rankingLimit);
+    $rankingTitle = ($rankingType === 'likes') ? '点赞排行榜' : '阅读排行榜';
+    $rankingIcon = ($rankingType === 'likes') ? 'fa-thumbs-up' : 'fa-fire';
+    ?>
+    <section class="widget ranking-widget">
+        <h3 class="widget-title"><i class="fa <?php echo $rankingIcon; ?>"></i><?php _e($rankingTitle); ?></h3>
+        <ul class="widget-list ranking-list">
+            <?php foreach ($rankingPosts as $index => $post): ?>
+            <li class="ranking-item">
+                <a href="<?php echo \Typecho\Router::url('post', $post, $this->options->index); ?>">
+                    <span class="ranking-num ranking-num-<?php echo $index + 1; ?>"><?php echo $index + 1; ?></span>
+                    <span class="ranking-title"><?php echo htmlspecialchars($post['title']); ?></span>
+                    <span class="ranking-count">
+                        <?php if ($rankingType === 'likes'): ?>
+                        <i class="fa fa-thumbs-up"></i> <?php echo $post['likes']; ?>
+                        <?php else: ?>
+                        <i class="fa fa-eye"></i> <?php echo $post['views']; ?>
+                        <?php endif; ?>
+                    </span>
+                </a>
+            </li>
+            <?php endforeach; ?>
         </ul>
     </section>
     <?php endif; ?>

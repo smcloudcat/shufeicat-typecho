@@ -118,78 +118,212 @@ window.initMobileMenu = function() {
     const mobileMenuBtn = document.getElementById('mobile-menu-btn');
     const leftSidebar = document.getElementById('left-sidebar');
     const bodyShade = document.getElementById('body-shade');
-    
+
     if (!mobileMenuBtn || !leftSidebar) {
         console.warn('移动端菜单元素未找到');
         return;
     }
-    
+
     // 移除旧的事件监听器（通过克隆节点）
     const newBtn = mobileMenuBtn.cloneNode(true);
     mobileMenuBtn.parentNode.replaceChild(newBtn, mobileMenuBtn);
-    
+
     const newShade = bodyShade ? bodyShade.cloneNode(true) : null;
     if (bodyShade && newShade) {
         bodyShade.parentNode.replaceChild(newShade, bodyShade);
     }
-    
+
     // 重新获取元素引用
     const btn = document.getElementById('mobile-menu-btn');
     const sidebar = document.getElementById('left-sidebar');
     const shade = document.getElementById('body-shade');
-    
+
+    // 关闭菜单的通用函数
+    var closeSidebar = function() {
+        if (btn) {
+            btn.classList.remove('active');
+            btn.innerHTML = '<span class="hamburger-line"></span><span class="hamburger-line"></span><span class="hamburger-line"></span>';
+            btn.title = '展开菜单';
+        }
+        if (sidebar) {
+            sidebar.classList.remove('admin-side-show');
+        }
+        if (shade) {
+            shade.classList.remove('active');
+        }
+    };
+
+    // 打开菜单的通用函数
+    var openSidebar = function() {
+        if (btn) {
+            btn.classList.add('active');
+            btn.innerHTML = '<span class="hamburger-line" style="transform: rotate(45deg) translate(5px, 5px);"></span><span class="hamburger-line" style="opacity: 0;"></span><span class="hamburger-line" style="transform: rotate(-45deg) translate(5px, -5px);"></span>';
+            btn.title = '关闭菜单';
+        }
+        if (sidebar) {
+            sidebar.classList.add('admin-side-show');
+        }
+        if (shade) {
+            shade.classList.add('active');
+        }
+    };
+
     if (btn && sidebar) {
         btn.addEventListener('click', function(e) {
             e.stopPropagation();
-            this.classList.toggle('active');
-            sidebar.classList.toggle('admin-side-show');
-            
-            if (shade) {
-                shade.classList.toggle('active');
-            }
-            
-            // 切换按钮图标
-            if (this.classList.contains('active')) {
-                this.innerHTML = '<span class="hamburger-line" style="transform: rotate(45deg) translate(5px, 5px);"></span><span class="hamburger-line" style="opacity: 0;"></span><span class="hamburger-line" style="transform: rotate(-45deg) translate(5px, -5px);"></span>';
-                this.title = '关闭菜单';
+            var isOpen = sidebar.classList.contains('admin-side-show');
+            if (isOpen) {
+                closeSidebar();
             } else {
-                this.innerHTML = '<span class="hamburger-line"></span><span class="hamburger-line"></span><span class="hamburger-line"></span>';
-                this.title = '展开菜单';
+                openSidebar();
             }
         });
-        
+
         // 点击遮罩层关闭菜单
         if (shade) {
-            shade.addEventListener('click', function() {
-                btn.classList.remove('active');
-                sidebar.classList.remove('admin-side-show');
-                this.classList.remove('active');
-                
-                // 恢复按钮图标
-                btn.innerHTML = '<span class="hamburger-line"></span><span class="hamburger-line"></span><span class="hamburger-line"></span>';
-                btn.title = '展开菜单';
+            shade.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                closeSidebar();
             });
+            // 触摸事件也绑定
+            shade.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                closeSidebar();
+            }, { passive: false });
         }
-        
+
         // 点击侧边栏链接后关闭菜单
-        const sidebarLinks = sidebar.querySelectorAll('a');
+        var sidebarLinks = sidebar.querySelectorAll('a');
         sidebarLinks.forEach(function(link) {
             link.addEventListener('click', function() {
                 if (window.innerWidth <= 992) {
-                    btn.classList.remove('active');
-                    sidebar.classList.remove('admin-side-show');
-                    
-                    if (shade) {
-                        shade.classList.remove('active');
-                    }
-                    
-                    // 恢复按钮图标
-                    btn.innerHTML = '<span class="hamburger-line"></span><span class="hamburger-line"></span><span class="hamburger-line"></span>';
-                    btn.title = '展开菜单';
+                    closeSidebar();
                 }
             });
         });
+
+        // 点击侧边栏外部关闭菜单（作为后备方案）
+        document.addEventListener('click', function(e) {
+            if (window.innerWidth <= 992 && sidebar.classList.contains('admin-side-show')) {
+                var isClickInsideSidebar = sidebar.contains(e.target);
+                var isClickOnBtn = btn.contains(e.target);
+                if (!isClickInsideSidebar && !isClickOnBtn) {
+                    closeSidebar();
+                }
+            }
+        });
+
+        // ESC键关闭菜单
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && sidebar.classList.contains('admin-side-show')) {
+                closeSidebar();
+            }
+        });
     }
+};
+
+/**
+ * 文章点赞功能
+ */
+window.initPostLike = function() {
+    var likeBtn = document.querySelector('.post-like-btn');
+    if (!likeBtn) return;
+
+    likeBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (this.classList.contains('liked') || this.disabled) {
+            return;
+        }
+
+        var cid = this.getAttribute('data-cid');
+        if (!cid) return;
+
+        var btn = this;
+        var likeText = btn.querySelector('.like-text');
+
+        // 获取当前主题URL用于ajax请求
+        var themeUrl = window.themeUrl || '';
+
+        // 使用 XMLHttpRequest 替代 fetch 以兼容更多浏览器
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', themeUrl + 'core/ajax-handler.php?action=like', true);
+        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === 4) {
+                if (xhr.status === 200) {
+                    try {
+                        var data = JSON.parse(xhr.responseText);
+                        if (data.success) {
+                            btn.classList.add('liked');
+                            btn.disabled = true;
+                            if (likeText) likeText.textContent = '已点赞';
+
+                            // 更新点赞盒子中的点赞数
+                            var metaLikes = document.querySelector('.post-likes-count[data-cid="' + cid + '"]');
+                            if (metaLikes) metaLikes.textContent = data.likes;
+                        } else {
+                            alert(data.message || '点赞失败');
+                        }
+                    } catch (err) {
+                        console.error('解析响应失败:', err);
+                    }
+                } else {
+                    console.error('请求失败，状态码:', xhr.status);
+                }
+            }
+        };
+
+        xhr.onerror = function() {
+            console.error('网络请求失败');
+        };
+
+        xhr.send('cid=' + encodeURIComponent(cid));
+    });
+};
+
+/**
+ * 文章浏览量统计
+ */
+window.initPostViews = function() {
+    var viewsCount = document.querySelector('.post-views-count');
+    if (!viewsCount) return;
+
+    var cid = viewsCount.getAttribute('data-cid');
+    if (!cid) return;
+
+    var themeUrl = window.themeUrl || '';
+
+    // 使用延迟确保页面完全加载后再统计
+    setTimeout(function() {
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', themeUrl + 'core/ajax-handler.php?action=view', true);
+        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === 4 && xhr.status === 200) {
+                try {
+                    var data = JSON.parse(xhr.responseText);
+                    if (data.success) {
+                        viewsCount.textContent = data.views;
+                    }
+                } catch (err) {
+                    console.error('解析浏览量响应失败:', err);
+                }
+            }
+        };
+
+        xhr.onerror = function() {
+            console.error('浏览量统计网络请求失败');
+        };
+
+        xhr.send('cid=' + encodeURIComponent(cid));
+    }, 1500);
 };
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -224,5 +358,11 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 延迟执行以确保 jQuery 和 Lightbox 完全加载
     setTimeout(window.initLightbox, 300);
+    
+    // 初始化点赞功能
+    window.initPostLike();
+    
+    // 初始化浏览量统计
+    window.initPostViews();
     
 });

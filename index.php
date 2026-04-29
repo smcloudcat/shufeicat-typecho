@@ -4,7 +4,7 @@
  *
  * @package ShuFeiCat
  * @author YunCat
- * @version 1.1.2
+ * @version 1.2.0
  * @link https://lwcat.cn
  */
 
@@ -117,21 +117,37 @@ $this->need('header.php');
     
     <?php if ($this->have()): ?>
     <div id="ajax-post-list">
-    <?php while ($this->next()): ?>
+    <?php
+    // 分离置顶文章和普通文章
+    $stickyPosts = array();
+    $normalPosts = array();
+    
+    while ($this->next()) {
+        if ($this->fields->sticky == '1') {
+            $stickyPosts[] = clone $this;
+        } else {
+            $normalPosts[] = clone $this;
+        }
+    }
+    
+    // 合并文章列表：置顶文章在前
+    $allPosts = array_merge($stickyPosts, $normalPosts);
+    ?>
+    <?php foreach ($allPosts as $post): ?>
         <?php
         // 获取缩略图
-        $thumbnail = shufei_get_post_thumbnail($this);
+        $thumbnail = shufei_get_post_thumbnail($post);
         
         // 直接处理简介
         $excerpt = '';
-        if (!$this->hidden) {
+        if (!$post->hidden) {
             // 1. 检查自定义字段
-            $customExcerpt = $this->fields->excerpt;
+            $customExcerpt = $post->fields->excerpt;
             if (!empty($customExcerpt)) {
                 $excerpt = $customExcerpt;
             } else {
                 // 2. 获取纯文本内容
-                $content = strip_tags($this->content);
+                $content = strip_tags($post->content);
                 $content = preg_replace('/\s+/', ' ', trim($content));
                 
                 // 3. 截取前10字
@@ -142,37 +158,46 @@ $this->need('header.php');
                 }
             }
         }
+        
+        $isSticky = ($post->fields->sticky == '1');
         ?>
-        <article class="post <?php echo !empty($thumbnail) ? 'has-thumbnail' : ''; ?>"
+        <article class="post <?php echo !empty($thumbnail) ? 'has-thumbnail' : ''; ?> <?php echo $isSticky ? 'post-sticky' : ''; ?>"
                  itemscope itemtype="http://schema.org/BlogPosting"
                  style="<?php echo !empty($thumbnail) ? 'background-image: url(' . htmlspecialchars($thumbnail) . ');' : ''; ?>">
-            <a href="<?php echo $this->permalink(); ?>" class="post-link"></a>
+            <a href="<?php echo $post->permalink(); ?>" class="post-link"></a>
+            
+            <?php if ($isSticky): ?>
+            <div class="sticky-badge">
+                <i class="fa fa-thumb-tack"></i>
+                <span>置顶</span>
+            </div>
+            <?php endif; ?>
             
             <div class="post-overlay">
                 <header class="post-header">
                     <h2 class="post-title" itemprop="name headline">
-                        <a itemprop="url" href="<?php $this->permalink(); ?>"><?php $this->title(); ?></a>
+                        <a itemprop="url" href="<?php $post->permalink(); ?>"><?php $post->title(); ?></a>
                     </h2>
                 </header>
                 <div class="post-content post-excerpt" itemprop="articleBody">
-                    <?php if ($this->hidden): ?>
+                    <?php if ($post->hidden): ?>
                         <p class="excerpt-text"><i class="fa fa-lock"></i> 此文章已加密，请输入密码查看</p>
                     <?php else: ?>
                         <p class="excerpt-text"><?php echo htmlspecialchars($excerpt); ?></p>
                         <div class="post-footer">
                             <ul class="post-meta-inline">
                                 <li itemprop="author" itemscope itemtype="http://schema.org/Person">
-                                    <a itemprop="name" href="<?php $this->author->permalink(); ?>" rel="author" title="作者"><?php $this->author(); ?></a>
+                                    <a itemprop="name" href="<?php $post->author->permalink(); ?>" rel="author" title="作者"><?php $post->author(); ?></a>
                                 </li>
                                 <li>
-                                    <time datetime="<?php $this->date('c'); ?>" itemprop="datePublished" title="时间"><?php $this->date(); ?></time>
+                                    <time datetime="<?php $post->date('c'); ?>" itemprop="datePublished" title="时间"><?php $post->date(); ?></time>
                                 </li>
-                                <li title="分类"><?php $this->category(','); ?></li>
+                                <li title="分类"><?php $post->category(','); ?></li>
                                 <li itemprop="interactionCount">
-                                    <a itemprop="discussionUrl" href="<?php $this->permalink() ?>#comments" title="评论"><?php $this->commentsNum(_t('0'), _t('1'), _t('%d')); ?></a>
+                                    <a itemprop="discussionUrl" href="<?php $post->permalink() ?>#comments" title="评论"><?php $post->commentsNum(_t('0'), _t('1'), _t('%d')); ?></a>
                                 </li>
                             </ul>
-                            <a href="<?php $this->permalink(); ?>" class="read-more">
+                            <a href="<?php $post->permalink(); ?>" class="read-more">
                                 <?php _e('阅读全文 <i class="fa fa-angle-double-right"></i>'); ?>
                             </a>
                         </div>
@@ -180,7 +205,7 @@ $this->need('header.php');
                 </div>
             </div>
         </article>
-    <?php endwhile; ?>
+    <?php endforeach; ?>
     </div>
     <?php else: ?>
         <article class="post">
@@ -258,6 +283,37 @@ $this->need('header.php');
         <ul class="widget-list">
             <?php \Widget\Contents\Post\Date::alloc('type=month&format=F Y')
                 ->parse('<li><a href="{permalink}"><i class="fa fa-calendar-o"></i>{date}</a></li>'); ?>
+        </ul>
+    </section>
+    <?php endif; ?>
+    
+    <!-- 文章排行榜 -->
+    <?php if (!empty($this->options->rankingEnabled) && $this->options->rankingEnabled === 'on'): ?>
+    <?php
+    $rankingType = !empty($this->options->rankingType) ? $this->options->rankingType : 'views';
+    $rankingLimit = !empty($this->options->rankingLimit) ? intval($this->options->rankingLimit) : 5;
+    $rankingPosts = shufei_get_ranking_posts($rankingType, $rankingLimit);
+    $rankingTitle = ($rankingType === 'likes') ? '点赞排行榜' : '阅读排行榜';
+    $rankingIcon = ($rankingType === 'likes') ? 'fa-thumbs-up' : 'fa-fire';
+    ?>
+    <section class="widget ranking-widget">
+        <h3 class="widget-title"><i class="fa <?php echo $rankingIcon; ?>"></i><?php _e($rankingTitle); ?></h3>
+        <ul class="widget-list ranking-list">
+            <?php foreach ($rankingPosts as $index => $post): ?>
+            <li class="ranking-item">
+                <a href="<?php echo \Typecho\Router::url('post', $post, $this->options->index); ?>">
+                    <span class="ranking-num ranking-num-<?php echo $index + 1; ?>"><?php echo $index + 1; ?></span>
+                    <span class="ranking-title"><?php echo htmlspecialchars($post['title']); ?></span>
+                    <span class="ranking-count">
+                        <?php if ($rankingType === 'likes'): ?>
+                        <i class="fa fa-thumbs-up"></i> <?php echo $post['likes']; ?>
+                        <?php else: ?>
+                        <i class="fa fa-eye"></i> <?php echo $post['views']; ?>
+                        <?php endif; ?>
+                    </span>
+                </a>
+            </li>
+            <?php endforeach; ?>
         </ul>
     </section>
     <?php endif; ?>
