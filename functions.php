@@ -810,6 +810,72 @@ function themeFields($layout)
 @require_once dirname(__FILE__) . '/core/post-stats.php';
 
 /**
+ * 检查当前用户是否已评论指定文章
+ *
+ * @param int $cid 文章ID
+ * @return bool
+ */
+function shufei_has_commented($cid)
+{
+    $db = \Typecho\Db::get();
+    $hasCommented = false;
+
+    if (\Typecho\Widget::widget('Widget_User')->hasLogin()) {
+        $user = \Typecho\Widget::widget('Widget_User');
+        $count = $db->fetchObject($db->select(array('COUNT(*)' => 'num'))
+            ->from('table.comments')
+            ->where('cid = ?', $cid)
+            ->where('authorId = ?', $user->uid)
+            ->where('status = ?', 'approved'))->num;
+        $hasCommented = $count > 0;
+    } else {
+        $cookieMail = \Typecho\Cookie::get('__typecho_remember_mail');
+        if (!empty($cookieMail)) {
+            $count = $db->fetchObject($db->select(array('COUNT(*)' => 'num'))
+                ->from('table.comments')
+                ->where('cid = ?', $cid)
+                ->where('mail = ?', $cookieMail)
+                ->where('status = ?', 'approved'))->num;
+            $hasCommented = $count > 0;
+        }
+    }
+
+    return $hasCommented;
+}
+
+/**
+ * 解析文章内容中的 [reply] 短代码
+ * 已评论用户可见，未评论用户显示提示
+ *
+ * @param string $content 文章内容
+ * @param int $cid 文章ID
+ * @return string
+ */
+function shufei_parse_reply_content($content, $cid)
+{
+    $hasCommented = shufei_has_commented($cid);
+
+    return preg_replace_callback('/\[reply\](.*?)\[\/reply\]/is', function ($matches) use ($hasCommented, $cid) {
+        if ($hasCommented) {
+            return '<div class="reply-visible-content">' . $matches[1] . '</div>';
+        } else {
+            return '<div class="reply-hidden-box">
+                <div class="reply-hidden-inner">
+                    <div class="reply-hidden-icon">
+                        <i class="fa fa-lock"></i>
+                    </div>
+                    <div class="reply-hidden-title">回复可见</div>
+                    <div class="reply-hidden-desc">此处内容需要评论后才可查看，快来参与讨论吧！</div>
+                    <a href="#comments" class="reply-hidden-btn">
+                        <i class="fa fa-commenting"></i> 去评论
+                    </a>
+                </div>
+            </div>';
+        }
+    }, $content);
+}
+
+/**
  * 核心逻辑钩子：评论安全性校验（包含AI审核）
  */
 function shufei_comment_check($comment, $post) {

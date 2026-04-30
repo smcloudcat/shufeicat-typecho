@@ -2109,6 +2109,106 @@ pre[class*="language-"].line-numbers > code {
     margin-right: 5px;
 }
 
+/* ============================================
+ * 回复可见功能样式
+ * ============================================ */
+.reply-visible-content {
+    padding: 15px;
+    background: #f0f9ff;
+    border-left: 4px solid #1E9FFF;
+    border-radius: 0 8px 8px 0;
+    margin: 15px 0;
+}
+
+.reply-hidden-box {
+    margin: 20px 0;
+    padding: 40px 30px;
+    background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
+    border: 2px dashed #c2e4ff;
+    border-radius: 12px;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.reply-hidden-box:hover {
+    border-color: #1E9FFF;
+    box-shadow: 0 5px 20px rgba(30, 159, 255, 0.1);
+}
+
+.reply-hidden-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+}
+
+.reply-hidden-icon {
+    width: 60px;
+    height: 60px;
+    background: linear-gradient(135deg, #1E9FFF 0%, #0d8bf2 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 25px rgba(30, 159, 255, 0.3);
+    animation: reply-icon-float 3s ease-in-out infinite;
+}
+
+@keyframes reply-icon-float {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-8px);
+    }
+}
+
+.reply-hidden-icon i {
+    font-size: 28px;
+    color: #fff;
+}
+
+.reply-hidden-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+    margin: 0;
+}
+
+.reply-hidden-desc {
+    font-size: 14px;
+    color: #888;
+    margin: 0 0 8px 0;
+    line-height: 1.6;
+}
+
+.reply-hidden-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 28px;
+    background: linear-gradient(135deg, #1E9FFF 0%, #0d8bf2 100%);
+    color: #fff;
+    border-radius: 25px;
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(30, 159, 255, 0.3);
+    margin-top: 4px;
+}
+
+.reply-hidden-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(30, 159, 255, 0.4);
+    color: #fff;
+    opacity: 0.95;
+}
+
+.reply-hidden-btn i {
+    font-size: 14px;
+}
+
 /* 响应式调整 */
 @media (max-width: 768px) {
     .encrypted-content-preview {
@@ -2176,6 +2276,33 @@ pre[class*="language-"].line-numbers > code {
     .protected input[type="submit"] {
         padding: 12px 28px;
         font-size: 14px;
+    }
+
+    .reply-hidden-box {
+        padding: 30px 20px;
+        margin: 15px 0;
+    }
+
+    .reply-hidden-icon {
+        width: 50px;
+        height: 50px;
+    }
+
+    .reply-hidden-icon i {
+        font-size: 22px;
+    }
+
+    .reply-hidden-title {
+        font-size: 16px;
+    }
+
+    .reply-hidden-desc {
+        font-size: 13px;
+    }
+
+    .reply-hidden-btn {
+        padding: 8px 22px;
+        font-size: 13px;
     }
 }
 
