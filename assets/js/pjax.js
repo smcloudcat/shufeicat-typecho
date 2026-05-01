@@ -2,20 +2,18 @@
  * Pjax加载功能
  * 用于全站无刷新页面切换，提升用户体验
  * 支持三种加载动画样式：progress、circle、dots
+ * 支持AJAX无刷新提交评论
  */
 
 (function() {
-    // 检查是否开启了pjax加载
     var pjaxEnabled = window.pjaxEnabled || false;
     var pjaxLoadStyle = window.pjaxLoadStyle || 'progress';
     var pjaxTimeout = window.pjaxTimeout || 10000;
     
     if (!pjaxEnabled) return;
     
-    // 加载动画容器
     var loadingContainer = null;
     
-    // 样式1：顶部进度条
     function createProgressStyle() {
         var container = document.createElement('div');
         container.id = 'pjax-loading-progress';
@@ -30,7 +28,6 @@
         return container;
     }
     
-    // 样式2：圆形旋转器
     function createCircleStyle() {
         var container = document.createElement('div');
         container.id = 'pjax-loading-circle';
@@ -56,7 +53,6 @@
         return container;
     }
     
-    // 样式3：底部圆点脉冲
     function createDotsStyle() {
         var container = document.createElement('div');
         container.id = 'pjax-loading-dots';
@@ -86,7 +82,6 @@
         return container;
     }
     
-    // 创建加载动画容器
     function createLoadingIndicator() {
         if (pjaxLoadStyle === 'circle') {
             loadingContainer = createCircleStyle();
@@ -98,7 +93,6 @@
         document.body.appendChild(loadingContainer);
     }
     
-    // 添加动画样式
     function addAnimationStyles() {
         if (document.getElementById('pjax-animation-styles')) return;
         
@@ -108,7 +102,6 @@
         document.head.appendChild(style);
     }
     
-    // 显示加载动画
     function showLoading() {
         loadingContainer.style.display = 'block';
         
@@ -121,7 +114,6 @@
         }
     }
     
-    // 更新加载进度
     function updateProgress(percent) {
         if (pjaxLoadStyle === 'progress') {
             var bar = loadingContainer.querySelector('.pjax-progress-bar');
@@ -131,7 +123,6 @@
         }
     }
     
-    // 隐藏加载动画
     function hideLoading() {
         if (pjaxLoadStyle === 'progress') {
             var bar = loadingContainer.querySelector('.pjax-progress-bar');
@@ -148,7 +139,6 @@
         }
     }
     
-    // 需要排除的链接选择器
     var excludeSelectors = [
         'a[href^="javascript:"]',
         'a[href^="#"]',
@@ -163,8 +153,230 @@
         '.password-protection a',
         'a[href*="password"]'
     ];
-    
-    // 初始化Pjax
+
+    function showSubmitTip(msg, type) {
+        var tip = document.getElementById('comment-submit-tip');
+        if (!tip) return;
+        tip.textContent = msg;
+        tip.className = 'comment-submit-tip ' + (type || '');
+        if (type === 'success' || type === 'error') {
+            setTimeout(function() {
+                tip.textContent = '';
+                tip.className = 'comment-submit-tip';
+            }, 5000);
+        }
+    }
+
+    function setSubmitLoading(loading) {
+        var btn = document.getElementById('comment-submit-btn');
+        if (!btn) return;
+        btn.disabled = loading;
+        var icon = btn.querySelector('i');
+        if (loading) {
+            if (icon) {
+                icon.className = 'fa fa-spinner fa-spin';
+            }
+            btn.setAttribute('data-original-text', btn.innerHTML);
+            var textNode = document.createTextNode(' 提交中...');
+            while (btn.firstChild) btn.removeChild(btn.firstChild);
+            var newIcon = document.createElement('i');
+            newIcon.className = 'fa fa-spinner fa-spin';
+            btn.appendChild(newIcon);
+            btn.appendChild(textNode);
+        } else {
+            var original = btn.getAttribute('data-original-text');
+            if (original) {
+                btn.innerHTML = original;
+            }
+        }
+    }
+
+    function initAjaxComment() {
+        var commentForm = document.getElementById('comment-form');
+        if (!commentForm) return;
+
+        var clonedForm = commentForm.cloneNode(true);
+        commentForm.parentNode.replaceChild(clonedForm, commentForm);
+
+        clonedForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            var textarea = clonedForm.querySelector('#textarea');
+            if (!textarea || !textarea.value.trim()) {
+                showSubmitTip('请填写评论内容', 'error');
+                return;
+            }
+
+            var author = clonedForm.querySelector('#author');
+            if (author && author.required && !author.value.trim()) {
+                showSubmitTip('请填写称呼', 'error');
+                return;
+            }
+
+            var mail = clonedForm.querySelector('#mail');
+            if (mail && mail.required && !mail.value.trim()) {
+                showSubmitTip('请填写邮箱', 'error');
+                return;
+            }
+
+            var tokenInputs = clonedForm.querySelectorAll('input[name="_"]');
+            for (var i = 0; i < tokenInputs.length; i++) {
+                tokenInputs[i].parentNode.removeChild(tokenInputs[i]);
+            }
+
+            var token = clonedForm.getAttribute('data-token');
+            if (token) {
+                var tokenInput = document.createElement('input');
+                tokenInput.type = 'hidden';
+                tokenInput.name = '_';
+                tokenInput.value = token;
+                clonedForm.appendChild(tokenInput);
+            }
+
+            var formData = new FormData(clonedForm);
+
+            setSubmitLoading(true);
+            showSubmitTip('正在提交...', '');
+
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', clonedForm.getAttribute('action'), true);
+            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+
+            xhr.onload = function() {
+                setSubmitLoading(false);
+
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    var responseUrl = xhr.responseURL || '';
+                    var currentUrl = window.location.href.split('#')[0];
+
+                    if (responseUrl && responseUrl !== currentUrl) {
+                        onCommentSuccess(clonedForm, textarea);
+                    } else {
+                        var parser = new DOMParser();
+                        var doc = parser.parseFromString(xhr.responseText, 'text/html');
+                        var newComments = doc.querySelector('#comments');
+                        var currentComments = document.querySelector('#comments');
+                        var hasError = false;
+
+                        if (newComments && currentComments) {
+                            var errorMsg = doc.querySelector('.message.error, .error-message, .alert-error');
+                            if (errorMsg) {
+                                hasError = true;
+                                showSubmitTip(errorMsg.textContent.trim() || '评论提交失败', 'error');
+                            }
+                        }
+
+                        if (!hasError) {
+                            onCommentSuccess(clonedForm, textarea);
+                        }
+                    }
+                } else if (xhr.status === 403) {
+                    showSubmitTip('评论被拒绝，请刷新页面后重试', 'error');
+                } else {
+                    showSubmitTip('提交失败，请稍后重试 (错误: ' + xhr.status + ')', 'error');
+                }
+            };
+
+            xhr.onerror = function() {
+                setSubmitLoading(false);
+                showSubmitTip('网络错误，请检查网络连接', 'error');
+            };
+
+            xhr.timeout = 15000;
+            xhr.ontimeout = function() {
+                setSubmitLoading(false);
+                showSubmitTip('请求超时，请稍后重试', 'error');
+            };
+
+            xhr.send(formData);
+        });
+    }
+
+    function onCommentSuccess(form, textarea) {
+        showSubmitTip('评论提交成功！', 'success');
+
+        if (textarea) {
+            textarea.value = '';
+        }
+
+        var parentInput = form.querySelector('input[name="parent"]');
+        var parentId = parentInput ? parentInput.value : '';
+
+        var currentUrl = window.location.href.split('#')[0];
+        var commentAnchor = '#comments';
+
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', currentUrl, true);
+        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+        xhr.onload = function() {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                var parser = new DOMParser();
+                var doc = parser.parseFromString(xhr.responseText, 'text/html');
+                var newComments = doc.querySelector('#comments');
+                var currentComments = document.querySelector('#comments');
+                if (newComments && currentComments) {
+                    currentComments.innerHTML = newComments.innerHTML;
+                    initAjaxComment();
+                    initTurnstile();
+                    var targetEl = document.querySelector(commentAnchor);
+                    if (targetEl) {
+                        targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                }
+            }
+        };
+        xhr.send();
+    }
+
+    function initTurnstile() {
+        var turnstileContainer = document.getElementById('cf-turnstile');
+        if (!turnstileContainer) return;
+
+        if (turnstileContainer.querySelector('iframe')) {
+            return;
+        }
+
+        if (turnstileContainer.getAttribute('data-turnstile-rendered')) {
+            var widgetId = turnstileContainer.getAttribute('data-turnstile-widget-id');
+            if (widgetId && typeof window.turnstile !== 'undefined') {
+                window.turnstile.reset(widgetId);
+                return;
+            }
+        }
+
+        if (window.turnstileIsRendering) return;
+        window.turnstileIsRendering = true;
+
+        var checkTurnstile = setInterval(function() {
+            if (typeof window.turnstile !== 'undefined') {
+                clearInterval(checkTurnstile);
+
+                if (turnstileContainer.querySelector('iframe')) {
+                    window.turnstileIsRendering = false;
+                    return;
+                }
+
+                try {
+                    var widgetId = window.turnstile.render('#cf-turnstile');
+                    if (widgetId) {
+                        turnstileContainer.setAttribute('data-turnstile-rendered', 'true');
+                        turnstileContainer.setAttribute('data-turnstile-widget-id', widgetId);
+                    }
+                } catch (e) {
+                    console.warn('[Turnstile] 渲染出错:', e);
+                }
+                window.turnstileIsRendering = false;
+            }
+        }, 50);
+
+        setTimeout(function() {
+            if (window.turnstileIsRendering) {
+                clearInterval(checkTurnstile);
+                window.turnstileIsRendering = false;
+            }
+        }, 3000);
+    }
+
     function initPjax() {
         if (typeof Pjax === 'undefined') {
             console.error('Pjax库未加载');
@@ -185,152 +397,82 @@
             debug: false
         });
         
-        console.log('Pjax已初始化 [V1.0.2]，样式：' + pjaxLoadStyle);
+        initAjaxComment();
+        
+        console.log('Pjax已初始化 [V1.0.3]，样式：' + pjaxLoadStyle);
         return pjax;
     }
     
-    // 页面加载前显示加载动画
     document.addEventListener('pjax:send', function() {
         showLoading();
         updateProgress(50);
     });
     
-    // 页面加载成功后更新内容
     document.addEventListener('pjax:success', function() {
         updateProgress(80);
     });
     
-    // 页面加载完成（无论成功或失败）
     document.addEventListener('pjax:complete', function() {
         updateProgress(100);
         hideLoading();
     });
     
-    // 页面加载超时
     document.addEventListener('pjax:timeout', function(e) {
         console.warn('Pjax加载超时');
         e.continue();
     });
     
-    // 页面加载出错
     document.addEventListener('pjax:error', function(e) {
         console.error('Pjax加载失败:', e);
         if (e.requestedUrl) {
             window.location.href = e.requestedUrl;
         } else {
-            // 如果无法获取URL，刷新当前页面
             window.location.reload();
         }
     });
     
-    // 初始化
     createLoadingIndicator();
     addAnimationStyles();
     initPjax();
     
-    // 监听页面切换完成
     document.addEventListener('pjax:complete', function() {
-        console.log('pjax:complete 事件触发 [V1.0.2]');
+        console.log('pjax:complete 事件触发 [V1.0.3]');
         window.reinitPageFunctions();
     });
     
-    // 重新初始化页面功能的函数
     window.reinitPageFunctions = function() {
-        // 防止在短时间内重复执行
         if (window.reinitTimer) clearTimeout(window.reinitTimer);
         
         window.reinitTimer = setTimeout(function() {
-            console.log('开始重新初始化页面功能 [V1.0.2]...');
+            console.log('开始重新初始化页面功能 [V1.0.3]...');
             
-            // 调用全局函数初始化移动端菜单
             if (typeof window.initMobileMenu === 'function') {
                 window.initMobileMenu();
             }
             
-            // 调用全局函数初始化代码高亮
             if (typeof window.initPrismHighlight === 'function') {
                 window.initPrismHighlight();
             }
             
-            // 调用全局函数初始化代码复制按钮
             if (typeof window.initCopyButtons === 'function') {
                 window.initCopyButtons();
             }
             
-            // 调用全局函数初始化图片灯箱
             if (typeof window.initLightbox === 'function') {
                 window.initLightbox();
             }
             
-            // 重新初始化 Turnstile 人机验证
-            var turnstileContainer = document.getElementById('cf-turnstile');
-            if (turnstileContainer) {
-                // 彻底检查容器内容，如果已经有 iframe，绝对不要重复渲染
-                if (turnstileContainer.querySelector('iframe')) {
-                    console.log('[Turnstile] 容器内已存在 iframe，跳过渲染');
-                    return;
-                }
-
-                // 如果已经有渲染好的 widget 记录，尝试重置
-                if (turnstileContainer.getAttribute('data-turnstile-rendered')) {
-                    var widgetId = turnstileContainer.getAttribute('data-turnstile-widget-id');
-                    if (widgetId && typeof window.turnstile !== 'undefined') {
-                        console.log('[Turnstile] 重置现有 widget:', widgetId);
-                        window.turnstile.reset(widgetId);
-                        return;
-                    }
-                }
-                
-                // 使用全局变量作为渲染锁，确保全局唯一
-                if (window.turnstileIsRendering) {
-                    console.log('[Turnstile] 正在渲染中，跳过此请求');
-                    return;
-                }
-                window.turnstileIsRendering = true;
-                
-                var checkTurnstile = setInterval(function() {
-                    if (typeof window.turnstile !== 'undefined') {
-                        clearInterval(checkTurnstile);
-                        
-                        // 渲染前的最后一次容器检查
-                        if (turnstileContainer.querySelector('iframe')) {
-                            console.log('[Turnstile] 渲染前检查发现容器已占用，取消');
-                            window.turnstileIsRendering = false;
-                            return;
-                        }
-                        
-                        try {
-                            console.log('[Turnstile] 执行显式渲染');
-                            var widgetId = window.turnstile.render('#cf-turnstile');
-                            if (widgetId) {
-                                turnstileContainer.setAttribute('data-turnstile-rendered', 'true');
-                                turnstileContainer.setAttribute('data-turnstile-widget-id', widgetId);
-                            }
-                        } catch (e) {
-                            console.warn('[Turnstile] 渲染出错:', e);
-                        }
-                        window.turnstileIsRendering = false;
-                    }
-                }, 50);
-                
-                setTimeout(function() {
-                    if (window.turnstileIsRendering) {
-                        clearInterval(checkTurnstile);
-                        window.turnstileIsRendering = false;
-                        console.log('[Turnstile] 渲染超时');
-                    }
-                }, 3000);
-            }
-        }, 50); // 50ms 缓冲
+            initAjaxComment();
+            initTurnstile();
+        }, 50);
     };
     
-    // 初始页面加载逻辑
     if (document.readyState === 'complete') {
-        console.log('页面已加载完成 [V1.0.2]，执行初始化');
+        console.log('页面已加载完成 [V1.0.3]，执行初始化');
         window.reinitPageFunctions();
     } else {
         window.addEventListener('load', function() {
-            console.log('页面load事件触发 [V1.0.2]，执行初始化');
+            console.log('页面load事件触发 [V1.0.3]，执行初始化');
             window.reinitPageFunctions();
         });
     }

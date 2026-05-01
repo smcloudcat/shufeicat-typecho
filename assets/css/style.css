@@ -1391,20 +1391,30 @@ pre[class*="language-"].line-numbers > code {
     background: var(--card-bg);
     border-radius: var(--border-radius);
     box-shadow: var(--shadow-light);
-    padding: 25px;
-    margin-top: 25px;
+    padding: 30px;
+    margin-top: 30px;
     border: 1px solid var(--border-color);
     position: relative;
 }
 
 #comments h3 {
-    font-size: 18px;
-    margin-bottom: 20px;
-    padding-bottom: 15px;
-    border-bottom: 1px solid #f0f0f0;
+    font-size: 20px;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 2px solid var(--primary-color);
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
-/* 评论列表容器 - 修复无效HTML结构问题 */
+#comments h3 i {
+    color: var(--primary-color);
+}
+
+.comments-header {
+    margin-bottom: 8px;
+}
+
 #comments > .comment-list {
     width: 100%;
     box-sizing: border-box;
@@ -1416,22 +1426,22 @@ pre[class*="language-"].line-numbers > code {
     list-style: none;
 }
 
-/* 确保评论列表容器不会影响后续元素 */
 #comments > .comment-list::after {
     content: "";
     display: table;
     clear: both;
 }
 
-/* 评论列表项 - 修复li在div中的显示问题 */
 #comments > .comment-list > li {
     padding: 20px;
-    margin-top: 15px;
-    border: 1px solid #f0f0f0;
-    border-radius: 8px;
-    background: #fafafa;
+    margin-top: 16px;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background: var(--card-bg);
     transition: var(--transition-fast);
-    display: block;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
     overflow: hidden;
     min-width: 0;
     max-width: 100%;
@@ -1449,41 +1459,37 @@ pre[class*="language-"].line-numbers > code {
 
 #comments > .comment-list > li::before,
 #comments > .comment-list > li::after {
-    content: " ";
-    display: table;
+    content: none;
 }
 
-#comments > .comment-list > li::after {
-    clear: both;
-}
-
-/* 嵌套评论样式 - 使用ol元素包裹li，解决无效HTML结构问题 */
 .comment-children {
-    margin-top: 15px;
-    padding-left: 0;
+    margin-top: 4px;
+    padding-left: 20px;
     clear: both;
     width: 100%;
     box-sizing: border-box;
     overflow: hidden;
     display: block;
     list-style: none;
+    flex-basis: 100%;
+    border-left: 2px solid color-mix(in srgb, var(--primary-color) 15%, var(--border-color));
 }
 
-/* 修复：直接处理ol.comment-children中的li元素 */
 .comment-children > li {
     margin-top: 10px;
-    margin-left: 55px;
-    width: calc(100% - 55px);
-    box-sizing: border-box;
-    padding: 20px;
-    border: 1px solid #f0f0f0;
-    border-radius: 8px;
-    background: #fafafa;
+    padding: 14px;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    background: var(--card-bg);
     transition: var(--transition-fast);
-    display: block;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
     overflow: hidden;
     min-width: 0;
     max-width: 100%;
+    width: 100%;
+    box-sizing: border-box;
     list-style: none;
     position: relative;
     float: none;
@@ -1494,89 +1500,133 @@ pre[class*="language-"].line-numbers > code {
     margin-top: 0;
 }
 
-@media (max-width: 480px) {
-    .comment-children > li {
-        margin-left: 20px;
-        width: calc(100% - 20px);
-    }
-}
-
 #comments > .comment-list > li:hover,
 .comment-children > li:hover {
-    background: #f5f5f5;
-}
-
-#comments > .comment-list > li.comment-level-odd,
-.comment-children > li.comment-level-odd {
-    background: #fafafa;
-}
-
-#comments > .comment-list > li.comment-level-even,
-.comment-children > li.comment-level-even {
-    background: #ffffff;
+    border-color: color-mix(in srgb, var(--primary-color) 30%, var(--border-color));
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
 }
 
 #comments > .comment-list > li.comment-by-author,
 .comment-children > li.comment-by-author {
-    background: #fff9e8;
-    border-color: #ffe0b2;
+    background: color-mix(in srgb, var(--primary-color) 4%, var(--card-bg));
+    border-color: color-mix(in srgb, var(--primary-color) 25%, var(--border-color));
 }
 
-/* 评论作者区域 - 修复li内部的comment-body样式冲突 */
-#comments > .comment-list > li > .comment-author,
-.comment-children > li > .comment-author {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 10px;
-    width: 100%;
-    box-sizing: border-box;
-}
-
-#comments > .comment-list > li > .comment-author span[itemprop="image"],
-.comment-children > li > .comment-author span[itemprop="image"] {
+.comment-avatar {
     flex-shrink: 0;
 }
 
-#comments > .comment-list > li > .comment-author .avatar,
-.comment-children > li > .comment-author .avatar {
-    width: 40px;
-    height: 40px;
+.comment-avatar .avatar {
+    width: 42px;
+    height: 42px;
     border-radius: 50%;
     object-fit: cover;
     display: block;
+    border: 2px solid var(--border-color);
+    transition: var(--transition-fast);
 }
 
-#comments > .comment-list > li > .comment-author .fn,
-.comment-children > li > .comment-author .fn {
+#comments > .comment-list > li:hover .avatar,
+.comment-children > li:hover .avatar {
+    border-color: var(--primary-color);
+}
+
+.comment-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.comment-header {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px 14px;
+    margin-bottom: 10px;
+}
+
+.comment-author-name {
     font-weight: 600;
+    font-size: 15px;
     color: var(--text-color);
 }
 
-#comments > .comment-list > li > .comment-author .fn a,
-.comment-children > li > .comment-author .fn a {
+.comment-author-name a {
     color: var(--text-color);
     text-decoration: none;
+    transition: var(--transition-fast);
 }
 
-#comments > .comment-list > li > .comment-author .fn a:hover,
-.comment-children > li > .comment-author .fn a:hover {
+.comment-author-name a:hover {
     color: var(--primary-color);
 }
 
-#comments > .comment-list > li > .comment-meta,
-.comment-children > li > .comment-meta {
-    margin-bottom: 10px;
+.comment-by-author .comment-author-name::after {
+    content: "作者";
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--primary-color);
+    background: color-mix(in srgb, var(--primary-color) 10%, transparent);
+    padding: 1px 6px;
+    border-radius: 4px;
+    margin-left: 6px;
+    vertical-align: middle;
+}
+
+.comment-time {
     font-size: 13px;
     color: var(--text-secondary);
-    width: 100%;
-    box-sizing: border-box;
+}
+
+.comment-time a {
+    color: var(--text-secondary);
+    text-decoration: none;
+    transition: var(--transition-fast);
+}
+
+.comment-time a:hover {
+    color: var(--primary-color);
+}
+
+.comment-awaiting-moderation {
+    font-size: 12px;
+    font-style: normal;
+    color: #e6a23c;
+    background: #fdf6ec;
+    padding: 2px 8px;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.comment-reply-btn {
+    margin-left: auto;
+    font-size: 13px;
+}
+
+.comment-reply-btn a {
+    color: var(--text-secondary);
+    text-decoration: none;
+    transition: var(--transition-fast);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 4px;
+    border: 1px solid transparent;
+}
+
+.comment-reply-btn a:hover {
+    color: var(--primary-color);
+    background: color-mix(in srgb, var(--primary-color) 6%, transparent);
+    border-color: color-mix(in srgb, var(--primary-color) 20%, transparent);
 }
 
 #comments > .comment-list > li > .comment-content,
 .comment-children > li > .comment-content {
-    line-height: 1.6;
-    color: #555;
+    line-height: 1.75;
+    color: var(--text-color);
     word-wrap: break-word;
     word-break: break-word;
     overflow-wrap: break-word;
@@ -1585,6 +1635,7 @@ pre[class*="language-"].line-numbers > code {
     overflow: hidden;
     width: 100%;
     box-sizing: border-box;
+    font-size: 14.5px;
 }
 
 #comments > .comment-list > li > .comment-content p,
@@ -1597,35 +1648,19 @@ pre[class*="language-"].line-numbers > code {
     margin-bottom: 0;
 }
 
-#comments > .comment-list > li > .comment-reply,
-.comment-children > li > .comment-reply {
-    text-align: right;
-    margin-top: 10px;
-    width: 100%;
-    box-sizing: border-box;
-}
-
-#comments > .comment-list > li > .comment-reply a,
-.comment-children > li > .comment-reply a {
-    font-size: 13px;
-    color: var(--primary-color);
-}
-
-/* 评论表单 */
 .respond {
-    margin-top: 25px;
-    padding-top: 20px;
-    border-top: 1px solid #f0f0f0;
+    margin-top: 30px;
+    padding-top: 24px;
+    border-top: 2px solid var(--primary-color);
     position: relative;
     clear: both;
     width: 100%;
     box-sizing: border-box;
     background: var(--card-bg);
     border-radius: var(--border-radius);
-    padding: 25px;
+    padding: 30px;
 }
 
-/* 修复回复时表单移动后位置问题 */
 #respond-post-1 {
     position: relative !important;
     left: auto !important;
@@ -1634,11 +1669,10 @@ pre[class*="language-"].line-numbers > code {
     max-width: 100% !important;
     background: var(--card-bg);
     border-radius: var(--border-radius);
-    padding: 25px;
+    padding: 30px;
     box-sizing: border-box;
 }
 
-/* 确保表单在移动后仍然正确显示 */
 #respond-post-1-holder {
     position: relative;
     display: block;
@@ -1646,48 +1680,188 @@ pre[class*="language-"].line-numbers > code {
     clear: both;
 }
 
-/* 评论表单标题区域 */
 #response {
-    margin-bottom: 20px;
+    margin-bottom: 24px;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
-/* 评论表单中的行布局 - 修复与flex布局的冲突 */
-.respond .row {
-    display: block !important;
-    margin: 0 -10px;
-    width: auto !important;
-    max-width: none !important;
+#response i {
+    color: var(--primary-color);
 }
 
-.respond .row::before,
-.respond .row::after {
-    content: " ";
-    display: table;
+.comment-logged-info {
+    background: color-mix(in srgb, var(--primary-color) 5%, var(--card-bg));
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    font-size: 14px;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
 }
 
-.respond .row::after {
-    clear: both;
+.comment-logged-info i {
+    color: var(--primary-color);
 }
 
-.respond .col-4 {
-    float: left;
-    width: 33.333333%;
-    padding: 0 10px;
-    box-sizing: border-box;
+.comment-logged-info a {
+    color: var(--primary-color);
+    text-decoration: none;
+}
+
+.comment-form-fields {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 16px;
 }
 
 @media (max-width: 768px) {
-    .respond .col-4 {
-        float: none;
-        width: 100%;
-        margin-bottom: 15px;
+    .comment-form-fields {
+        grid-template-columns: 1fr;
+        gap: 12px;
     }
+}
+
+.form-field {
+    display: flex;
+    flex-direction: column;
+}
+
+.form-field label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-bottom: 8px;
+    font-weight: 500;
+    font-size: 14px;
+    color: var(--text-color);
+}
+
+.form-field label i {
+    color: var(--primary-color);
+    font-size: 13px;
+}
+
+#comment-form .required::after {
+    content: " *";
+    color: #ff4d4f;
+}
+
+.form-field-textarea {
+    margin-bottom: 16px;
+}
+
+.form-field-textarea label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-bottom: 8px;
+    font-weight: 500;
+    font-size: 14px;
+    color: var(--text-color);
+}
+
+.form-field-textarea label i {
+    color: var(--primary-color);
+    font-size: 13px;
+}
+
+#comment-form input[type="text"],
+#comment-form input[type="email"],
+#comment-form input[type="url"],
+#comment-form textarea {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1.5px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 14px;
+    transition: var(--transition-fast);
+    background: var(--card-bg);
+    color: var(--text-color);
+    box-sizing: border-box;
+}
+
+#comment-form input:focus,
+#comment-form textarea:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    background: #fff;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 10%, transparent);
+}
+
+#comment-form textarea {
+    resize: vertical;
+    min-height: 120px;
+    line-height: 1.6;
+}
+
+.form-actions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+#comment-form .submit {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 28px;
+    background: var(--primary-color);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+#comment-form .submit:hover {
+    background: var(--primary-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--primary-color) 30%, transparent);
+}
+
+#comment-form .submit:active {
+    transform: translateY(0);
+}
+
+#comment-form .submit:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+#comment-form .submit .fa-spinner {
+    animation: fa-spin 1s linear infinite;
+}
+
+.comment-submit-tip {
+    font-size: 13px;
+    color: var(--text-secondary);
+    transition: var(--transition-fast);
+}
+
+.comment-submit-tip.success {
+    color: #52c41a;
+}
+
+.comment-submit-tip.error {
+    color: #ff4d4f;
 }
 
 .cancel-comment-reply {
     position: absolute;
-    top: 20px;
-    right: 25px;
+    top: 24px;
+    right: 30px;
     margin-bottom: 0;
 }
 
@@ -1695,12 +1869,17 @@ pre[class*="language-"].line-numbers > code {
     font-size: 13px;
     color: var(--text-secondary);
     background: #f5f5f5;
-    padding: 5px 10px;
-    border-radius: 4px;
+    padding: 5px 12px;
+    border-radius: 6px;
+    text-decoration: none;
+    transition: var(--transition-fast);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
 }
 
 .cancel-comment-reply a:hover {
-    background: #e0e0e0;
+    background: #e8e8e8;
     color: var(--primary-color);
 }
 
@@ -1714,60 +1893,27 @@ pre[class*="language-"].line-numbers > code {
     }
 }
 
-#comment-form label {
-    display: block;
-    margin-bottom: 8px;
-    font-weight: 500;
-    color: var(--text-color);
+.turnstile-container {
+    margin: 16px 0;
 }
 
-#comment-form .required::after {
-    content: " *";
-    color: #ff4d4f;
-}
-
-#comment-form input[type="text"],
-#comment-form input[type="email"],
-#comment-form input[type="url"],
-#comment-form textarea {
-    width: 100%;
-    padding: 12px 15px;
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    font-size: 14px;
-    transition: var(--transition-fast);
+.comment-closed {
+    text-align: center;
+    padding: 30px;
+    color: var(--text-secondary);
     background: #fafafa;
+    border-radius: 12px;
 }
 
-#comment-form input:focus,
-#comment-form textarea:focus {
-    outline: none;
-    border-color: var(--primary-color);
-    background: #fff;
-    box-shadow: 0 0 0 3px rgba(30, 159, 255, 0.1);
+.comment-closed h3 {
+    border-bottom: none;
+    padding-bottom: 0;
+    margin-bottom: 0;
+    justify-content: center;
 }
 
-#comment-form textarea {
-    resize: vertical;
-    min-height: 120px;
-}
-
-#comment-form .submit {
-    display: inline-block;
-    padding: 12px 30px;
-    background: var(--primary-color);
-    color: #fff;
-    border: none;
-    border-radius: 6px;
-    font-size: 14px;
-    cursor: pointer;
-    transition: var(--transition-fast);
-    margin-top: 15px;
-}
-
-#comment-form .submit:hover {
-    background: var(--primary-hover);
-    transform: translateY(-1px);
+.comment-closed i {
+    color: var(--text-secondary);
 }
 
 /* ============================================
