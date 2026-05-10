@@ -711,19 +711,20 @@ img {
  * ============================================ */
 .post {
     background: var(--card-bg);
-    border-radius: var(--border-radius);
-    box-shadow: var(--shadow-light);
-    padding: 25px;
-    margin-bottom: 20px;
-    transition: var(--transition-fast);
-    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+    padding: 28px;
+    margin-bottom: 24px;
+    transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid rgba(0, 0, 0, 0.04);
     overflow: hidden;
     position: relative;
 }
 
 .post:hover {
-    box-shadow: var(--shadow-hover);
-    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+    transform: translateY(-4px);
+    border-color: rgba(30, 159, 255, 0.12);
 }
 
 /* ============================================
@@ -810,7 +811,8 @@ img {
     min-height: 280px;
     padding: 0;
     border: none;
-    box-shadow: var(--shadow-hover);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+    border-radius: 12px;
 }
 
 .post.has-thumbnail::before {
@@ -821,16 +823,16 @@ img {
     right: 0;
     bottom: 0;
     background: linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.6) 100%);
-    border-radius: var(--border-radius);
+    border-radius: 12px;
     z-index: 1;
 }
 
 .post.has-thumbnail .post-overlay {
     position: relative;
     z-index: 2;
-    padding: 25px;
+    padding: 28px;
     background: linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.7) 100%);
-    border-radius: var(--border-radius);
+    border-radius: 12px;
     min-height: 280px;
     display: flex;
     flex-direction: column;
@@ -862,10 +864,15 @@ img {
 
 .post.has-thumbnail .read-more {
     color: #fff;
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(8px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .post.has-thumbnail .read-more:hover {
-    color: var(--primary-color);
+    color: #fff;
+    background: rgba(30, 159, 255, 0.85);
+    box-shadow: 0 4px 16px rgba(30, 159, 255, 0.4);
 }
 
 .post.has-thumbnail .post-footer {
@@ -880,7 +887,7 @@ img {
     right: 0;
     bottom: 0;
     z-index: 3;
-    border-radius: var(--border-radius);
+    border-radius: 12px;
 }
 
 /* 加密内容在背景图卡片中的样式 */
@@ -933,26 +940,32 @@ img {
 }
 
 .excerpt-text {
-    color: #666;
-    line-height: 1.8;
-    margin-bottom: 15px;
+    color: #777;
+    line-height: 1.85;
+    margin-bottom: 16px;
     font-size: 14px;
 }
 
 .read-more {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    color: var(--primary-color);
+    gap: 6px;
+    color: #fff;
     font-weight: 500;
-    font-size: 14px;
-    transition: var(--transition-fast);
+    font-size: 13px;
+    transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
     flex-shrink: 0;
+    background: linear-gradient(135deg, var(--primary-color) 0%, #0d8bf2 100%);
+    padding: 7px 18px;
+    border-radius: 20px;
+    box-shadow: 0 2px 8px rgba(30, 159, 255, 0.2);
 }
 
 .read-more:hover {
-    color: var(--primary-hover);
-    gap: 8px;
+    color: #fff;
+    gap: 10px;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(30, 159, 255, 0.35);
 }
 
 /* 文章底部区域 - 包含元信息和阅读全文按钮 */
@@ -961,21 +974,21 @@ img {
     align-items: center;
     justify-content: space-between;
     gap: 15px;
-    margin-top: 15px;
-    padding-top: 15px;
-    border-top: 1px solid #f0f0f0;
+    margin-top: 18px;
+    padding-top: 18px;
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 /* 横向排列的文章元信息 */
 .post-meta-inline {
     display: flex;
     align-items: center;
-    gap: 15px;
+    gap: 18px;
     margin: 0;
     padding: 0;
     list-style: none;
-    color: var(--text-secondary);
-    font-size: 13px;
+    color: #aaa;
+    font-size: 12.5px;
     flex: 1;
     min-width: 0;
 }
@@ -988,14 +1001,20 @@ img {
     overflow: hidden;
     text-overflow: ellipsis;
     max-width: 100%;
+    transition: color 0.3s ease;
+}
+
+.post-meta-inline li:hover {
+    color: #888;
 }
 
 .post-meta-inline a {
-    color: var(--text-secondary);
+    color: #aaa;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     max-width: 100%;
+    transition: color 0.3s ease;
 }
 
 .post-meta-inline a:hover {
@@ -1083,18 +1102,24 @@ img {
 }
 
 .post-title {
-    margin: 0 0 15px 0;
+    margin: 0 0 14px 0;
     font-size: 22px;
-    font-weight: 600;
-    line-height: 1.4;
+    font-weight: 700;
+    line-height: 1.45;
+    letter-spacing: -0.01em;
 }
 
 .post-title a {
     color: var(--text-color);
+    background: linear-gradient(to right, var(--primary-color), var(--primary-color)) no-repeat right bottom;
+    background-size: 0 2px;
+    transition: background-size 0.4s ease;
 }
 
 .post-title a:hover {
     color: var(--primary-color);
+    background-size: 100% 2px;
+    background-position: left bottom;
 }
 
 /* 文章元信息 */
@@ -2623,11 +2648,22 @@ pre[class*="language-"].line-numbers > code {
     }
 
     .post {
-        padding: 20px 15px;
+        padding: 20px 18px;
+        margin-bottom: 18px;
+        border-radius: 10px;
     }
 
     .post-title {
         font-size: 20px;
+    }
+
+    .post.has-thumbnail {
+        min-height: 250px;
+    }
+
+    .post.has-thumbnail .post-overlay {
+        min-height: 250px;
+        padding: 20px;
     }
 
     .post-meta {
@@ -2697,11 +2733,48 @@ pre[class*="language-"].line-numbers > code {
     }
 
     .post {
-        padding: 15px 10px;
+        padding: 16px 14px;
+        margin-bottom: 14px;
+        border-radius: 8px;
     }
 
     .post-title {
         font-size: 18px;
+    }
+
+    .post.has-thumbnail {
+        min-height: 220px;
+    }
+
+    .post.has-thumbnail .post-overlay {
+        min-height: 220px;
+        padding: 16px;
+    }
+
+    .post.has-thumbnail .post-title {
+        font-size: 17px;
+    }
+
+    .post.has-thumbnail .excerpt-text {
+        font-size: 12.5px;
+    }
+
+    .read-more {
+        padding: 6px 15px;
+        font-size: 12px;
+    }
+
+    .excerpt-text {
+        font-size: 13px;
+    }
+
+    .post-meta-inline {
+        gap: 8px;
+        font-size: 12px;
+    }
+
+    .post-meta-inline li {
+        font-size: 11px;
     }
 
     .page-navigator a,
@@ -3213,10 +3286,12 @@ pre[class*="language-"].line-numbers > code {
 .post-sticky {
     border: 2px solid #ff6b6b;
     box-shadow: 0 5px 20px rgba(255, 107, 107, 0.15);
+    border-radius: 12px;
 }
 
 .post-sticky:hover {
     box-shadow: 0 8px 30px rgba(255, 107, 107, 0.25);
+    border-color: #ff6b6b;
 }
 
 .sticky-badge {
@@ -3255,6 +3330,7 @@ pre[class*="language-"].line-numbers > code {
 /* 有背景图的置顶文章 */
 .post.has-thumbnail.post-sticky::before {
     background: linear-gradient(to bottom, rgba(255, 107, 107, 0.15) 0%, rgba(0, 0, 0, 0.6) 100%);
+    border-radius: 12px;
 }
 
 /* 移动端适配 */
@@ -3268,6 +3344,35 @@ pre[class*="language-"].line-numbers > code {
     
     .sticky-badge i {
         font-size: 11px;
+    }
+    
+    .post-sticky {
+        border-radius: 10px;
+    }
+    
+    .post.has-thumbnail.post-sticky::before {
+        border-radius: 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    .post-sticky {
+        border-radius: 8px;
+    }
+    
+    .post.has-thumbnail.post-sticky::before {
+        border-radius: 8px;
+    }
+    
+    .sticky-badge {
+        top: 8px;
+        right: 8px;
+        padding: 4px 8px;
+        font-size: 10px;
+    }
+    
+    .sticky-badge i {
+        font-size: 10px;
     }
 }
 
@@ -3513,5 +3618,132 @@ pre[class*="language-"].line-numbers > code {
         margin: 4px 0;
         padding: 2px 0;
         font-size: 12px;
+    }
+}
+
+/* ============================================
+ * 加载骨架屏样式
+ * ============================================ */
+.skeleton {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: skeleton-loading 1.5s ease-in-out infinite;
+    border-radius: 6px;
+}
+
+@keyframes skeleton-loading {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+.skeleton-card {
+    background: var(--card-bg);
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+    padding: 28px;
+    margin-bottom: 24px;
+    border: 1px solid rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+}
+
+.skeleton-card .skeleton-thumb {
+    height: 180px;
+    margin-bottom: 20px;
+    border-radius: 8px;
+}
+
+.skeleton-card .skeleton-title {
+    height: 26px;
+    width: 70%;
+    margin-bottom: 14px;
+}
+
+.skeleton-card .skeleton-line {
+    height: 14px;
+    width: 100%;
+    margin-bottom: 10px;
+}
+
+.skeleton-card .skeleton-line.short {
+    width: 60%;
+}
+
+.skeleton-card .skeleton-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 20px;
+    padding-top: 18px;
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.skeleton-card .skeleton-meta {
+    height: 12px;
+    width: 40%;
+}
+
+.skeleton-card .skeleton-btn {
+    height: 32px;
+    width: 90px;
+    border-radius: 20px;
+}
+
+/* 移动端骨架屏适配 */
+@media (max-width: 768px) {
+    .skeleton-card {
+        padding: 20px 18px;
+        margin-bottom: 18px;
+        border-radius: 10px;
+    }
+    
+    .skeleton-card .skeleton-thumb {
+        height: 150px;
+        margin-bottom: 16px;
+    }
+    
+    .skeleton-card .skeleton-title {
+        height: 22px;
+    }
+    
+    .skeleton-card .skeleton-line {
+        height: 13px;
+    }
+}
+
+@media (max-width: 480px) {
+    .skeleton-card {
+        padding: 16px 14px;
+        margin-bottom: 14px;
+        border-radius: 8px;
+    }
+    
+    .skeleton-card .skeleton-thumb {
+        height: 130px;
+        margin-bottom: 14px;
+    }
+    
+    .skeleton-card .skeleton-title {
+        height: 20px;
+        width: 80%;
+    }
+    
+    .skeleton-card .skeleton-line {
+        height: 12px;
+    }
+    
+    .skeleton-card .skeleton-footer {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+        margin-top: 16px;
+        padding-top: 14px;
+    }
+    
+    .skeleton-card .skeleton-meta {
+        width: 60%;
     }
 }
