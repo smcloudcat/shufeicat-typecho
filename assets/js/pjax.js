@@ -446,6 +446,10 @@
         window.reinitTimer = setTimeout(function() {
             console.log('开始重新初始化页面功能 [V1.0.3]...');
             
+            if (typeof window.initDarkMode === 'function') {
+                window.initDarkMode();
+            }
+            
             if (typeof window.initMobileMenu === 'function') {
                 window.initMobileMenu();
             }

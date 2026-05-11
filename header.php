@@ -116,6 +116,9 @@
                     </button>
                 </form>
             </div>
+            <button class="dark-mode-toggle" id="dark-mode-toggle" title="<?php _e('切换夜间模式'); ?>" aria-label="<?php _e('切换夜间模式'); ?>">
+                <i class="fa fa-moon-o"></i>
+            </button>
         </div>
     </div>
 </header><!-- end #header -->

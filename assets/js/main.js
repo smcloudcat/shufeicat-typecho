@@ -1,7 +1,96 @@
 /**
  * ShuFeiCat 主题主脚本
- * 包含返回顶部、移动端菜单、代码高亮、代码复制、Ajax加载等功能
+ * 包含返回顶部、移动端菜单、夜间模式、代码高亮、代码复制、Ajax加载等功能
  */
+
+/**
+ * 夜间模式功能
+ * 支持 localStorage 持久化，并检测系统颜色偏好
+ */
+/**
+ * 夜间模式功能（重构版 - 事件委托 + 纯状态同步）
+ * 使用事件委托在 document 上单一监听，彻底避免 PJAX / 多重初始化导致的重复绑定或事件丢失。
+ * initDarkMode 现在是纯同步函数，仅根据当前 data-theme 修正按钮图标，可随时安全调用。
+ */
+(function() {
+    var html = document.documentElement;
+
+    function getSavedTheme() {
+        try { return localStorage.getItem('theme'); } catch (e) { return null; }
+    }
+    function saveTheme(theme) {
+        try { localStorage.setItem('theme', theme); } catch (e) {}
+    }
+    function applyTheme(theme) {
+        var toggleBtn = document.getElementById('dark-mode-toggle');
+        if (theme === 'dark') {
+            html.setAttribute('data-theme', 'dark');
+            if (toggleBtn) {
+                toggleBtn.innerHTML = '<i class="fa fa-sun-o"></i>';
+                toggleBtn.setAttribute('title', '切换日间模式');
+            }
+        } else {
+            html.removeAttribute('data-theme');
+            if (toggleBtn) {
+                toggleBtn.innerHTML = '<i class="fa fa-moon-o"></i>';
+                toggleBtn.setAttribute('title', '切换夜间模式');
+            }
+        }
+    }
+    function toggleTheme() {
+        var newTheme = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+        saveTheme(newTheme);
+        applyTheme(newTheme);
+    }
+
+    // 事件委托：在 document 上只监听一次，无论按钮是否被 PJAX 替换都正常工作
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest) return;
+        if (e.target.closest('#dark-mode-toggle')) {
+            e.preventDefault();
+            toggleTheme();
+        }
+    });
+
+    // 初次加载时立即恢复或初始化主题
+    var savedTheme = getSavedTheme();
+    if (savedTheme) {
+        applyTheme(savedTheme);
+    } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        applyTheme('dark');
+        saveTheme('dark');
+    }
+
+    // 监听系统颜色偏好变化
+    if (window.matchMedia) {
+        var colorSchemeQuery = window.matchMedia('(prefers-color-scheme: dark)');
+        var handleChange = function(e) {
+            if (!getSavedTheme()) applyTheme(e.matches ? 'dark' : 'light');
+        };
+        if (colorSchemeQuery.addEventListener) {
+            colorSchemeQuery.addEventListener('change', handleChange);
+        } else if (colorSchemeQuery.addListener) {
+            colorSchemeQuery.addListener(handleChange);
+        }
+    }
+})();
+
+/**
+ * PJAX 或 DOM 替换后调用 — 仅同步按钮图标状态
+ */
+window.initDarkMode = function() {
+    var toggleBtn = document.getElementById('dark-mode-toggle');
+    if (!toggleBtn) return;
+    var theme = document.documentElement.getAttribute('data-theme');
+    if (theme === 'dark') {
+        toggleBtn.innerHTML = '<i class="fa fa-sun-o"></i>';
+        toggleBtn.setAttribute('title', '切换日间模式');
+    } else {
+        toggleBtn.innerHTML = '<i class="fa fa-moon-o"></i>';
+        toggleBtn.setAttribute('title', '切换夜间模式');
+    }
+};
+
 window.initPrismHighlight = function() {
     if (typeof Prism === 'undefined') {
         setTimeout(window.initPrismHighlight, 100);
@@ -327,6 +416,9 @@ window.initPostViews = function() {
 };
 
 document.addEventListener('DOMContentLoaded', function() {
+    // 初始化夜间模式（优先执行，避免页面闪烁）
+    window.initDarkMode();
+
     // 返回顶部功能
     const backToTop = document.getElementById('back-to-top');
     if (backToTop) {

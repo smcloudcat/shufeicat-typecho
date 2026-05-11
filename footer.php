@@ -68,7 +68,7 @@ $themeUrl = rtrim($this->options->themeUrl, '/') . '/';
 
 // JS 资源路径配置
 // 添加版本号以防止缓存问题
-$version = '1.0.2';
+$version = '1.0.3';
 $jsUrls = [
     'jquery' => $themeUrl . 'assets/vendor/jquery/jquery.min.js',
     'main' => $themeUrl . 'assets/js/main.js?v=' . $version,
