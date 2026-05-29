@@ -387,6 +387,7 @@
             elements: 'a:not(' + excludeSelectors.join(', ') + ')',
             selectors: [
                 '#header',
+                '#left-sidebar',
                 '#main',
                 '#secondary',
                 '#footer',
@@ -452,6 +453,10 @@
             
             if (typeof window.initMobileMenu === 'function') {
                 window.initMobileMenu();
+            }
+
+            if (typeof window.initCollapsibleSidebar === 'function') {
+                window.initCollapsibleSidebar();
             }
             
             if (typeof window.initPrismHighlight === 'function') {

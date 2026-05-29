@@ -5,85 +5,114 @@
 <div class="left-sidebar" id="left-sidebar">
     <div class="sidebar-inner">
         <!-- 分类目录 -->
-        <section class="widget category-widget">
-            <h3 class="widget-title"><i class="fa fa-navicon"></i><?php _e('分类目录'); ?></h3>
-            <ul class="category-nav-list">
-                <?php
-                $categories = \Widget\Metas\Category\Rows::alloc();
-                while ($categories->next()):
-                ?>
-                    <li class="category-nav-item <?php if($this->is('category', $categories->slug)): ?>active<?php endif; ?>">
-                        <a href="<?php $categories->permalink(); ?>">
-                            <i class="fa fa-folder-open-o"></i>
-                            <span><?php $categories->name(); ?></span>
-                        </a>
-                    </li>
-                <?php endwhile; ?>
-            </ul>
+        <section class="widget category-widget collapsible-widget">
+            <h3 class="widget-title collapsible-toggle"><i class="fa fa-navicon"></i><?php _e('分类目录'); ?><i class="fa fa-chevron-down collapsible-arrow"></i></h3>
+            <div class="collapsible-content">
+                <ul class="category-nav-list">
+                    <?php
+                    $categories = \Widget\Metas\Category\Rows::alloc();
+                    while ($categories->next()):
+                    ?>
+                        <li class="category-nav-item <?php if($this->is('category', $categories->slug)): ?>active<?php endif; ?>">
+                            <a href="<?php $categories->permalink(); ?>">
+                                <i class="fa fa-folder-open-o"></i>
+                                <span><?php $categories->name(); ?></span>
+                            </a>
+                        </li>
+                    <?php endwhile; ?>
+                </ul>
+            </div>
         </section>
 
-        <!-- 其它 -->
-        <?php if (!empty($this->options->sidebarBlock) && in_array('ShowOther', $this->options->sidebarBlock)): ?>
-        <section class="widget other-widget">
-            <h3 class="widget-title"><i class="fa fa-cogs"></i><?php _e('其它'); ?></h3>
-            <ul class="widget-list">
-                <?php if ($this->user->hasLogin()): ?>
+        <!-- 页面导航 -->
+        <section class="widget page-nav-widget collapsible-widget">
+            <h3 class="widget-title collapsible-toggle"><i class="fa fa-sitemap"></i><?php _e('页面导航'); ?><i class="fa fa-chevron-down collapsible-arrow"></i></h3>
+            <div class="collapsible-content">
+                <ul class="widget-list page-nav-list">
                     <li>
-                        <a href="<?php $this->options->adminUrl(); ?>">
-                            <i class="fa fa-dashboard"></i><?php _e('进入后台'); ?> (<?php $this->user->screenName(); ?>)
+                        <a href="<?php $this->options->siteUrl(); ?>" <?php if ($this->is('index')): ?>class="current"<?php endif; ?>>
+                            <i class="fa fa-home"></i>
+                            <span><?php _e('首页'); ?></span>
                         </a>
                     </li>
-                    <li>
-                        <a href="<?php $this->options->logoutUrl(); ?>">
-                            <i class="fa fa-sign-out"></i><?php _e('退出'); ?>
-                        </a>
-                    </li>
-                <?php else: ?>
-                    <li class="last">
-                        <a href="<?php $this->options->adminUrl('login.php'); ?>">
-                            <i class="fa fa-sign-in"></i><?php _e('登录'); ?>
-                        </a>
-                    </li>
-                <?php endif; ?>
-                <li>
-                    <a href="<?php $this->options->feedUrl(); ?>">
-                        <i class="fa fa-rss"></i><?php _e('文章 RSS'); ?>
-                    </a>
-                </li>
-                <li>
-                    <a href="<?php $this->options->commentsFeedUrl(); ?>">
-                        <i class="fa fa-rss-square"></i><?php _e('评论 RSS'); ?>
-                    </a>
-                </li>
-                <li>
-                    <a href="https://typecho.org" target="_blank">
-                        <i class="fa fa-external-link"></i>Typecho
-                    </a>
-                </li>
-            </ul>
+                    <?php \Widget\Contents\Page\Rows::alloc()->to($pages); ?>
+                    <?php while ($pages->next()): ?>
+                        <li>
+                            <a href="<?php $pages->permalink(); ?>" <?php if ($this->is('page', $pages->slug)): ?>class="current"<?php endif; ?>>
+                                <i class="fa fa-file-text-o"></i>
+                                <span><?php $pages->title(); ?></span>
+                            </a>
+                        </li>
+                    <?php endwhile; ?>
+                </ul>
+            </div>
         </section>
-        <?php endif; ?>
 
         <!-- 友链 -->
         <?php if (!empty($this->options->sidebarBlock) && in_array('ShowLinks', $this->options->sidebarBlock) && !empty($this->options->links)): ?>
-        <section class="widget">
-            <h3 class="widget-title"><i class="fa fa-link"></i><?php _e('友链'); ?></h3>
-            <select class="links-select" onchange="if(this.value){window.open(this.value,'_blank');}">
-                <option value=""><?php _e('选择友链...'); ?></option>
-                <?php
-                $links = explode("\n", $this->options->links);
-                foreach ($links as $link) {
-                    $link = trim($link);
-                    if (empty($link)) continue;
-                    $parts = explode(',', $link, 2);
-                    if (count($parts) == 2) {
-                        $name = trim($parts[0]);
-                        $url = trim($parts[1]);
-                        echo '<option value="' . htmlspecialchars($url) . '">' . htmlspecialchars($name) . '</option>';
+        <section class="widget links-widget collapsible-widget">
+            <h3 class="widget-title collapsible-toggle"><i class="fa fa-link"></i><?php _e('友链'); ?><i class="fa fa-chevron-down collapsible-arrow"></i></h3>
+            <div class="collapsible-content">
+                <ul class="links-nav-list">
+                    <?php
+                    $links = explode("\n", $this->options->links);
+                    foreach ($links as $link) {
+                        $link = trim($link);
+                        if (empty($link)) continue;
+                        $parts = explode(',', $link, 2);
+                        if (count($parts) == 2) {
+                            $name = trim($parts[0]);
+                            $url = trim($parts[1]);
+                            echo '<li class="links-nav-item"><a href="' . htmlspecialchars($url) . '" target="_blank" rel="noopener"><i class="fa fa-external-link"></i><span>' . htmlspecialchars($name) . '</span></a></li>';
+                        }
                     }
-                }
-                ?>
-            </select>
+                    ?>
+                </ul>
+            </div>
+        </section>
+        <?php endif; ?>
+
+        <!-- 其它 -->
+        <?php if (!empty($this->options->sidebarBlock) && in_array('ShowOther', $this->options->sidebarBlock)): ?>
+        <section class="widget other-widget collapsible-widget">
+            <h3 class="widget-title collapsible-toggle"><i class="fa fa-cogs"></i><?php _e('其它'); ?><i class="fa fa-chevron-down collapsible-arrow"></i></h3>
+            <div class="collapsible-content">
+                <ul class="widget-list">
+                    <?php if ($this->user->hasLogin()): ?>
+                        <li>
+                            <a href="<?php $this->options->adminUrl(); ?>">
+                                <i class="fa fa-dashboard"></i><?php _e('进入后台'); ?> (<?php $this->user->screenName(); ?>)
+                            </a>
+                        </li>
+                        <li>
+                            <a href="<?php $this->options->logoutUrl(); ?>">
+                                <i class="fa fa-sign-out"></i><?php _e('退出'); ?>
+                            </a>
+                        </li>
+                    <?php else: ?>
+                        <li class="last">
+                            <a href="<?php $this->options->adminUrl('login.php'); ?>">
+                                <i class="fa fa-sign-in"></i><?php _e('登录'); ?>
+                            </a>
+                        </li>
+                    <?php endif; ?>
+                    <li>
+                        <a href="<?php $this->options->feedUrl(); ?>">
+                            <i class="fa fa-rss"></i><?php _e('文章 RSS'); ?>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="<?php $this->options->commentsFeedUrl(); ?>">
+                            <i class="fa fa-rss-square"></i><?php _e('评论 RSS'); ?>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="https://typecho.org" target="_blank">
+                            <i class="fa fa-external-link"></i>Typecho
+                        </a>
+                    </li>
+                </ul>
+            </div>
         </section>
         <?php endif; ?>
     </div>
@@ -198,28 +227,6 @@
 
 <!-- 右侧边栏 -->
 <div class="right-sidebar" id="secondary" role="complementary">
-    <!-- 页面导航 -->
-    <section class="widget page-nav-widget">
-        <h3 class="widget-title"><i class="fa fa-sitemap"></i><?php _e('页面导航'); ?></h3>
-        <ul class="widget-list page-nav-list">
-            <li>
-                <a href="<?php $this->options->siteUrl(); ?>" <?php if ($this->is('index')): ?>class="current"<?php endif; ?>>
-                    <i class="fa fa-home"></i>
-                    <span><?php _e('首页'); ?></span>
-                </a>
-            </li>
-            <?php \Widget\Contents\Page\Rows::alloc()->to($pages); ?>
-            <?php while ($pages->next()): ?>
-                <li>
-                    <a href="<?php $pages->permalink(); ?>" <?php if ($this->is('page', $pages->slug)): ?>class="current"<?php endif; ?>>
-                        <i class="fa fa-file-text-o"></i>
-                        <span><?php $pages->title(); ?></span>
-                    </a>
-                </li>
-            <?php endwhile; ?>
-        </ul>
-    </section>
-    
     <!-- 最新文章 -->
     <?php if (!empty($this->options->sidebarBlock) && in_array('ShowRecentPosts', $this->options->sidebarBlock)): ?>
     <section class="widget">

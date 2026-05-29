@@ -202,6 +202,63 @@ window.initCopyButtons = function() {
     });
 };
 
+window.initCollapsibleSidebar = function() {
+    var sidebar = document.getElementById('left-sidebar');
+    if (!sidebar) return;
+
+    function getWidgetKey(widget) {
+        var specificClass = '';
+        var classes = widget.className.split(' ');
+        for (var i = 0; i < classes.length; i++) {
+            if (classes[i] !== 'widget' && classes[i] !== 'collapsible-widget' && classes[i] !== 'collapsed') {
+                specificClass = classes[i];
+                break;
+            }
+        }
+        return 'sidebar_state_' + (specificClass || 'unknown');
+    }
+
+    var toggles = sidebar.querySelectorAll('.collapsible-toggle');
+    toggles.forEach(function(toggle) {
+        var newToggle = toggle.cloneNode(true);
+        toggle.parentNode.replaceChild(newToggle, toggle);
+    });
+
+    toggles = sidebar.querySelectorAll('.collapsible-toggle');
+    toggles.forEach(function(toggle) {
+        toggle.addEventListener('click', function(e) {
+            e.preventDefault();
+            var widget = this.closest('.collapsible-widget');
+            if (!widget) return;
+
+            var isCollapsed = widget.classList.contains('collapsed');
+            if (isCollapsed) {
+                widget.classList.remove('collapsed');
+                try { localStorage.setItem(getWidgetKey(widget), 'expanded'); } catch (e) {}
+            } else {
+                widget.classList.add('collapsed');
+                try { localStorage.setItem(getWidgetKey(widget), 'collapsed'); } catch (e) {}
+            }
+        });
+    });
+
+    toggles.forEach(function(toggle) {
+        var widget = toggle.closest('.collapsible-widget');
+        if (!widget) return;
+        try {
+            var key = getWidgetKey(widget);
+            var state = localStorage.getItem(key);
+            if (state === 'expanded') {
+                widget.classList.remove('collapsed');
+            } else {
+                widget.classList.add('collapsed');
+            }
+        } catch (e) {
+            widget.classList.add('collapsed');
+        }
+    });
+};
+
 // 初始化移动端菜单功能 - 控制左侧边栏
 window.initMobileMenu = function() {
     const mobileMenuBtn = document.getElementById('mobile-menu-btn');
@@ -418,6 +475,9 @@ window.initPostViews = function() {
 document.addEventListener('DOMContentLoaded', function() {
     // 初始化夜间模式（优先执行，避免页面闪烁）
     window.initDarkMode();
+
+    // 初始化侧边栏折叠功能
+    window.initCollapsibleSidebar();
 
     // 返回顶部功能
     const backToTop = document.getElementById('back-to-top');

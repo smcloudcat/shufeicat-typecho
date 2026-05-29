@@ -112,8 +112,8 @@
     .left-sidebar .widget {
         background: transparent !important;
     }
-    .left-sidebar .links-select {
-        background: rgba(255, 255, 255, <?php echo min(1, $cardOpacity + 0.1); ?>) !important;
+    .left-sidebar .links-nav-list {
+        background: transparent !important;
     }
     .post {
         background: rgba(255, 255, 255, <?php echo $cardOpacity; ?>) !important;
@@ -135,8 +135,8 @@
     [data-theme="dark"] .widget {
         background: rgba(26, 26, 36, <?php echo $cardOpacity; ?>) !important;
     }
-    [data-theme="dark"] .left-sidebar .links-select {
-        background: rgba(26, 26, 36, <?php echo min(1, $cardOpacity + 0.1); ?>) !important;
+    [data-theme="dark"] .left-sidebar .links-nav-list {
+        background: transparent !important;
     }
     <?php endif; ?>
     </style>
