@@ -116,6 +116,7 @@ function themeConfig($form)
                 '<ul id="cat-tabs">' .
                     '<li data-id="cat-basic" class="active">基本设置</li>' .
                     '<li data-id="cat-avatar">头像外观</li>' .
+                    '<li data-id="cat-appearance">外观设置</li>' .
                     '<li data-id="cat-pjax">Pjax无刷新</li>' .
                     '<li data-id="cat-resource">资源加载</li>' .
                     '<li data-id="cat-article">文章缩略图</li>' .
@@ -139,7 +140,7 @@ function themeConfig($form)
             'var c = document.getElementById("cat-tpl").querySelector(".cat-config-container");' .
             'var pWrap = c.querySelector("#cat-panes");' .
             'f.insertBefore(c, f.firstChild);' .
-            'var ids = ["cat-basic", "cat-avatar", "cat-pjax", "cat-resource", "cat-article", "cat-stats", "cat-mail", "cat-ai", "cat-verify", "cat-data"];' .
+            'var ids = ["cat-basic", "cat-avatar", "cat-appearance", "cat-pjax", "cat-resource", "cat-article", "cat-stats", "cat-mail", "cat-ai", "cat-verify", "cat-data"];' .
             'ids.forEach(function(id) {' .
                 'var p = document.createElement("div");' .
                 'p.id = id; p.className = "cat-pane" + (id === "cat-basic" ? " active" : "");' .
@@ -454,7 +455,47 @@ function themeConfig($form)
     );
     $gravatarSource->setAttribute('class', 'typecho-option cat-group-avatar');
     $form->addInput($gravatarSource);
-    
+
+    $themeColor = new \Typecho\Widget\Helper\Form\Element\Text(
+        'themeColor',
+        null,
+        '#1E9FFF',
+        _t('主题颜色'),
+        _t('介绍：设置主题的主色调，应用于链接、按钮等元素<br>默认：#1E9FFF（蓝色）<br>请填写有效的十六进制颜色值，例如：#1E9FFF、#FF6B6B、#6C5CE7')
+    );
+    $themeColor->setAttribute('class', 'typecho-option cat-group-appearance');
+    $form->addInput($themeColor);
+
+    $bgColor = new \Typecho\Widget\Helper\Form\Element\Text(
+        'bgColor',
+        null,
+        '#f8f9fc',
+        _t('背景颜色'),
+        _t('介绍：设置页面的背景颜色<br>默认：#f8f9fc（浅灰蓝色）<br>请填写有效的十六进制颜色值，例如：#f8f9fc、#ffffff、#f0f0f0')
+    );
+    $bgColor->setAttribute('class', 'typecho-option cat-group-appearance');
+    $form->addInput($bgColor);
+
+    $bgImage = new \Typecho\Widget\Helper\Form\Element\Text(
+        'bgImage',
+        null,
+        null,
+        _t('背景图片'),
+        _t('介绍：设置页面的背景图片URL，留空则不设置背景图片<br>背景图片将覆盖背景颜色设置，建议使用高分辨率图片<br>示例：https://example.com/background.jpg')
+    );
+    $bgImage->setAttribute('class', 'typecho-option cat-group-appearance');
+    $form->addInput($bgImage->addRule('url', _t('请填写一个合法的URL地址')));
+
+    $cardOpacity = new \Typecho\Widget\Helper\Form\Element\Text(
+        'cardOpacity',
+        null,
+        '1',
+        _t('盒子透明度'),
+        _t('介绍：设置页面中各盒子（导航栏、侧边栏、文章卡片等）的透明度<br>取值范围 0 ~ 1，1 为完全不透明，0 为完全透明<br>默认：1（不透明）<br>设置背景图片后建议调低透明度，例如 0.85，让背景图片透出')
+    );
+    $cardOpacity->setAttribute('class', 'typecho-option cat-group-appearance');
+    $form->addInput($cardOpacity);
+
     $pjaxLoad = new \Typecho\Widget\Helper\Form\Element\Radio(
         'pjaxLoad',
         array('off' => _t('关闭'), 'on' => _t('开启')),

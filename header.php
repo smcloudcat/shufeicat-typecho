@@ -73,6 +73,75 @@
     window.themeUrl = '<?php echo rtrim($this->options->themeUrl, '/') . '/'; ?>';
     </script>
     
+    <?php
+    $themeColor = !empty($this->options->themeColor) ? $this->options->themeColor : '#1E9FFF';
+    $bgColor = !empty($this->options->bgColor) ? $this->options->bgColor : '#f8f9fc';
+    $bgImage = !empty($this->options->bgImage) ? $this->options->bgImage : '';
+    $cardOpacity = isset($this->options->cardOpacity) && $this->options->cardOpacity !== '' ? floatval($this->options->cardOpacity) : 1;
+    $cardOpacity = max(0, min(1, $cardOpacity));
+    $hasCustomStyle = ($themeColor !== '#1E9FFF' || $bgColor !== '#f8f9fc' || $bgImage || $cardOpacity < 1);
+    if ($hasCustomStyle):
+    ?>
+    <style>
+    :root {
+        <?php if ($themeColor !== '#1E9FFF'): ?>--primary-color: <?php echo htmlspecialchars($themeColor); ?>;
+        --primary-hover: <?php echo htmlspecialchars($themeColor); ?>;<?php endif; ?>
+        <?php if ($bgColor !== '#f8f9fc'): ?>--bg-color: <?php echo htmlspecialchars($bgColor); ?>;<?php endif; ?>
+        <?php if ($cardOpacity < 1): ?>--card-bg: rgba(255, 255, 255, <?php echo $cardOpacity; ?>);<?php endif; ?>
+    }
+    <?php if ($bgImage): ?>
+    body {
+        background-image: url('<?php echo htmlspecialchars($bgImage); ?>');
+        background-size: cover;
+        background-attachment: fixed;
+        background-position: center center;
+        background-repeat: no-repeat;
+    }
+    <?php endif; ?>
+    <?php if ($cardOpacity < 1): ?>
+    #header {
+        background: rgba(255, 255, 255, <?php echo $cardOpacity; ?>) !important;
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+    }
+    .left-sidebar {
+        background: rgba(255, 255, 255, <?php echo $cardOpacity; ?>) !important;
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+    }
+    .left-sidebar .widget {
+        background: transparent !important;
+    }
+    .left-sidebar .links-select {
+        background: rgba(255, 255, 255, <?php echo min(1, $cardOpacity + 0.1); ?>) !important;
+    }
+    .post {
+        background: rgba(255, 255, 255, <?php echo $cardOpacity; ?>) !important;
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+    }
+    .widget {
+        background: rgba(255, 255, 255, <?php echo $cardOpacity; ?>) !important;
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+    }
+    [data-theme="dark"] #header {
+        background: rgba(26, 26, 36, <?php echo $cardOpacity; ?>) !important;
+    }
+    [data-theme="dark"] .left-sidebar {
+        background: rgba(26, 26, 36, <?php echo $cardOpacity; ?>) !important;
+    }
+    [data-theme="dark"] .post,
+    [data-theme="dark"] .widget {
+        background: rgba(26, 26, 36, <?php echo $cardOpacity; ?>) !important;
+    }
+    [data-theme="dark"] .left-sidebar .links-select {
+        background: rgba(26, 26, 36, <?php echo min(1, $cardOpacity + 0.1); ?>) !important;
+    }
+    <?php endif; ?>
+    </style>
+    <?php endif; ?>
+
     <?php $this->header(); ?>
 </head>
 <body>
