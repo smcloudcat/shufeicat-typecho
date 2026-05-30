@@ -74,18 +74,18 @@
     </script>
     
     <?php
-    $themeColor = !empty($this->options->themeColor) ? $this->options->themeColor : '#1E9FFF';
+    $themeColor = !empty($this->options->themeColor) ? $this->options->themeColor : '#FF6B6B';
     $bgColor = !empty($this->options->bgColor) ? $this->options->bgColor : '#f8f9fc';
     $bgImage = !empty($this->options->bgImage) ? $this->options->bgImage : '';
     $cardOpacity = isset($this->options->cardOpacity) && $this->options->cardOpacity !== '' ? floatval($this->options->cardOpacity) : 1;
     $cardOpacity = max(0, min(1, $cardOpacity));
-    $hasCustomStyle = ($themeColor !== '#1E9FFF' || $bgColor !== '#f8f9fc' || $bgImage || $cardOpacity < 1);
+    $hasCustomStyle = ($themeColor !== '#FF6B6B' || $bgColor !== '#f8f9fc' || $bgImage || $cardOpacity < 1);
     if ($hasCustomStyle):
     ?>
     <style>
     :root {
-        <?php if ($themeColor !== '#1E9FFF'): ?>--primary-color: <?php echo htmlspecialchars($themeColor); ?>;
-        --primary-hover: <?php echo htmlspecialchars($themeColor); ?>;<?php endif; ?>
+        <?php if ($themeColor !== '#FF6B6B'): ?>--primary-color: <?php echo htmlspecialchars($themeColor); ?>;
+        --primary-hover: color-mix(in srgb, <?php echo htmlspecialchars($themeColor); ?> 80%, #000);<?php endif; ?>
         <?php if ($bgColor !== '#f8f9fc'): ?>--bg-color: <?php echo htmlspecialchars($bgColor); ?>;<?php endif; ?>
         <?php if ($cardOpacity < 1): ?>--card-bg: rgba(255, 255, 255, <?php echo $cardOpacity; ?>);<?php endif; ?>
     }

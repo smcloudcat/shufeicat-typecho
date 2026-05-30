@@ -459,9 +459,9 @@ function themeConfig($form)
     $themeColor = new \Typecho\Widget\Helper\Form\Element\Text(
         'themeColor',
         null,
-        '#1E9FFF',
+        '#FF6B6B',
         _t('主题颜色'),
-        _t('介绍：设置主题的主色调，应用于链接、按钮等元素<br>默认：#1E9FFF（蓝色）<br>请填写有效的十六进制颜色值，例如：#1E9FFF、#FF6B6B、#6C5CE7')
+        _t('介绍：设置主题的主色调，应用于链接、按钮等元素<br>默认：#FF6B6B（珊瑚红）<br>请填写有效的十六进制颜色值，例如：#FF6B6B、#1E9FFF、#6C5CE7')
     );
     $themeColor->setAttribute('class', 'typecho-option cat-group-appearance');
     $form->addInput($themeColor);
