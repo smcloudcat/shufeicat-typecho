@@ -93,31 +93,105 @@ ob_start();
 
 if ($archive->have()) {
     while ($archive->next()) {
+        $thumbnail = shufei_get_post_thumbnail($archive);
+        $excerpt = '';
+        if (!$archive->hidden) {
+            $customExcerpt = $archive->fields->excerpt;
+            if (!empty($customExcerpt)) {
+                $excerpt = $customExcerpt;
+            } else {
+                $content = strip_tags($archive->content);
+                $content = preg_replace('/\s+/', ' ', trim($content));
+                if (mb_strlen($content, 'UTF-8') > 80) {
+                    $excerpt = mb_substr($content, 0, 80, 'UTF-8') . '...';
+                } else {
+                    $excerpt = $content;
+                }
+            }
+        }
+        $hasThumb = !empty($thumbnail);
+        $options = \Typecho\Widget::widget('Widget_Options');
+        $postListStyle = !empty($options->postListStyle) ? $options->postListStyle : 'card';
+        
+        if ($postListStyle === 'classic'):
         ?>
-        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
-            <header class="post-header">
-                <?php 
-                ?>
-                <h2 class="post-title" itemprop="name headline">
-                    <a itemprop="url" href="<?php $archive->permalink(); ?>"><?php $archive->title(); ?></a>
-                </h2>
-                <ul class="post-meta">
-                    <li itemprop="author" itemscope itemtype="http://schema.org/Person">
-                        <?php _e('作者'); ?>: <a itemprop="name" href="<?php $archive->author->permalink(); ?>" rel="author"><?php $archive->author(); ?></a>
-                    </li>
-                    <li><?php _e('时间'); ?>:
-                        <time datetime="<?php $archive->date('c'); ?>" itemprop="datePublished"><?php $archive->date(); ?></time>
-                    </li>
-                    <li><?php _e('分类'); ?>: <?php $archive->category(','); ?></li>
-                    <li itemprop="interactionCount">
-                        <a itemprop="discussionUrl" href="<?php $archive->permalink(); ?>#comments"><?php $archive->commentsNum(_t('暂无评论'), _t('1 条评论'), _t('%d 条评论')); ?></a>
-                    </li>
-                </ul>
-            </header>
-            <div class="post-content" itemprop="articleBody">
-                <?php $archive->content(_t('阅读全文 <i class="fa fa-angle-double-right"></i>')); ?>
+        <article class="post <?php echo $hasThumb ? 'has-thumbnail' : ''; ?>" itemscope itemtype="http://schema.org/BlogPosting"
+                 style="<?php echo $hasThumb ? 'background-image: url(' . htmlspecialchars($thumbnail) . ');' : ''; ?>">
+            <a href="<?php $archive->permalink(); ?>" class="post-link"></a>
+            <div class="post-overlay">
+                <header class="post-header">
+                    <h2 class="post-title" itemprop="name headline">
+                        <a itemprop="url" href="<?php $archive->permalink(); ?>"><?php $archive->title(); ?></a>
+                    </h2>
+                </header>
+                <div class="post-content post-excerpt" itemprop="articleBody">
+                    <?php if ($archive->hidden): ?>
+                        <p class="excerpt-text"><i class="fa fa-lock"></i> 此文章已加密，请输入密码查看</p>
+                    <?php else: ?>
+                        <p class="excerpt-text"><?php echo htmlspecialchars($excerpt); ?></p>
+                    <?php endif; ?>
+                    <div class="post-footer">
+                        <ul class="post-meta-inline">
+                            <li itemprop="author" itemscope itemtype="http://schema.org/Person">
+                                <a itemprop="name" href="<?php $archive->author->permalink(); ?>" rel="author"><?php $archive->author(); ?></a>
+                            </li>
+                            <li>
+                                <time datetime="<?php $archive->date('c'); ?>" itemprop="datePublished"><?php $archive->date(); ?></time>
+                            </li>
+                            <li><?php $archive->category(','); ?></li>
+                            <li itemprop="interactionCount">
+                                <a itemprop="discussionUrl" href="<?php $archive->permalink() ?>#comments"><?php $archive->commentsNum(_t('0'), _t('1'), _t('%d')); ?></a>
+                            </li>
+                        </ul>
+                        <a href="<?php $archive->permalink(); ?>" class="read-more">
+                            <?php _e('阅读全文 <i class="fa fa-angle-double-right"></i>'); ?>
+                        </a>
+                    </div>
+                </div>
             </div>
         </article>
+        <?php else: ?>
+        <article class="post <?php echo $hasThumb ? 'has-thumbnail' : 'no-thumbnail'; ?>" itemscope itemtype="http://schema.org/BlogPosting">
+            <?php if ($hasThumb): ?>
+            <div class="post-thumbnail-side">
+                <a href="<?php $archive->permalink(); ?>" class="thumbnail-link-side" title="<?php $archive->title(); ?>">
+                    <img src="<?php echo htmlspecialchars($thumbnail); ?>" alt="<?php $archive->title(); ?>" class="thumbnail-img-side" />
+                </a>
+            </div>
+            <?php endif; ?>
+            <div class="post-body">
+                <header class="post-header">
+                    <h2 class="post-title" itemprop="name headline">
+                        <a itemprop="url" href="<?php $archive->permalink(); ?>"><?php $archive->title(); ?></a>
+                    </h2>
+                    <ul class="post-meta-top">
+                        <li><i class="fa fa-user"></i> <a href="<?php $archive->author->permalink(); ?>" rel="author"><?php $archive->author(); ?></a></li>
+                        <li><i class="fa fa-calendar"></i> <time datetime="<?php $archive->date('c'); ?>" itemprop="datePublished"><?php $archive->date(); ?></time></li>
+                        <li><i class="fa fa-folder-o"></i> <?php $archive->category(','); ?></li>
+                    </ul>
+                </header>
+                <div class="post-excerpt" itemprop="articleBody">
+                    <?php if ($archive->hidden): ?>
+                        <p class="excerpt-text"><i class="fa fa-lock"></i> 此文章已加密，请输入密码查看</p>
+                    <?php else: ?>
+                        <p class="excerpt-text"><?php echo htmlspecialchars($excerpt); ?></p>
+                    <?php endif; ?>
+                </div>
+                <div class="post-footer">
+                    <ul class="post-meta-inline">
+                        <?php if (!$archive->hidden): ?>
+                        <li itemprop="interactionCount">
+                            <a itemprop="discussionUrl" href="<?php $archive->permalink() ?>#comments" title="评论"><i class="fa fa-comment-o"></i> <?php $archive->commentsNum(_t('0'), _t('1'), _t('%d')); ?></a>
+                        </li>
+                        <?php endif; ?>
+                    </ul>
+                    <a href="<?php $archive->permalink(); ?>" class="read-more">
+                        <?php _e('阅读全文 <i class="fa fa-angle-double-right"></i>'); ?>
+                    </a>
+                </div>
+            </div>
+        </article>
+        <?php endif; ?>
         <?php
     }
 } else {

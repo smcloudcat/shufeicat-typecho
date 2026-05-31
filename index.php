@@ -15,6 +15,30 @@ $this->need('header.php');
 <!-- 左侧侧边栏 - 分类和其他 -->
 <div class="left-sidebar" id="left-sidebar">
     <div class="sidebar-inner">
+        <!-- 站长信息卡片 -->
+        <div class="author-card">
+            <div class="author-avatar-wrap">
+                <img class="author-avatar" src="<?php echo !empty($this->options->authorAvatar) ? $this->options->authorAvatar : 'https://q1.qlogo.cn/g?b=qq&nk=3522934828&s=100'; ?>" alt="<?php echo !empty($this->options->authorName) ? $this->options->authorName : '云猫'; ?>">
+            </div>
+            <div class="author-name"><?php echo !empty($this->options->authorName) ? $this->options->authorName : '云猫'; ?></div>
+            <div class="author-signature"><?php echo !empty($this->options->authorSignature) ? $this->options->authorSignature : 'Hello,world'; ?></div>
+            <div class="author-stats">
+                <?php $stat = \Widget\Stat::alloc(); ?>
+                <div class="author-stat-item">
+                    <span class="author-stat-num"><?php echo $stat->publishedPostsNum; ?></span>
+                    <span class="author-stat-label">文章</span>
+                </div>
+                <div class="author-stat-item">
+                    <span class="author-stat-num"><?php echo $stat->categoriesNum; ?></span>
+                    <span class="author-stat-label">分类</span>
+                </div>
+                <div class="author-stat-item">
+                    <span class="author-stat-num"><?php echo $stat->tagsNum; ?></span>
+                    <span class="author-stat-label">标签</span>
+                </div>
+            </div>
+        </div>
+
         <!-- 分类目录 -->
         <section class="widget category-widget collapsible-widget">
             <h3 class="widget-title collapsible-toggle"><i class="fa fa-navicon"></i><?php _e('分类目录'); ?><i class="fa fa-chevron-down collapsible-arrow"></i></h3>
@@ -122,8 +146,36 @@ $this->need('header.php');
         </section>
         <?php endif; ?>
         
+        <!-- 联系方式 -->
+        <?php
+        $_opts = \Typecho\Widget::widget('Widget_Options');
+        $authorEmail = isset($_opts->authorEmail) ? trim($_opts->authorEmail) : '';
+        $authorGithub = isset($_opts->authorGithub) ? trim($_opts->authorGithub) : '';
+        $authorQQ = isset($_opts->authorQQ) ? trim($_opts->authorQQ) : '';
+        $hasContacts = ($authorEmail !== '' || $authorGithub !== '' || $authorQQ !== '');
+        if ($hasContacts):
+        ?>
+        <div class="sidebar-contacts">
+            <?php if ($authorEmail !== ''): ?>
+            <a href="mailto:<?php echo htmlspecialchars($authorEmail); ?>" title="<?php echo htmlspecialchars($authorEmail); ?>" target="_blank" rel="noopener">
+                <i class="fa fa-envelope-o"></i>
+            </a>
+            <?php endif; ?>
+            <?php if ($authorGithub !== ''): ?>
+            <a href="<?php echo htmlspecialchars($authorGithub); ?>" title="GitHub" target="_blank" rel="noopener">
+                <i class="fa fa-github"></i>
+            </a>
+            <?php endif; ?>
+            <?php if ($authorQQ !== ''): ?>
+            <a href="http://wpa.qq.com/msgrd?v=3&uin=<?php echo htmlspecialchars($authorQQ); ?>&site=qq&menu=yes" title="QQ: <?php echo htmlspecialchars($authorQQ); ?>" target="_blank" rel="noopener">
+                <i class="fa fa-qq"></i>
+            </a>
+            <?php endif; ?>
+        </div>
+        <?php endif; ?>
+
         <!-- 侧边栏底部信息 -->
-        <div class="sidebar-footer" style="padding: 15px; text-align: center; color: #999; font-size: 12px; border-top: 1px solid #eee; margin-top: 10px;">
+        <div class="sidebar-footer">
             <p>© <?php echo date('Y'); ?> <?php $this->options->title(); ?></p>
             <p style="margin-top: 5px; font-size: 11px;">Theme by ShuFeiCat</p>
         </div>
@@ -145,7 +197,7 @@ $this->need('header.php');
     <?php endif; ?>
     
     <?php if ($this->have()): ?>
-    <div id="ajax-post-list">
+    <div id="ajax-post-list" class="post-list-<?php echo !empty($this->options->postListStyle) ? $this->options->postListStyle : 'card'; ?>">
     <?php
     // 分离置顶文章和普通文章
     $stickyPosts = array();
@@ -164,24 +216,18 @@ $this->need('header.php');
     ?>
     <?php foreach ($allPosts as $post): ?>
         <?php
-        // 获取缩略图
         $thumbnail = shufei_get_post_thumbnail($post);
         
-        // 直接处理简介
         $excerpt = '';
         if (!$post->hidden) {
-            // 1. 检查自定义字段
             $customExcerpt = $post->fields->excerpt;
             if (!empty($customExcerpt)) {
                 $excerpt = $customExcerpt;
             } else {
-                // 2. 获取纯文本内容
                 $content = strip_tags($post->content);
                 $content = preg_replace('/\s+/', ' ', trim($content));
-                
-                // 3. 截取前10字
-                if (mb_strlen($content, 'UTF-8') > 10) {
-                    $excerpt = mb_substr($content, 0, 10, 'UTF-8') . '...';
+                if (mb_strlen($content, 'UTF-8') > 80) {
+                    $excerpt = mb_substr($content, 0, 80, 'UTF-8') . '...';
                 } else {
                     $excerpt = $content;
                 }
@@ -189,10 +235,14 @@ $this->need('header.php');
         }
         
         $isSticky = ($post->fields->sticky == '1');
+        $hasThumb = !empty($thumbnail);
+        $postListStyle = !empty($this->options->postListStyle) ? $this->options->postListStyle : 'card';
         ?>
-        <article class="post <?php echo !empty($thumbnail) ? 'has-thumbnail' : ''; ?> <?php echo $isSticky ? 'post-sticky' : ''; ?>"
+        
+        <?php if ($postListStyle === 'classic'): ?>
+        <article class="post <?php echo $hasThumb ? 'has-thumbnail' : ''; ?> <?php echo $isSticky ? 'post-sticky' : ''; ?>"
                  itemscope itemtype="http://schema.org/BlogPosting"
-                 style="<?php echo !empty($thumbnail) ? 'background-image: url(' . htmlspecialchars($thumbnail) . ');' : ''; ?>">
+                 style="<?php echo $hasThumb ? 'background-image: url(' . htmlspecialchars($thumbnail) . ');' : ''; ?>">
             <a href="<?php echo $post->permalink(); ?>" class="post-link"></a>
             
             <?php if ($isSticky): ?>
@@ -213,27 +263,78 @@ $this->need('header.php');
                         <p class="excerpt-text"><i class="fa fa-lock"></i> 此文章已加密，请输入密码查看</p>
                     <?php else: ?>
                         <p class="excerpt-text"><?php echo htmlspecialchars($excerpt); ?></p>
-                        <div class="post-footer">
-                            <ul class="post-meta-inline">
-                                <li itemprop="author" itemscope itemtype="http://schema.org/Person">
-                                    <a itemprop="name" href="<?php $post->author->permalink(); ?>" rel="author" title="作者"><?php $post->author(); ?></a>
-                                </li>
-                                <li>
-                                    <time datetime="<?php $post->date('c'); ?>" itemprop="datePublished" title="时间"><?php $post->date(); ?></time>
-                                </li>
-                                <li title="分类"><?php $post->category(','); ?></li>
-                                <li itemprop="interactionCount">
-                                    <a itemprop="discussionUrl" href="<?php $post->permalink() ?>#comments" title="评论"><?php $post->commentsNum(_t('0'), _t('1'), _t('%d')); ?></a>
-                                </li>
-                            </ul>
-                            <a href="<?php $post->permalink(); ?>" class="read-more">
-                                <?php _e('阅读全文 <i class="fa fa-angle-double-right"></i>'); ?>
-                            </a>
-                        </div>
                     <?php endif; ?>
+                    <div class="post-footer">
+                        <ul class="post-meta-inline">
+                            <li itemprop="author" itemscope itemtype="http://schema.org/Person">
+                                <a itemprop="name" href="<?php $post->author->permalink(); ?>" rel="author"><?php $post->author(); ?></a>
+                            </li>
+                            <li>
+                                <time datetime="<?php $post->date('c'); ?>" itemprop="datePublished"><?php $post->date(); ?></time>
+                            </li>
+                            <li><?php $post->category(','); ?></li>
+                            <li itemprop="interactionCount">
+                                <a itemprop="discussionUrl" href="<?php $post->permalink() ?>#comments"><?php $post->commentsNum(_t('0'), _t('1'), _t('%d')); ?></a>
+                            </li>
+                        </ul>
+                    </div>
                 </div>
             </div>
         </article>
+        
+        <?php else: ?>
+        <article class="post <?php echo $hasThumb ? 'has-thumbnail' : 'no-thumbnail'; ?> <?php echo $isSticky ? 'post-sticky' : ''; ?>"
+                 itemscope itemtype="http://schema.org/BlogPosting">
+            <a href="<?php echo $post->permalink(); ?>" class="post-link"></a>
+            
+            <?php if ($isSticky): ?>
+            <div class="sticky-badge">
+                <i class="fa fa-thumb-tack"></i>
+                <span>置顶</span>
+            </div>
+            <?php endif; ?>
+            
+            <?php if ($hasThumb): ?>
+            <div class="post-thumbnail-side">
+                <a href="<?php $post->permalink(); ?>" class="thumbnail-link-side" title="<?php $post->title(); ?>">
+                    <img src="<?php echo htmlspecialchars($thumbnail); ?>" alt="<?php $post->title(); ?>" class="thumbnail-img-side" />
+                </a>
+            </div>
+            <?php endif; ?>
+            
+            <div class="post-body">
+                <header class="post-header">
+                    <h2 class="post-title" itemprop="name headline">
+                        <a itemprop="url" href="<?php $post->permalink(); ?>"><?php $post->title(); ?></a>
+                    </h2>
+                    <ul class="post-meta-top">
+                        <li><i class="fa fa-user"></i> <a href="<?php $post->author->permalink(); ?>" rel="author"><?php $post->author(); ?></a></li>
+                        <li><i class="fa fa-calendar"></i> <time datetime="<?php $post->date('c'); ?>" itemprop="datePublished"><?php $post->date(); ?></time></li>
+                        <li><i class="fa fa-folder-o"></i> <?php $post->category(','); ?></li>
+                    </ul>
+                </header>
+                <div class="post-excerpt" itemprop="articleBody">
+                    <?php if ($post->hidden): ?>
+                        <p class="excerpt-text"><i class="fa fa-lock"></i> 此文章已加密，请输入密码查看</p>
+                    <?php else: ?>
+                        <p class="excerpt-text"><?php echo htmlspecialchars($excerpt); ?></p>
+                    <?php endif; ?>
+                </div>
+                <div class="post-footer">
+                    <ul class="post-meta-inline">
+                        <?php if (!$post->hidden): ?>
+                        <li itemprop="interactionCount">
+                            <a itemprop="discussionUrl" href="<?php $post->permalink() ?>#comments" title="评论"><i class="fa fa-comment-o"></i> <?php $post->commentsNum(_t('0'), _t('1'), _t('%d')); ?></a>
+                        </li>
+                        <?php endif; ?>
+                    </ul>
+                    <a href="<?php $post->permalink(); ?>" class="read-more">
+                        <?php _e('阅读全文 <i class="fa fa-angle-double-right"></i>'); ?>
+                    </a>
+                </div>
+            </div>
+        </article>
+        <?php endif; ?>
     <?php endforeach; ?>
     </div>
     <?php else: ?>

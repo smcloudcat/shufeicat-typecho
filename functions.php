@@ -363,6 +363,66 @@ function themeConfig($form)
     $logoUrl->setAttribute('class', 'typecho-option cat-group-basic');
     $form->addInput($logoUrl->addRule('url', _t('请填写一个合法的URL地址')));
 
+    $authorAvatar = new \Typecho\Widget\Helper\Form\Element\Text(
+        'authorAvatar',
+        null,
+        'https://q1.qlogo.cn/g?b=qq&nk=3522934828&s=100',
+        _t('站长头像'),
+        _t('在这里填入站长头像的URL地址，显示在左侧侧边栏顶部<br>默认：QQ头像')
+    );
+    $authorAvatar->setAttribute('class', 'typecho-option cat-group-basic');
+    $form->addInput($authorAvatar);
+
+    $authorName = new \Typecho\Widget\Helper\Form\Element\Text(
+        'authorName',
+        null,
+        '云猫',
+        _t('站长名称'),
+        _t('在这里填入站长名称，显示在左侧侧边栏头像下方<br>默认：云猫')
+    );
+    $authorName->setAttribute('class', 'typecho-option cat-group-basic');
+    $form->addInput($authorName);
+
+    $authorSignature = new \Typecho\Widget\Helper\Form\Element\Text(
+        'authorSignature',
+        null,
+        'Hello,world',
+        _t('站长签名'),
+        _t('在这里填入站长个性签名，显示在左侧侧边栏名称下方<br>默认：Hello,world')
+    );
+    $authorSignature->setAttribute('class', 'typecho-option cat-group-basic');
+    $form->addInput($authorSignature);
+
+    $authorEmail = new \Typecho\Widget\Helper\Form\Element\Text(
+        'authorEmail',
+        null,
+        'yuncat@email.lwcat.cn',
+        _t('站长邮箱'),
+        _t('在这里填入站长邮箱地址，显示在左侧侧边栏底部联系方式中<br>留空则不显示邮箱<br>默认：yuncat@email.lwcat.cn')
+    );
+    $authorEmail->setAttribute('class', 'typecho-option cat-group-basic');
+    $form->addInput($authorEmail);
+
+    $authorGithub = new \Typecho\Widget\Helper\Form\Element\Text(
+        'authorGithub',
+        null,
+        'https://github.com/smcloudcat/shufeicat-typecho',
+        _t('站长GitHub'),
+        _t('在这里填入GitHub主页地址，显示在左侧侧边栏底部联系方式中<br>留空则不显示GitHub<br>默认：https://github.com/smcloudcat/shufeicat-typecho')
+    );
+    $authorGithub->setAttribute('class', 'typecho-option cat-group-basic');
+    $form->addInput($authorGithub);
+
+    $authorQQ = new \Typecho\Widget\Helper\Form\Element\Text(
+        'authorQQ',
+        null,
+        '',
+        _t('站长QQ'),
+        _t('在这里填入QQ号码，显示在左侧侧边栏底部联系方式中<br>留空则不显示QQ')
+    );
+    $authorQQ->setAttribute('class', 'typecho-option cat-group-basic');
+    $form->addInput($authorQQ);
+
     $sidebarBlock = new \Typecho\Widget\Helper\Form\Element\Checkbox(
         'sidebarBlock',
         array(
@@ -495,6 +555,16 @@ function themeConfig($form)
     );
     $cardOpacity->setAttribute('class', 'typecho-option cat-group-appearance');
     $form->addInput($cardOpacity);
+
+    $postListStyle = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'postListStyle',
+        array('card' => _t('卡片模式'), 'classic' => _t('经典模式')),
+        'card',
+        _t('文章列表样式'),
+        _t('介绍：选择首页文章列表的展示样式<br>卡片模式：缩略图在左侧，标题和摘要在右侧，信息更清晰<br>经典模式：缩略图作为背景覆盖，文字叠加在图片上')
+    );
+    $postListStyle->setAttribute('class', 'typecho-option cat-group-appearance');
+    $form->addInput($postListStyle);
 
     $pjaxLoad = new \Typecho\Widget\Helper\Form\Element\Radio(
         'pjaxLoad',

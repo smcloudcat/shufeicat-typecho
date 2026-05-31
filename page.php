@@ -4,6 +4,30 @@
 <!-- 左侧侧边栏 - 分类和其他 -->
 <div class="left-sidebar" id="left-sidebar">
     <div class="sidebar-inner">
+        <!-- 站长信息卡片 -->
+        <div class="author-card">
+            <div class="author-avatar-wrap">
+                <img class="author-avatar" src="<?php echo !empty($this->options->authorAvatar) ? $this->options->authorAvatar : 'https://q1.qlogo.cn/g?b=qq&nk=3522934828&s=100'; ?>" alt="<?php echo !empty($this->options->authorName) ? $this->options->authorName : '云猫'; ?>">
+            </div>
+            <div class="author-name"><?php echo !empty($this->options->authorName) ? $this->options->authorName : '云猫'; ?></div>
+            <div class="author-signature"><?php echo !empty($this->options->authorSignature) ? $this->options->authorSignature : 'Hello,world'; ?></div>
+            <div class="author-stats">
+                <?php $stat = \Widget\Stat::alloc(); ?>
+                <div class="author-stat-item">
+                    <span class="author-stat-num"><?php echo $stat->publishedPostsNum; ?></span>
+                    <span class="author-stat-label">文章</span>
+                </div>
+                <div class="author-stat-item">
+                    <span class="author-stat-num"><?php echo $stat->categoriesNum; ?></span>
+                    <span class="author-stat-label">分类</span>
+                </div>
+                <div class="author-stat-item">
+                    <span class="author-stat-num"><?php echo $stat->tagsNum; ?></span>
+                    <span class="author-stat-label">标签</span>
+                </div>
+            </div>
+        </div>
+
         <!-- 分类目录 -->
         <section class="widget category-widget collapsible-widget">
             <h3 class="widget-title collapsible-toggle"><i class="fa fa-navicon"></i><?php _e('分类目录'); ?><i class="fa fa-chevron-down collapsible-arrow"></i></h3>
@@ -115,6 +139,40 @@
             </div>
         </section>
         <?php endif; ?>
+
+        <!-- 联系方式 -->
+        <?php
+        $_opts = \Typecho\Widget::widget('Widget_Options');
+        $authorEmail = isset($_opts->authorEmail) ? trim($_opts->authorEmail) : '';
+        $authorGithub = isset($_opts->authorGithub) ? trim($_opts->authorGithub) : '';
+        $authorQQ = isset($_opts->authorQQ) ? trim($_opts->authorQQ) : '';
+        $hasContacts = ($authorEmail !== '' || $authorGithub !== '' || $authorQQ !== '');
+        if ($hasContacts):
+        ?>
+        <div class="sidebar-contacts">
+            <?php if ($authorEmail !== ''): ?>
+            <a href="mailto:<?php echo htmlspecialchars($authorEmail); ?>" title="<?php echo htmlspecialchars($authorEmail); ?>" target="_blank" rel="noopener">
+                <i class="fa fa-envelope-o"></i>
+            </a>
+            <?php endif; ?>
+            <?php if ($authorGithub !== ''): ?>
+            <a href="<?php echo htmlspecialchars($authorGithub); ?>" title="GitHub" target="_blank" rel="noopener">
+                <i class="fa fa-github"></i>
+            </a>
+            <?php endif; ?>
+            <?php if ($authorQQ !== ''): ?>
+            <a href="http://wpa.qq.com/msgrd?v=3&uin=<?php echo htmlspecialchars($authorQQ); ?>&site=qq&menu=yes" title="QQ: <?php echo htmlspecialchars($authorQQ); ?>" target="_blank" rel="noopener">
+                <i class="fa fa-qq"></i>
+            </a>
+            <?php endif; ?>
+        </div>
+        <?php endif; ?>
+
+        <!-- 侧边栏底部信息 -->
+        <div class="sidebar-footer">
+            <p>© <?php echo date('Y'); ?> <?php $this->options->title(); ?></p>
+            <p>Theme by ShuFeiCat</p>
+        </div>
     </div>
 </div>
 
