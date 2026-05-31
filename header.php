@@ -73,6 +73,75 @@
     window.themeUrl = '<?php echo rtrim($this->options->themeUrl, '/') . '/'; ?>';
     </script>
     
+    <?php
+    $themeColor = !empty($this->options->themeColor) ? $this->options->themeColor : '#FF6B6B';
+    $bgColor = !empty($this->options->bgColor) ? $this->options->bgColor : '#f8f9fc';
+    $bgImage = !empty($this->options->bgImage) ? $this->options->bgImage : '';
+    $cardOpacity = isset($this->options->cardOpacity) && $this->options->cardOpacity !== '' ? floatval($this->options->cardOpacity) : 1;
+    $cardOpacity = max(0, min(1, $cardOpacity));
+    $hasCustomStyle = ($themeColor !== '#FF6B6B' || $bgColor !== '#f8f9fc' || $bgImage || $cardOpacity < 1);
+    if ($hasCustomStyle):
+    ?>
+    <style>
+    :root {
+        <?php if ($themeColor !== '#FF6B6B'): ?>--primary-color: <?php echo htmlspecialchars($themeColor); ?>;
+        --primary-hover: color-mix(in srgb, <?php echo htmlspecialchars($themeColor); ?> 80%, #000);<?php endif; ?>
+        <?php if ($bgColor !== '#f8f9fc'): ?>--bg-color: <?php echo htmlspecialchars($bgColor); ?>;<?php endif; ?>
+        <?php if ($cardOpacity < 1): ?>--card-bg: rgba(255, 255, 255, <?php echo $cardOpacity; ?>);<?php endif; ?>
+    }
+    <?php if ($bgImage): ?>
+    body {
+        background-image: url('<?php echo htmlspecialchars($bgImage); ?>');
+        background-size: cover;
+        background-attachment: fixed;
+        background-position: center center;
+        background-repeat: no-repeat;
+    }
+    <?php endif; ?>
+    <?php if ($cardOpacity < 1): ?>
+    #header {
+        background: rgba(255, 255, 255, <?php echo $cardOpacity; ?>) !important;
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+    }
+    .left-sidebar {
+        background: rgba(255, 255, 255, <?php echo $cardOpacity; ?>) !important;
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+    }
+    .left-sidebar .widget {
+        background: transparent !important;
+    }
+    .left-sidebar .links-nav-list {
+        background: transparent !important;
+    }
+    .post {
+        background: rgba(255, 255, 255, <?php echo $cardOpacity; ?>) !important;
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+    }
+    .widget {
+        background: rgba(255, 255, 255, <?php echo $cardOpacity; ?>) !important;
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+    }
+    [data-theme="dark"] #header {
+        background: rgba(26, 26, 36, <?php echo $cardOpacity; ?>) !important;
+    }
+    [data-theme="dark"] .left-sidebar {
+        background: rgba(26, 26, 36, <?php echo $cardOpacity; ?>) !important;
+    }
+    [data-theme="dark"] .post,
+    [data-theme="dark"] .widget {
+        background: rgba(26, 26, 36, <?php echo $cardOpacity; ?>) !important;
+    }
+    [data-theme="dark"] .left-sidebar .links-nav-list {
+        background: transparent !important;
+    }
+    <?php endif; ?>
+    </style>
+    <?php endif; ?>
+
     <?php $this->header(); ?>
 </head>
 <body>
@@ -116,6 +185,9 @@
                     </button>
                 </form>
             </div>
+            <button class="dark-mode-toggle" id="dark-mode-toggle" title="<?php _e('切换夜间模式'); ?>" aria-label="<?php _e('切换夜间模式'); ?>">
+                <i class="fa fa-moon-o"></i>
+            </button>
         </div>
     </div>
 </header><!-- end #header -->

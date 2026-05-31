@@ -35,18 +35,19 @@
 ### 桌面端界面
 
 **电脑端首页预览**
-![电脑端首页](https://img-cf.czzu.cn/1769433152398_x7hshtjr.png)
+![电脑端首页](https://img-cf.czzu.cn/1780233271113_o9m334qc.png)
 
 **电脑端文章页面**
-![电脑端文章](https://img-cf.czzu.cn/1769433146179_z9wqgki3.png)
+![电脑端文章](https://img-cf.czzu.cn/1780233298432_ims8uyf1.png)
 
 ### 移动端界面
 
 **移动端首页预览**
-![移动端首页](https://img-cf.czzu.cn/1769433132328_t1fcg8yv.png)
+![移动端首页](https://img-cf.czzu.cn/1780233163301_ca0zv8n1.png)
+![移动端首页2](https://img-cf.czzu.cn/1780233205253_dqftuekp.png)
 
 **移动端文章页面**
-![移动端文章](https://img-cf.czzu.cn/1769433128252_e6eyrxvp.png)
+![移动端文章](https://img-cf.czzu.cn/1780233244375_q6cwmbsh.png)
 
 ### 特色功能
 
@@ -54,7 +55,7 @@
 ![后台设置](https://img-cf.czzu.cn/1769433155659_uy5n4me5.png)
 
 **代码高亮效果展示**
-![代码高亮](https://img-cf.czzu.cn/1769433304509_merwm9p5.png)
+![代码高亮](https://img-cf.czzu.cn/1780233389022_xjj7bc82.png)
 
 > **提示**：更多效果请下载主题后实际体验
 
@@ -149,3 +150,12 @@ shufeicat-typecho/
 ### 版本 1.2.1
 - 修复评论显示错误问题
 - 美化评论区
+
+### 版本 1.3.0
+- 主题默认配色修改为#FF6B6B
+- 支持修改主题配色以及背景图片
+- 支持修改盒子透明度
+- 美化左侧边栏，支持展示站长头像签名等内容
+- 美化列表盒子，两种样式自由切换
+- 新增夜间模式
+- 修复一些小bug

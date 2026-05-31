@@ -387,6 +387,7 @@
             elements: 'a:not(' + excludeSelectors.join(', ') + ')',
             selectors: [
                 '#header',
+                '#left-sidebar',
                 '#main',
                 '#secondary',
                 '#footer',
@@ -446,8 +447,16 @@
         window.reinitTimer = setTimeout(function() {
             console.log('开始重新初始化页面功能 [V1.0.3]...');
             
+            if (typeof window.initDarkMode === 'function') {
+                window.initDarkMode();
+            }
+            
             if (typeof window.initMobileMenu === 'function') {
                 window.initMobileMenu();
+            }
+
+            if (typeof window.initCollapsibleSidebar === 'function') {
+                window.initCollapsibleSidebar();
             }
             
             if (typeof window.initPrismHighlight === 'function') {

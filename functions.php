@@ -14,7 +14,7 @@ if (!defined('__TYPECHO_ROOT_DIR__')) exit;
  */
 function shufei_check_theme_update()
 {
-    $currentVersion = '1.2.1';
+    $currentVersion = '1.3.0';
     $blogUrl = '';
     
     if (defined('__TYPECHO_SITE_URL__')) {
@@ -52,7 +52,7 @@ function shufei_check_theme_update()
  */
 function shufei_get_theme_version()
 {
-    return '1.2.1';
+    return '1.3.0';
 }
 
 /**
@@ -116,6 +116,7 @@ function themeConfig($form)
                 '<ul id="cat-tabs">' .
                     '<li data-id="cat-basic" class="active">基本设置</li>' .
                     '<li data-id="cat-avatar">头像外观</li>' .
+                    '<li data-id="cat-appearance">外观设置</li>' .
                     '<li data-id="cat-pjax">Pjax无刷新</li>' .
                     '<li data-id="cat-resource">资源加载</li>' .
                     '<li data-id="cat-article">文章缩略图</li>' .
@@ -139,7 +140,7 @@ function themeConfig($form)
             'var c = document.getElementById("cat-tpl").querySelector(".cat-config-container");' .
             'var pWrap = c.querySelector("#cat-panes");' .
             'f.insertBefore(c, f.firstChild);' .
-            'var ids = ["cat-basic", "cat-avatar", "cat-pjax", "cat-resource", "cat-article", "cat-stats", "cat-mail", "cat-ai", "cat-verify", "cat-data"];' .
+            'var ids = ["cat-basic", "cat-avatar", "cat-appearance", "cat-pjax", "cat-resource", "cat-article", "cat-stats", "cat-mail", "cat-ai", "cat-verify", "cat-data"];' .
             'ids.forEach(function(id) {' .
                 'var p = document.createElement("div");' .
                 'p.id = id; p.className = "cat-pane" + (id === "cat-basic" ? " active" : "");' .
@@ -362,6 +363,66 @@ function themeConfig($form)
     $logoUrl->setAttribute('class', 'typecho-option cat-group-basic');
     $form->addInput($logoUrl->addRule('url', _t('请填写一个合法的URL地址')));
 
+    $authorAvatar = new \Typecho\Widget\Helper\Form\Element\Text(
+        'authorAvatar',
+        null,
+        'https://q1.qlogo.cn/g?b=qq&nk=3522934828&s=100',
+        _t('站长头像'),
+        _t('在这里填入站长头像的URL地址，显示在左侧侧边栏顶部<br>默认：QQ头像')
+    );
+    $authorAvatar->setAttribute('class', 'typecho-option cat-group-basic');
+    $form->addInput($authorAvatar);
+
+    $authorName = new \Typecho\Widget\Helper\Form\Element\Text(
+        'authorName',
+        null,
+        '云猫',
+        _t('站长名称'),
+        _t('在这里填入站长名称，显示在左侧侧边栏头像下方<br>默认：云猫')
+    );
+    $authorName->setAttribute('class', 'typecho-option cat-group-basic');
+    $form->addInput($authorName);
+
+    $authorSignature = new \Typecho\Widget\Helper\Form\Element\Text(
+        'authorSignature',
+        null,
+        'Hello,world',
+        _t('站长签名'),
+        _t('在这里填入站长个性签名，显示在左侧侧边栏名称下方<br>默认：Hello,world')
+    );
+    $authorSignature->setAttribute('class', 'typecho-option cat-group-basic');
+    $form->addInput($authorSignature);
+
+    $authorEmail = new \Typecho\Widget\Helper\Form\Element\Text(
+        'authorEmail',
+        null,
+        'yuncat@email.lwcat.cn',
+        _t('站长邮箱'),
+        _t('在这里填入站长邮箱地址，显示在左侧侧边栏底部联系方式中<br>留空则不显示邮箱<br>默认：yuncat@email.lwcat.cn')
+    );
+    $authorEmail->setAttribute('class', 'typecho-option cat-group-basic');
+    $form->addInput($authorEmail);
+
+    $authorGithub = new \Typecho\Widget\Helper\Form\Element\Text(
+        'authorGithub',
+        null,
+        'https://github.com/smcloudcat/shufeicat-typecho',
+        _t('站长GitHub'),
+        _t('在这里填入GitHub主页地址，显示在左侧侧边栏底部联系方式中<br>留空则不显示GitHub<br>默认：https://github.com/smcloudcat/shufeicat-typecho')
+    );
+    $authorGithub->setAttribute('class', 'typecho-option cat-group-basic');
+    $form->addInput($authorGithub);
+
+    $authorQQ = new \Typecho\Widget\Helper\Form\Element\Text(
+        'authorQQ',
+        null,
+        '',
+        _t('站长QQ'),
+        _t('在这里填入QQ号码，显示在左侧侧边栏底部联系方式中<br>留空则不显示QQ')
+    );
+    $authorQQ->setAttribute('class', 'typecho-option cat-group-basic');
+    $form->addInput($authorQQ);
+
     $sidebarBlock = new \Typecho\Widget\Helper\Form\Element\Checkbox(
         'sidebarBlock',
         array(
@@ -454,7 +515,57 @@ function themeConfig($form)
     );
     $gravatarSource->setAttribute('class', 'typecho-option cat-group-avatar');
     $form->addInput($gravatarSource);
-    
+
+    $themeColor = new \Typecho\Widget\Helper\Form\Element\Text(
+        'themeColor',
+        null,
+        '#FF6B6B',
+        _t('主题颜色'),
+        _t('介绍：设置主题的主色调，应用于链接、按钮等元素<br>默认：#FF6B6B（珊瑚红）<br>请填写有效的十六进制颜色值，例如：#FF6B6B、#1E9FFF、#6C5CE7')
+    );
+    $themeColor->setAttribute('class', 'typecho-option cat-group-appearance');
+    $form->addInput($themeColor);
+
+    $bgColor = new \Typecho\Widget\Helper\Form\Element\Text(
+        'bgColor',
+        null,
+        '#f8f9fc',
+        _t('背景颜色'),
+        _t('介绍：设置页面的背景颜色<br>默认：#f8f9fc（浅灰蓝色）<br>请填写有效的十六进制颜色值，例如：#f8f9fc、#ffffff、#f0f0f0')
+    );
+    $bgColor->setAttribute('class', 'typecho-option cat-group-appearance');
+    $form->addInput($bgColor);
+
+    $bgImage = new \Typecho\Widget\Helper\Form\Element\Text(
+        'bgImage',
+        null,
+        null,
+        _t('背景图片'),
+        _t('介绍：设置页面的背景图片URL，留空则不设置背景图片<br>背景图片将覆盖背景颜色设置，建议使用高分辨率图片<br>示例：https://example.com/background.jpg')
+    );
+    $bgImage->setAttribute('class', 'typecho-option cat-group-appearance');
+    $form->addInput($bgImage->addRule('url', _t('请填写一个合法的URL地址')));
+
+    $cardOpacity = new \Typecho\Widget\Helper\Form\Element\Text(
+        'cardOpacity',
+        null,
+        '1',
+        _t('盒子透明度'),
+        _t('介绍：设置页面中各盒子（导航栏、侧边栏、文章卡片等）的透明度<br>取值范围 0 ~ 1，1 为完全不透明，0 为完全透明<br>默认：1（不透明）<br>设置背景图片后建议调低透明度，例如 0.85，让背景图片透出')
+    );
+    $cardOpacity->setAttribute('class', 'typecho-option cat-group-appearance');
+    $form->addInput($cardOpacity);
+
+    $postListStyle = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'postListStyle',
+        array('card' => _t('卡片模式'), 'classic' => _t('经典模式')),
+        'card',
+        _t('文章列表样式'),
+        _t('介绍：选择首页文章列表的展示样式<br>卡片模式：缩略图在左侧，标题和摘要在右侧，信息更清晰<br>经典模式：缩略图作为背景覆盖，文字叠加在图片上')
+    );
+    $postListStyle->setAttribute('class', 'typecho-option cat-group-appearance');
+    $form->addInput($postListStyle);
+
     $pjaxLoad = new \Typecho\Widget\Helper\Form\Element\Radio(
         'pjaxLoad',
         array('off' => _t('关闭'), 'on' => _t('开启')),
