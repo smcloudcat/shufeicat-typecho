@@ -4266,8 +4266,6 @@ pre[class*="language-"].line-numbers > code {
  * 夜间模式 (Dark Mode)
  * 通过 [data-theme="dark"] 选择器覆�? * ============================================ */
 [data-theme="dark"] {
-    --primary-color: #4da6ff;
-    --primary-hover: #6bb8ff;
     --bg-color: #0f0f14;
     --card-bg: #1a1a24;
     --text-color: #d4d4d8;
@@ -4318,7 +4316,7 @@ pre[class*="language-"].line-numbers > code {
 [data-theme="dark"] #search input:focus {
     background: #2a2a36;
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 4px rgba(77, 166, 255, 0.15);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary-color) 15%, transparent);
 }
 [data-theme="dark"] #search button {
     background: var(--primary-color);
@@ -4384,11 +4382,11 @@ pre[class*="language-"].line-numbers > code {
     color: #909098;
 }
 [data-theme="dark"] .category-nav-item a::after {
-    background: linear-gradient(135deg, rgba(77, 166, 255, 0.1) 0%, rgba(107, 184, 255, 0.06) 100%);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--primary-color) 10%, transparent) 0%, color-mix(in srgb, var(--primary-hover) 6%, transparent) 100%);
 }
 [data-theme="dark"] .category-nav-item.active a,
 [data-theme="dark"] .category-nav-item.layui-this a {
-    background: linear-gradient(135deg, rgba(77, 166, 255, 0.15) 0%, rgba(107, 184, 255, 0.08) 100%);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--primary-color) 15%, transparent) 0%, color-mix(in srgb, var(--primary-hover) 8%, transparent) 100%);
     color: var(--primary-color);
 }
 [data-theme="dark"] .left-sidebar .category-count {
@@ -4408,7 +4406,7 @@ pre[class*="language-"].line-numbers > code {
 }
 
 [data-theme="dark"] .left-sidebar .links-widget .links-nav-item a::after {
-    background: linear-gradient(135deg, rgba(77, 166, 255, 0.1) 0%, rgba(107, 184, 255, 0.06) 100%);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--primary-color) 10%, transparent) 0%, color-mix(in srgb, var(--primary-hover) 6%, transparent) 100%);
 }
 
 [data-theme="dark"] .left-sidebar .links-widget .links-nav-item a:hover {
@@ -4428,10 +4426,10 @@ pre[class*="language-"].line-numbers > code {
     border-bottom-color: rgba(42, 42, 54, 0.8);
 }
 [data-theme="dark"] .author-avatar-wrap {
-    box-shadow: 0 4px 15px rgba(77, 166, 255, 0.2);
+    box-shadow: 0 4px 15px color-mix(in srgb, var(--primary-color) 20%, transparent);
 }
 [data-theme="dark"] .author-avatar-wrap:hover {
-    box-shadow: 0 6px 20px rgba(77, 166, 255, 0.3);
+    box-shadow: 0 6px 20px color-mix(in srgb, var(--primary-color) 30%, transparent);
 }
 [data-theme="dark"] .author-avatar {
     border-color: #1a1a24;
@@ -4464,7 +4462,7 @@ pre[class*="language-"].line-numbers > code {
 [data-theme="dark"] .sidebar-contacts a:hover {
     color: #fff;
     background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%);
-    box-shadow: 0 4px 12px rgba(77, 166, 255, 0.3);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--primary-color) 30%, transparent);
 }
 [data-theme="dark"] .left-sidebar .other-widget .widget-list li a {
     color: #b0b0b8;
@@ -4492,7 +4490,7 @@ pre[class*="language-"].line-numbers > code {
 }
 
 [data-theme="dark"] .left-sidebar .page-nav-widget .page-nav-list li a::after {
-    background: linear-gradient(135deg, rgba(77, 166, 255, 0.1) 0%, rgba(107, 184, 255, 0.06) 100%);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--primary-color) 10%, transparent) 0%, color-mix(in srgb, var(--primary-hover) 6%, transparent) 100%);
 }
 
 [data-theme="dark"] .left-sidebar .page-nav-widget .page-nav-list li a:hover {
@@ -4504,7 +4502,7 @@ pre[class*="language-"].line-numbers > code {
 }
 
 [data-theme="dark"] .left-sidebar .page-nav-widget .page-nav-list li a.current {
-    background: linear-gradient(135deg, rgba(77, 166, 255, 0.15) 0%, rgba(107, 184, 255, 0.08) 100%);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--primary-color) 15%, transparent) 0%, color-mix(in srgb, var(--primary-hover) 8%, transparent) 100%);
     color: var(--primary-color);
 }
 
@@ -4524,7 +4522,7 @@ pre[class*="language-"].line-numbers > code {
     color: var(--text-color);
 }
 [data-theme="dark"] .right-sidebar .widget-list li a:hover {
-    background-color: rgba(77, 166, 255, 0.08);
+    background-color: color-mix(in srgb, var(--primary-color) 8%, transparent);
     color: var(--primary-color);
 }
 [data-theme="dark"] .page-nav-widget .widget-list li a {
@@ -4532,11 +4530,11 @@ pre[class*="language-"].line-numbers > code {
     background: transparent;
 }
 [data-theme="dark"] .page-nav-widget .widget-list li a:hover {
-    background: rgba(77, 166, 255, 0.08);
+    background: color-mix(in srgb, var(--primary-color) 8%, transparent);
     color: var(--primary-color);
 }
 [data-theme="dark"] .page-nav-widget .widget-list li a.current {
-    background: rgba(77, 166, 255, 0.15);
+    background: color-mix(in srgb, var(--primary-color) 15%, transparent);
     color: var(--primary-color);
 }
 [data-theme="dark"] .links-select {
@@ -4553,7 +4551,7 @@ pre[class*="language-"].line-numbers > code {
 }
 [data-theme="dark"] .post:hover {
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
-    border-color: rgba(77, 166, 255, 0.2);
+    border-color: color-mix(in srgb, var(--primary-color) 20%, transparent);
 }
 [data-theme="dark"] .post-title a {
     color: var(--text-color);
@@ -4599,7 +4597,7 @@ pre[class*="language-"].line-numbers > code {
 }
 
 [data-theme="dark"] .post-list-card .post.no-thumbnail {
-    border-left-color: rgba(77, 166, 255, 0.25);
+    border-left-color: color-mix(in srgb, var(--primary-color) 25%, transparent);
 }
 
 [data-theme="dark"] .post-list-card .post.no-thumbnail:hover {
@@ -4662,11 +4660,11 @@ pre[class*="language-"].line-numbers > code {
     border-color: var(--border-color);
 }
 [data-theme="dark"] .comment-children > li:hover {
-    border-color: rgba(77, 166, 255, 0.3);
+    border-color: color-mix(in srgb, var(--primary-color) 30%, transparent);
 }
 [data-theme="dark"] .comment-children > li.comment-by-author {
-    background: rgba(77, 166, 255, 0.06);
-    border-color: rgba(77, 166, 255, 0.2);
+    background: color-mix(in srgb, var(--primary-color) 6%, transparent);
+    border-color: color-mix(in srgb, var(--primary-color) 20%, transparent);
 }
 [data-theme="dark"] .comment-author-name a {
     color: var(--text-color);
@@ -4681,8 +4679,8 @@ pre[class*="language-"].line-numbers > code {
     color: var(--text-secondary);
 }
 [data-theme="dark"] .comment-reply-btn a:hover {
-    background: rgba(77, 166, 255, 0.08);
-    border-color: rgba(77, 166, 255, 0.2);
+    background: color-mix(in srgb, var(--primary-color) 8%, transparent);
+    border-color: color-mix(in srgb, var(--primary-color) 20%, transparent);
     color: var(--primary-color);
 }
 [data-theme="dark"] .comment-status-wait {
@@ -4695,7 +4693,7 @@ pre[class*="language-"].line-numbers > code {
     background: var(--card-bg);
 }
 [data-theme="dark"] .comment-logged-info {
-    background: rgba(77, 166, 255, 0.08);
+    background: color-mix(in srgb, var(--primary-color) 8%, transparent);
     color: var(--text-secondary);
 }
 [data-theme="dark"] .form-field label {
@@ -4714,7 +4712,7 @@ pre[class*="language-"].line-numbers > code {
 [data-theme="dark"] .form-field-textarea textarea:focus {
     border-color: var(--primary-color);
     background: #1e1e2a;
-    box-shadow: 0 0 0 3px rgba(77, 166, 255, 0.1);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 10%, transparent);
 }
 [data-theme="dark"] .comment-closed {
     background: #1a1a24;
@@ -4753,7 +4751,7 @@ pre[class*="language-"].line-numbers > code {
 [data-theme="dark"] .page-navigator a:hover {
     border-color: var(--primary-color);
     color: var(--primary-color);
-    background: rgba(77, 166, 255, 0.1);
+    background: color-mix(in srgb, var(--primary-color) 10%, transparent);
 }
 [data-theme="dark"] .page-navigator .current a {
     background: var(--primary-color);
@@ -4782,7 +4780,7 @@ pre[class*="language-"].line-numbers > code {
 [data-theme="dark"] .protected input[type="password"]:focus {
     border-color: var(--primary-color);
     background: #1e1e2a;
-    box-shadow: 0 0 0 4px rgba(77, 166, 255, 0.1);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary-color) 10%, transparent);
 }
 [data-theme="dark"] .encrypted-content-preview {
     background: linear-gradient(135deg, #1a1a24 0%, #1e1e2a 100%);
@@ -4807,7 +4805,7 @@ pre[class*="language-"].line-numbers > code {
 }
 [data-theme="dark"] .reply-hidden-box:hover {
     border-color: var(--primary-color);
-    box-shadow: 0 5px 20px rgba(77, 166, 255, 0.1);
+    box-shadow: 0 5px 20px color-mix(in srgb, var(--primary-color) 10%, transparent);
 }
 [data-theme="dark"] .reply-hidden-title {
     color: var(--text-color);
@@ -4837,7 +4835,7 @@ pre[class*="language-"].line-numbers > code {
     color: var(--text-color);
 }
 [data-theme="dark"] .widget-list li a:hover {
-    background-color: rgba(77, 166, 255, 0.08);
+    background-color: color-mix(in srgb, var(--primary-color) 8%, transparent);
     color: var(--primary-color);
 }
 
@@ -4878,7 +4876,7 @@ pre[class*="language-"].line-numbers > code {
     color: var(--text-color);
 }
 [data-theme="dark"] .ranking-item a:hover {
-    background-color: rgba(77, 166, 255, 0.08);
+    background-color: color-mix(in srgb, var(--primary-color) 8%, transparent);
     color: var(--primary-color);
 }
 [data-theme="dark"] .ranking-num {
