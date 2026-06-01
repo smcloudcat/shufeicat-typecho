@@ -559,7 +559,7 @@ function themeConfig($form)
     $postListStyle = new \Typecho\Widget\Helper\Form\Element\Radio(
         'postListStyle',
         array('card' => _t('卡片模式'), 'classic' => _t('经典模式')),
-        'card',
+        'classic',
         _t('文章列表样式'),
         _t('介绍：选择首页文章列表的展示样式<br>卡片模式：缩略图在左侧，标题和摘要在右侧，信息更清晰<br>经典模式：缩略图作为背景覆盖，文字叠加在图片上')
     );
