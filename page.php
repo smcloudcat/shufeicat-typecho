@@ -213,7 +213,7 @@
     <section class="widget">
         <h3 class="widget-title"><i class="fa fa-newspaper-o"></i><?php _e('最新文章'); ?></h3>
         <ul class="widget-list">
-            <?php \Widget\Contents\Post\Recent::alloc()
+            <?php \Widget\Contents\Post\Recent::alloc('pageSize=5')
                 ->parse('<li><a href="{permalink}"><i class="fa fa-angle-right"></i>{title}</a></li>'); ?>
         </ul>
     </section>
@@ -224,7 +224,7 @@
     <section class="widget">
         <h3 class="widget-title"><i class="fa fa-comments-o"></i><?php _e('最近回复'); ?></h3>
         <ul class="widget-list">
-            <?php \Widget\Comments\Recent::alloc()->to($comments); ?>
+            <?php \Widget\Comments\Recent::alloc('pageSize=5')->to($comments); ?>
             <?php while ($comments->next()): ?>
                 <li>
                     <a href="<?php $comments->permalink(); ?>">
@@ -240,9 +240,9 @@
 
     <!-- 归档 -->
     <?php if (!empty($this->options->sidebarBlock) && in_array('ShowArchive', $this->options->sidebarBlock)): ?>
-    <section class="widget">
+    <section class="widget archive-widget">
         <h3 class="widget-title"><i class="fa fa-calendar"></i><?php _e('归档'); ?></h3>
-        <ul class="widget-list">
+        <ul class="widget-list archive-list">
             <?php \Widget\Contents\Post\Date::alloc('type=month&format=F Y')
                 ->parse('<li><a href="{permalink}"><i class="fa fa-calendar-o"></i>{date}</a></li>'); ?>
         </ul>
