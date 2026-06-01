@@ -240,9 +240,9 @@
 
     <!-- 归档 -->
     <?php if (!empty($this->options->sidebarBlock) && in_array('ShowArchive', $this->options->sidebarBlock)): ?>
-    <section class="widget">
+    <section class="widget archive-widget">
         <h3 class="widget-title"><i class="fa fa-calendar"></i><?php _e('归档'); ?></h3>
-        <ul class="widget-list">
+        <ul class="widget-list archive-list">
             <?php \Widget\Contents\Post\Date::alloc('type=month&format=F Y')
                 ->parse('<li><a href="{permalink}"><i class="fa fa-calendar-o"></i>{date}</a></li>'); ?>
         </ul>

@@ -168,9 +168,6 @@
                         <span><?php $this->options->title() ?></span>
                     </a>
                 <?php endif; ?>
-                <?php if ($this->options->description): ?>
-                    <p class="description"><?php $this->options->description() ?></p>
-                <?php endif; ?>
             </div>
         </div>
         
