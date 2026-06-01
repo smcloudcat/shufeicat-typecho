@@ -290,7 +290,7 @@
     <section class="widget">
         <h3 class="widget-title"><i class="fa fa-newspaper-o"></i><?php _e('最新文章'); ?></h3>
         <ul class="widget-list">
-            <?php \Widget\Contents\Post\Recent::alloc()
+            <?php \Widget\Contents\Post\Recent::alloc('pageSize=5')
                 ->parse('<li><a href="{permalink}"><i class="fa fa-angle-right"></i>{title}</a></li>'); ?>
         </ul>
     </section>
@@ -301,7 +301,7 @@
     <section class="widget">
         <h3 class="widget-title"><i class="fa fa-comments-o"></i><?php _e('最近回复'); ?></h3>
         <ul class="widget-list">
-            <?php \Widget\Comments\Recent::alloc()->to($comments); ?>
+            <?php \Widget\Comments\Recent::alloc('pageSize=5')->to($comments); ?>
             <?php while ($comments->next()): ?>
                 <li>
                     <a href="<?php $comments->permalink(); ?>">
