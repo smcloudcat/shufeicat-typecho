@@ -197,7 +197,7 @@ $this->need('header.php');
     <?php endif; ?>
     
     <?php if ($this->have()): ?>
-    <div id="ajax-post-list" class="post-list-<?php echo !empty($this->options->postListStyle) ? $this->options->postListStyle : 'card'; ?>">
+    <div id="ajax-post-list" class="post-list-<?php echo !empty($this->options->postListStyle) ? $this->options->postListStyle : 'classic'; ?>">
     <?php
     // 分离置顶文章和普通文章
     $stickyPosts = array();
@@ -236,7 +236,7 @@ $this->need('header.php');
         
         $isSticky = ($post->fields->sticky == '1');
         $hasThumb = !empty($thumbnail);
-        $postListStyle = !empty($this->options->postListStyle) ? $this->options->postListStyle : 'card';
+        $postListStyle = !empty($this->options->postListStyle) ? $this->options->postListStyle : 'classic';
         ?>
         
         <?php if ($postListStyle === 'classic'): ?>

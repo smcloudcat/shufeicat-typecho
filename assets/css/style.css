@@ -1076,16 +1076,27 @@ img {
 
 /* 文章详情�?- 有缩略图的样�?*/
 .post-single.has-thumbnail {
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
-    min-height: 200px;
     padding: 0;
     border: none;
     box-shadow: var(--shadow-hover);
 }
 
-.post-single.has-thumbnail::before {
+.post-single.has-thumbnail .post-header {
+    position: relative;
+    z-index: 2;
+    padding: 25px;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    border-radius: var(--border-radius) var(--border-radius) 0 0;
+    min-height: 160px;
+    aspect-ratio: 3 / 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+}
+
+.post-single.has-thumbnail .post-header::before {
     content: '';
     position: absolute;
     top: 0;
@@ -1093,20 +1104,8 @@ img {
     right: 0;
     bottom: 0;
     background: linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.7) 100%);
-    border-radius: var(--border-radius);
-    z-index: 1;
-}
-
-.post-single.has-thumbnail .post-header {
-    position: relative;
-    z-index: 2;
-    padding: 25px;
-    background: linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.7) 100%);
     border-radius: var(--border-radius) var(--border-radius) 0 0;
-    min-height: 200px;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
+    z-index: 1;
 }
 
 .post-single.has-thumbnail .post-header-overlay {

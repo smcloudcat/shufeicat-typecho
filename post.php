@@ -181,9 +181,8 @@
     // 获取文章缩略图
     $thumbnail = shufei_get_post_thumbnail($this);
     ?>
-    <article class="post post-single <?php echo !empty($thumbnail) ? 'has-thumbnail' : ''; ?>" itemscope itemtype="http://schema.org/BlogPosting"
-             style="<?php echo !empty($thumbnail) ? 'background-image: url(' . htmlspecialchars($thumbnail) . ');' : ''; ?>">
-        <header class="post-header">
+    <article class="post post-single <?php echo !empty($thumbnail) ? 'has-thumbnail' : ''; ?>" itemscope itemtype="http://schema.org/BlogPosting">
+        <header class="post-header" <?php if (!empty($thumbnail)): ?>style="background-image: url(<?php echo htmlspecialchars($thumbnail); ?>);"<?php endif; ?>>
             <div class="post-header-overlay">
                 <h1 class="post-title" itemprop="name headline">
                     <a itemprop="url" href="<?php $this->permalink() ?>"><?php $this->title() ?></a>

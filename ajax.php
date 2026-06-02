@@ -111,7 +111,7 @@ if ($archive->have()) {
         }
         $hasThumb = !empty($thumbnail);
         $options = \Typecho\Widget::widget('Widget_Options');
-        $postListStyle = !empty($options->postListStyle) ? $options->postListStyle : 'card';
+        $postListStyle = !empty($options->postListStyle) ? $options->postListStyle : 'classic';
         
         if ($postListStyle === 'classic'):
         ?>
