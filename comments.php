@@ -31,7 +31,7 @@ function threadedComments($comments, $options) {
                     <a href="<?php $comments->permalink(); ?>">
                     <?php endif; ?>
                         <time itemprop="commentTime" datetime="<?php $comments->date('c'); ?>">
-                            <?php $comments->date($comments->options->commentDateFormat); ?>
+                            <?php $comments->date($options->dateFormat); ?>
                         </time>
                     <?php if ($comments->levels <= 0): ?>
                     </a>
