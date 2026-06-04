@@ -473,6 +473,14 @@
             
             initAjaxComment();
             initTurnstile();
+
+            if (typeof window.initPostLike === 'function') {
+                window.initPostLike();
+            }
+
+            if (typeof window.initPostViews === 'function') {
+                window.initPostViews();
+            }
         }, 50);
     };
     
