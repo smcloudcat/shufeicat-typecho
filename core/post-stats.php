@@ -17,32 +17,77 @@ function shufei_get_db_prefix()
 }
 
 /**
+ * 获取数据库适配器类型
+ * @return string
+ */
+function shufei_get_db_adapter_name()
+{
+    $db = \Typecho\Db::get();
+    return $db->getAdapterName();
+}
+
+/**
+ * 引用列名（兼容 MySQL/PostgreSQL/SQLite）
+ * @param string $name
+ * @return string
+ */
+function shufei_quote_column($name)
+{
+    $db = \Typecho\Db::get();
+    return $db->getAdapter()->quoteColumn($name);
+}
+
+/**
  * 确保文章统计表存在
  */
 function shufei_ensure_stats_table()
 {
     static $checked = false;
     if ($checked) return;
-    
+
     $db = \Typecho\Db::get();
     $prefix = shufei_get_db_prefix();
+    $adapterName = shufei_get_db_adapter_name();
     $tableName = $prefix . 'post_stats';
-    
+    $quotedTable = shufei_quote_column($tableName);
+
     try {
-        $db->query("SELECT 1 FROM `{$tableName}` LIMIT 1");
+        $db->query("SELECT 1 FROM " . $quotedTable . " LIMIT 1");
     } catch (\Exception $e) {
-        $sql = "CREATE TABLE IF NOT EXISTS `{$tableName}` (
-            `cid` int(10) unsigned NOT NULL COMMENT '文章ID',
-            `views` int(10) unsigned NOT NULL DEFAULT '0' COMMENT '浏览量',
-            `likes` int(10) unsigned NOT NULL DEFAULT '0' COMMENT '点赞数',
-            `updated_at` int(10) unsigned NOT NULL DEFAULT '0' COMMENT '更新时间',
-            PRIMARY KEY (`cid`),
-            KEY `idx_views` (`views`),
-            KEY `idx_likes` (`likes`)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='文章统计表'";
+        $isPgsql = ($adapterName === 'Pdo_Pgsql' || $adapterName === 'Pgsql');
+        $isSqlite = ($adapterName === 'Pdo_SQLite' || $adapterName === 'SQLite');
+
+        if ($isPgsql) {
+            // PostgreSQL 不支持 ENGINE/CHARSET/COMMENT/unsigned/KEY，需要使用兼容语法
+            $sql = "CREATE TABLE IF NOT EXISTS " . $quotedTable . " (
+                \"cid\" integer NOT NULL,
+                \"views\" integer NOT NULL DEFAULT 0,
+                \"likes\" integer NOT NULL DEFAULT 0,
+                \"updated_at\" integer NOT NULL DEFAULT 0,
+                PRIMARY KEY (\"cid\")
+            )";
+        } elseif ($isSqlite) {
+            $sql = "CREATE TABLE IF NOT EXISTS " . $quotedTable . " (
+                \"cid\" integer NOT NULL PRIMARY KEY,
+                \"views\" integer NOT NULL DEFAULT 0,
+                \"likes\" integer NOT NULL DEFAULT 0,
+                \"updated_at\" integer NOT NULL DEFAULT 0
+            )";
+        } else {
+            // MySQL / MariaDB
+            $sql = "CREATE TABLE IF NOT EXISTS " . $quotedTable . " (
+                `cid` int(10) unsigned NOT NULL,
+                `views` int(10) unsigned NOT NULL DEFAULT '0',
+                `likes` int(10) unsigned NOT NULL DEFAULT '0',
+                `updated_at` int(10) unsigned NOT NULL DEFAULT '0',
+                PRIMARY KEY (`cid`),
+                KEY `idx_views` (`views`),
+                KEY `idx_likes` (`likes`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+        }
         $db->query($sql);
     }
-    
+
     $checked = true;
 }
 
@@ -165,24 +210,28 @@ function shufei_has_liked($cid)
 function shufei_get_ranking_posts($type = 'views', $limit = 5)
 {
     shufei_ensure_stats_table();
-    
+
     $db = \Typecho\Db::get();
     $prefix = shufei_get_db_prefix();
-    
+    $adapterName = shufei_get_db_adapter_name();
+    $isPgsql = ($adapterName === 'Pdo_Pgsql' || $adapterName === 'Pgsql');
+    // PostgreSQL 标识符是双引号，MySQL 是反引号
+    $q = $isPgsql ? '"' : '`';
+
     $orderBy = ($type === 'likes') ? 'likes' : 'views';
-    
-    $sql = "SELECT c.cid, c.title, c.slug, c.created, c.type, s.views, s.likes 
-        FROM `{$prefix}contents` c
-        INNER JOIN `{$prefix}post_stats` s ON c.cid = s.cid
+
+    $sql = "SELECT c.cid, c.title, c.slug, c.created, c.type, s.views, s.likes
+        FROM {$q}{$prefix}contents{$q} c
+        INNER JOIN {$q}{$prefix}post_stats{$q} s ON c.cid = s.cid
         WHERE c.type = 'post' AND c.status = 'publish'
         ORDER BY s.{$orderBy} DESC
         LIMIT {$limit}";
-    
+
     $posts = $db->fetchAll($sql);
-    
+
     if (empty($posts)) {
-        $sql = "SELECT cid, title, slug, created, type, 0 as views, 0 as likes 
-            FROM `{$prefix}contents`
+        $sql = "SELECT cid, title, slug, created, type, 0 as views, 0 as likes
+            FROM {$q}{$prefix}contents{$q}
             WHERE type = 'post' AND status = 'publish'
             ORDER BY created DESC
             LIMIT {$limit}";
