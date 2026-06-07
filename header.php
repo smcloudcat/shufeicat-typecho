@@ -5,14 +5,135 @@
     <meta charset="<?php $this->options->charset(); ?>">
     <meta name="renderer" content="webkit">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-    <title><?php $this->archiveTitle([
-            'category' => _t('分类 %s 下的文章'),
-            'search'   => _t('包含关键字 %s 的文章'),
-            'tag'      => _t('标签 %s 下的文章'),
-            'author'   => _t('%s 发布的文章')
-        ], '', ' - '); ?><?php $this->options->title(); ?></title>
+    <meta name="theme-color" content="<?php echo !empty($this->options->themeColor) ? htmlspecialchars($this->options->themeColor) : '#FF6B6B'; ?>">
+    <meta name="format-detection" content="telephone=no">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge, chrome=1">
     
-    <meta name="description" content="<?php $this->options->description() ?>">
+    <?php
+    // SEO 优化：根据页面类型输出完整的标题、描述、关键词
+    $seoTitle = shufei_get_seo_title();
+    $seoDescription = shufei_get_seo_description();
+    $seoKeywords = shufei_get_seo_keywords();
+    $canonicalUrl = shufei_get_canonical_url();
+    $robotsContent = shufei_get_robots_content();
+
+    // 判断当前页面上下文（用于 OG / JSON-LD）
+    $archiveObj = shufei_is_post() || shufei_is_page() ? shufei_get_archive() : null;
+    $ogType = $archiveObj ? 'article' : 'website';
+    $ogImage = shufei_get_seo_og_image($archiveObj);
+    $siteTitle = $this->options->title;
+    $siteUrl = $this->options->siteUrl;
+    ?>
+    
+    <title><?php echo $seoTitle; ?></title>
+    
+    <!-- 基础 SEO meta 标签 -->
+    <meta name="description" content="<?php echo $seoDescription; ?>">
+    <meta name="keywords" content="<?php echo $seoKeywords; ?>">
+    <meta name="robots" content="<?php echo $robotsContent; ?>">
+    <link rel="canonical" href="<?php echo htmlspecialchars($canonicalUrl); ?>">
+    
+    <!-- Open Graph 协议（Facebook / 微博 / QQ 等） -->
+    <meta property="og:type" content="<?php echo $ogType; ?>">
+    <meta property="og:title" content="<?php echo $seoTitle; ?>">
+    <meta property="og:description" content="<?php echo $seoDescription; ?>">
+    <meta property="og:url" content="<?php echo htmlspecialchars($canonicalUrl); ?>">
+    <meta property="og:site_name" content="<?php echo htmlspecialchars($siteTitle); ?>">
+    <meta property="og:locale" content="zh_CN">
+    <?php if (!empty($ogImage)): ?>
+    <meta property="og:image" content="<?php echo htmlspecialchars($ogImage); ?>">
+    <?php endif; ?>
+    
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="<?php echo !empty($ogImage) ? 'summary_large_image' : 'summary'; ?>">
+    <meta name="twitter:title" content="<?php echo $seoTitle; ?>">
+    <meta name="twitter:description" content="<?php echo $seoDescription; ?>">
+    <?php if (!empty($ogImage)): ?>
+    <meta name="twitter:image" content="<?php echo htmlspecialchars($ogImage); ?>">
+    <?php endif; ?>
+    
+    <!-- 文章专属 OG meta -->
+    <?php if ($archiveObj && $ogType === 'article'): ?>
+    <meta property="article:published_time" content="<?php echo date('c', $archiveObj->created); ?>">
+    <meta property="article:modified_time" content="<?php echo date('c', $archiveObj->modified); ?>">
+    <meta property="article:author" content="<?php echo htmlspecialchars($archiveObj->author->screenName); ?>">
+    <meta property="article:section" content="<?php
+        $sectionName = '';
+        if (!empty($archiveObj->categories)) {
+            $cats = $archiveObj->categories;
+            if (is_array($cats) && isset($cats[0]['name'])) {
+                $sectionName = $cats[0]['name'];
+            }
+        }
+        echo htmlspecialchars($sectionName);
+    ?>">
+    <?php if (!empty($archiveObj->tags) && is_array($archiveObj->tags)):
+        foreach ($archiveObj->tags as $tag): ?>
+    <meta property="article:tag" content="<?php echo htmlspecialchars($tag['name']); ?>">
+    <?php endforeach; endif; ?>
+    <?php endif; ?>
+    
+    <!-- 搜索引擎站点验证 -->
+    <?php
+    $verification = !empty($this->options->seoSiteVerification) ? trim($this->options->seoSiteVerification) : '';
+    if (!empty($verification)) {
+        $lines = preg_split('/\R/', $verification);
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if ($line === '') continue;
+            // 已是完整 meta 标签
+            if (stripos($line, '<meta') === 0) {
+                echo $line . "\n    ";
+            } else {
+                // 视为 name=value 形式
+                $parts = explode('=', $line, 2);
+                if (count($parts) === 2) {
+                    echo '<meta name="' . htmlspecialchars(trim($parts[0])) . '" content="' . htmlspecialchars(trim($parts[1])) . '">' . "\n    ";
+                }
+            }
+        }
+    }
+    ?>
+    
+    <!-- JSON-LD 结构化数据 -->
+    <?php if ($archiveObj && $ogType === 'article'):
+        $jsonLd = array(
+            '@context' => 'https://schema.org',
+            '@type'    => 'BlogPosting',
+            'headline' => $archiveObj->title,
+            'url'      => $archiveObj->permalink,
+            'datePublished' => date('c', $archiveObj->created),
+            'dateModified'  => date('c', $archiveObj->modified),
+            'author'  => array(
+                '@type' => 'Person',
+                'name'  => $archiveObj->author->screenName
+            ),
+            'publisher' => array(
+                '@type' => 'Organization',
+                'name'  => $siteTitle,
+                'url'   => $siteUrl
+            ),
+            'description' => strip_tags($seoDescription),
+            'keywords'    => strip_tags($seoKeywords)
+        );
+        if (!empty($ogImage)) {
+            $jsonLd['image'] = $ogImage;
+        }
+    ?>
+    <script type="application/ld+json"><?php echo json_encode($jsonLd, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?></script>
+    <?php else:
+        $webJsonLd = array(
+            '@context' => 'https://schema.org',
+            '@type'    => 'WebSite',
+            'name'     => $siteTitle,
+            'url'      => $siteUrl
+        );
+        if (!empty($this->options->description)) {
+            $webJsonLd['description'] = strip_tags($this->options->description);
+        }
+    ?>
+    <script type="application/ld+json"><?php echo json_encode($webJsonLd, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?></script>
+    <?php endif; ?>
     
     <?php
     // 获取资源加载配置

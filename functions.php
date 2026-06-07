@@ -14,7 +14,7 @@ if (!defined('__TYPECHO_ROOT_DIR__')) exit;
  */
 function shufei_check_theme_update()
 {
-    $currentVersion = '1.3.1';
+    $currentVersion = '1.3.2';
     $blogUrl = '';
     
     if (defined('__TYPECHO_SITE_URL__')) {
@@ -52,7 +52,7 @@ function shufei_check_theme_update()
  */
 function shufei_get_theme_version()
 {
-    return '1.3.1';
+    return '1.3.2';
 }
 
 /**
@@ -121,6 +121,7 @@ function themeConfig($form)
                     '<li data-id="cat-resource">资源加载</li>' .
                     '<li data-id="cat-article">文章缩略图</li>' .
                     '<li data-id="cat-stats">文章统计</li>' .
+                    '<li data-id="cat-seo">SEO 设置</li>' .
                     '<li data-id="cat-mail">评论邮件通知</li>' .
                     '<li data-id="cat-ai">AI 评论审核</li>' .
                     '<li data-id="cat-verify">人机验证</li>' .
@@ -140,7 +141,7 @@ function themeConfig($form)
             'var c = document.getElementById("cat-tpl").querySelector(".cat-config-container");' .
             'var pWrap = c.querySelector("#cat-panes");' .
             'f.insertBefore(c, f.firstChild);' .
-            'var ids = ["cat-basic", "cat-avatar", "cat-appearance", "cat-pjax", "cat-resource", "cat-article", "cat-stats", "cat-mail", "cat-ai", "cat-verify", "cat-data"];' .
+            'var ids = ["cat-basic", "cat-avatar", "cat-appearance", "cat-pjax", "cat-resource", "cat-article", "cat-stats", "cat-seo", "cat-mail", "cat-ai", "cat-verify", "cat-data"];' .
             'ids.forEach(function(id) {' .
                 'var p = document.createElement("div");' .
                 'p.id = id; p.className = "cat-pane" + (id === "cat-basic" ? " active" : "");' .
@@ -666,6 +667,60 @@ function themeConfig($form)
     $rankingLimit->setAttribute('class', 'typecho-option cat-group-stats');
     $form->addInput($rankingLimit);
 
+    $seoKeywords = new \Typecho\Widget\Helper\Form\Element\Text(
+        'seoKeywords',
+        null,
+        null,
+        _t('全站关键词（SEO）'),
+        _t('介绍：作为首页/分类/标签/归档/搜索/404 等没有自定义关键词页面的默认 SEO 关键词<br>多个关键词请用英文逗号 "," 分隔<br>示例：云猫博客,Typecho 主题,个人博客,技术分享<br>留空则使用 Typecho 后台"站点描述"或站点标题作为兜底')
+    );
+    $seoKeywords->setAttribute('class', 'typecho-option cat-group-seo');
+    $form->addInput($seoKeywords);
+
+    $seoDescription = new \Typecho\Widget\Helper\Form\Element\Textarea(
+        'seoDescription',
+        null,
+        null,
+        _t('全站 SEO 描述'),
+        _t('介绍：作为首页/分类/标签/归档等页面的 SEO 描述（description）<br>留空则使用 Typecho 后台"站点描述"<br>建议 80-160 字之间')
+    );
+    $seoDescription->setAttribute('class', 'typecho-option cat-group-seo');
+    $form->addInput($seoDescription);
+
+    $seoOgImage = new \Typecho\Widget\Helper\Form\Element\Text(
+        'seoOgImage',
+        null,
+        null,
+        _t('默认社交分享图（OG Image）'),
+        _t('介绍：用于 Open Graph / Twitter Card 分享的默认图片，建议 1200x630 像素<br>当文章/页面没有可用图片时使用此图<br>请填写完整的图片URL地址')
+    );
+    $seoOgImage->setAttribute('class', 'typecho-option cat-group-seo');
+    $form->addInput($seoOgImage->addRule('url', _t('请填写一个合法的URL地址')));
+
+    $seoSiteVerification = new \Typecho\Widget\Helper\Form\Element\Textarea(
+        'seoSiteVerification',
+        null,
+        null,
+        _t('搜索引擎站点验证'),
+        _t('介绍：用于搜索引擎站长平台验证，可粘贴完整 meta 标签的 content 值或完整 meta 标签<br>每行一个，例如：<br>google-site-verification=xxxxxx<br>baidu-site-verification=xxxxxx<br>也可以直接粘贴：&lt;meta name="google-site-verification" content="xxxxx" /&gt;')
+    );
+    $seoSiteVerification->setAttribute('class', 'typecho-option cat-group-seo');
+    $form->addInput($seoSiteVerification);
+
+    $seoRobots = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'seoRobots',
+        array(
+            'auto'    => _t('自动（推荐）'),
+            'index'   => _t('全部可收录（index,follow）'),
+            'noindex' => _t('全部不可收录（noindex,nofollow）')
+        ),
+        'auto',
+        _t('默认 robots 设置'),
+        _t('介绍：自动模式下，首页/文章/页面/分类/标签可被收录，搜索结果/404/分页后页会标记为 noindex')
+    );
+    $seoRobots->setAttribute('class', 'typecho-option cat-group-seo');
+    $form->addInput($seoRobots);
+
     $remoteImages = new \Typecho\Widget\Helper\Form\Element\Textarea(
         'remoteImages',
         null,
@@ -911,6 +966,8 @@ function themeFields($layout)
     $layout->addItem($thumbnail);
     $excerpt = new \Typecho\Widget\Helper\Form\Element\Text('excerpt', NULL, NULL, _t('文章简介'), _t('留空则自动截取文章内容'));
     $layout->addItem($excerpt);
+    $keywords = new \Typecho\Widget\Helper\Form\Element\Text('keywords', NULL, NULL, _t('文章关键词（SEO）'), _t('用于 SEO 关键词 meta 标签，多个关键词请用英文逗号 "," 分隔<br>示例：Typecho 主题,ShuFeiCat,SEO 优化<br>留空则自动使用全站关键词或文章标签'));
+    $layout->addItem($keywords);
     $sticky = new \Typecho\Widget\Helper\Form\Element\Radio('sticky', array('0' => _t('普通文章'), '1' => _t('置顶文章')), '0', _t('文章置顶'), _t('选择置顶后，该文章将在首页顶部显示'));
     $layout->addItem($sticky);
 }
@@ -1092,4 +1149,315 @@ function shufei_get_gravatar_url($email, $size = 80)
     
     $hash = md5(strtolower(trim($email)));
     return $baseUrl . $hash . '?s=' . $size . '&d=identicon&r=g';
+}
+
+/**
+ * 获取当前 Archive widget（用于检测当前页面类型与获取内容）
+ *
+ * @return \Typecho\Widget\Archive|null
+ */
+function shufei_get_archive()
+{
+    static $archive = null;
+    if ($archive === null) {
+        try {
+            $archive = \Typecho\Widget::widget('Widget_Archive');
+        } catch (\Exception $e) {
+            $archive = false;
+        }
+    }
+    return $archive ?: null;
+}
+
+/**
+ * 当前页面是否为文章页
+ */
+function shufei_is_post()
+{
+    $a = shufei_get_archive();
+    return $a && method_exists($a, 'is') && $a->is('post');
+}
+
+/**
+ * 当前页面是否为独立页面
+ */
+function shufei_is_page()
+{
+    $a = shufei_get_archive();
+    return $a && method_exists($a, 'is') && $a->is('page');
+}
+
+/**
+ * 当前页面是否为分类页
+ */
+function shufei_is_category()
+{
+    $a = shufei_get_archive();
+    return $a && method_exists($a, 'is') && $a->is('category');
+}
+
+/**
+ * 当前页面是否为标签页
+ */
+function shufei_is_tag()
+{
+    $a = shufei_get_archive();
+    return $a && method_exists($a, 'is') && $a->is('tag');
+}
+
+/**
+ * 当前页面是否为搜索结果页
+ */
+function shufei_is_search()
+{
+    $a = shufei_get_archive();
+    return $a && method_exists($a, 'is') && $a->is('search');
+}
+
+/**
+ * 当前页面是否为作者归档页
+ */
+function shufei_is_author()
+{
+    $a = shufei_get_archive();
+    return $a && method_exists($a, 'is') && $a->is('author');
+}
+
+/**
+ * 当前页面是否为日期归档页
+ */
+function shufei_is_archive()
+{
+    $a = shufei_get_archive();
+    return $a && method_exists($a, 'is') && $a->is('archive');
+}
+
+/**
+ * 当前页面是否为 404
+ */
+function shufei_is_404()
+{
+    return \Typecho\Widget::widget('Widget_Options')->template != '404.php'
+        && !shufei_is_post() && !shufei_is_page() && !shufei_is_category()
+        && !shufei_is_tag() && !shufei_is_search() && !shufei_is_author();
+}
+
+/**
+ * 截取并清理文本作为 SEO 描述
+ *
+ * @param string $text 原始文本
+ * @param int $length 截取长度
+ * @return string
+ */
+function shufei_seo_trim($text, $length = 120)
+{
+    $text = strip_tags($text);
+    $text = preg_replace('/\s+/', ' ', $text);
+    $text = trim($text);
+    if (mb_strlen($text, 'UTF-8') > $length) {
+        $text = mb_substr($text, 0, $length, 'UTF-8') . '...';
+    }
+    return htmlspecialchars($text);
+}
+
+/**
+ * 获取当前页面的 SEO 关键词
+ *
+ * 优先级：文章自定义关键词 > 文章标签 > 全站 SEO 关键词 > 站点标题
+ *
+ * @return string
+ */
+function shufei_get_seo_keywords()
+{
+    $options = \Typecho\Widget::widget('Widget_Options');
+    $keywords = '';
+
+    if (shufei_is_post() || shufei_is_page()) {
+        $post = shufei_get_archive();
+        if ($post && !empty($post->fields->keywords)) {
+            $keywords = $post->fields->keywords;
+        } elseif ($post && !empty($post->tags) && is_array($post->tags)) {
+            $tagNames = array();
+            foreach ($post->tags as $tag) {
+                if (isset($tag['name'])) {
+                    $tagNames[] = $tag['name'];
+                }
+            }
+            $keywords = implode(',', $tagNames);
+        }
+    }
+
+    if (empty($keywords) && !empty($options->seoKeywords)) {
+        $keywords = $options->seoKeywords;
+    }
+
+    if (empty($keywords)) {
+        $keywords = $options->title;
+    }
+
+    return htmlspecialchars(trim($keywords, ' ,'));
+}
+
+/**
+ * 获取当前页面的 SEO 描述
+ *
+ * 优先级：文章自定义 excerpt > 文章内容截取 > 全站 SEO 描述 > Typecho 站点描述
+ *
+ * @return string
+ */
+function shufei_get_seo_description()
+{
+    $options = \Typecho\Widget::widget('Widget_Options');
+    $description = '';
+
+    if (shufei_is_post()) {
+        $post = shufei_get_archive();
+        if ($post && !empty($post->fields->excerpt)) {
+            $description = shufei_seo_trim($post->fields->excerpt, 160);
+        } elseif ($post && !empty($post->content)) {
+            $description = shufei_seo_trim($post->content, 160);
+        }
+    } elseif (shufei_is_page()) {
+        $page = shufei_get_archive();
+        if ($page && !empty($page->content)) {
+            $description = shufei_seo_trim($page->content, 160);
+        }
+    }
+
+    if (empty($description) && !empty($options->seoDescription)) {
+        $description = shufei_seo_trim($options->seoDescription, 160);
+    }
+
+    if (empty($description) && !empty($options->description)) {
+        $description = shufei_seo_trim($options->description, 160);
+    }
+
+    if (empty($description)) {
+        $description = $options->title;
+    }
+
+    return $description;
+}
+
+/**
+ * 获取当前页面的 SEO 标题
+ *
+ * @return string
+ */
+function shufei_get_seo_title()
+{
+    $options = \Typecho\Widget::widget('Widget_Options');
+    $archive = shufei_get_archive();
+
+    if (shufei_is_post() && $archive) {
+        return htmlspecialchars($archive->title) . ' - ' . $options->title;
+    }
+
+    if (shufei_is_page() && $archive) {
+        return htmlspecialchars($archive->title) . ' - ' . $options->title;
+    }
+
+    if (shufei_is_category() && $archive) {
+        return sprintf(_t('分类 %s 下的文章'), $archive->name) . ' - ' . $options->title;
+    }
+
+    if (shufei_is_tag() && $archive) {
+        return sprintf(_t('标签 %s 下的文章'), $archive->name) . ' - ' . $options->title;
+    }
+
+    if (shufei_is_search()) {
+        $s = isset($_GET['s']) ? htmlspecialchars(trim($_GET['s'])) : '';
+        if (empty($s) && $archive && !empty($archive->archiveTitle)) {
+            $s = htmlspecialchars($archive->archiveTitle);
+        }
+        return sprintf(_t('包含关键字 %s 的文章'), $s) . ' - ' . $options->title;
+    }
+
+    if (shufei_is_author() && $archive) {
+        $name = !empty($archive->screenName) ? $archive->screenName : (!empty($archive->name) ? $archive->name : '');
+        return sprintf(_t('%s 发布的文章'), $name) . ' - ' . $options->title;
+    }
+
+    if (shufei_is_archive()) {
+        return _t('文章归档') . ' - ' . $options->title;
+    }
+
+    return $options->title;
+}
+
+/**
+ * 获取社交分享图（OG / Twitter Card）
+ *
+ * @param object|null $archive 当前内容对象（文章/页面）
+ * @return string
+ */
+function shufei_get_seo_og_image($archive = null)
+{
+    $options = \Typecho\Widget::widget('Widget_Options');
+
+    if ($archive && !empty($archive->fields->thumbnail)) {
+        return $archive->fields->thumbnail;
+    }
+
+    if ($archive && !empty($archive->content)) {
+        preg_match_all('/<img.*?src=["\'](.*?)["\']/', $archive->content, $matches);
+        if (!empty($matches[1][0])) {
+            return $matches[1][0];
+        }
+    }
+
+    if (!empty($options->seoOgImage)) {
+        return $options->seoOgImage;
+    }
+
+    return '';
+}
+
+/**
+ * 获取当前页面的 canonical URL
+ *
+ * @return string
+ */
+function shufei_get_canonical_url()
+{
+    $options = \Typecho\Widget::widget('Widget_Options');
+
+    if (shufei_is_post() || shufei_is_page()) {
+        $archive = shufei_get_archive();
+        if ($archive && !empty($archive->permalink)) {
+            return $archive->permalink;
+        }
+    }
+
+    return $options->siteUrl;
+}
+
+/**
+ * 输出当前页面的 robots meta 值
+ *
+ * @return string
+ */
+function shufei_get_robots_content()
+{
+    $options = \Typecho\Widget::widget('Widget_Options');
+    $mode = !empty($options->seoRobots) ? $options->seoRobots : 'auto';
+
+    if ($mode === 'noindex') {
+        return 'noindex,nofollow';
+    }
+    if ($mode === 'index') {
+        return 'index,follow';
+    }
+
+    // auto 模式
+    if (shufei_is_search() || shufei_is_404()) {
+        return 'noindex,nofollow';
+    }
+
+    // 分页大于 1 标记为 noindex
+    if (!empty($_GET['page']) && intval($_GET['page']) > 1) {
+        return 'noindex,follow';
+    }
+
+    return 'index,follow';
 }
