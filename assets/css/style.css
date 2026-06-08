@@ -1861,6 +1861,130 @@ pre[class*="language-"].line-numbers > code {
     color: #fff;
 }
 
+/* ============================================
+ * Mermaid 图表样式
+ * ============================================ */
+.mermaid-container {
+    margin: 16px 0;
+    padding: 20px;
+    background: #fafafa;
+    border-radius: 6px;
+    border: 1px solid #eee;
+    overflow-x: auto;
+    text-align: center;
+}
+
+.mermaid-container svg {
+    max-width: 100%;
+    height: auto;
+}
+
+.mermaid-error {
+    padding: 12px 16px;
+    background: #fff2f0;
+    border: 1px solid #ffccc7;
+    border-radius: 4px;
+    color: #cf1322;
+    font-size: 13px;
+    text-align: left;
+}
+
+[data-theme="dark"] .mermaid-container {
+    background: #1e1e2e;
+    border-color: #2a2a36;
+}
+
+[data-theme="dark"] .mermaid-error {
+    background: #2a1215;
+    border-color: #58181c;
+    color: #ff6b6b;
+}
+
+/* ============================================
+ * ECharts 图表样式
+ * ============================================ */
+.echarts-container {
+    margin: 16px 0;
+    border-radius: 6px;
+    border: 1px solid #eee;
+    background: #fff;
+    min-height: 300px;
+}
+
+.echarts-error {
+    padding: 12px 16px;
+    background: #fff2f0;
+    border: 1px solid #ffccc7;
+    border-radius: 4px;
+    color: #cf1322;
+    font-size: 13px;
+    text-align: left;
+}
+
+[data-theme="dark"] .echarts-container {
+    background: #1e1e2e;
+    border-color: #2a2a36;
+}
+
+[data-theme="dark"] .echarts-error {
+    background: #2a1215;
+    border-color: #58181c;
+    color: #ff6b6b;
+}
+
+@media (max-width: 768px) {
+    .echarts-container {
+        height: 300px !important;
+    }
+}
+
+/* ============================================
+ * KaTeX 数学公式样式
+ * ============================================ */
+.math-tex[data-mode="display"] {
+    display: block;
+    text-align: center;
+    margin: 16px 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 8px 0;
+}
+
+.math-tex[data-mode="inline"] {
+    display: inline;
+}
+
+.post-content .katex-display {
+    margin: 16px 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 8px 0;
+}
+
+.post-content .katex {
+    font-size: 1.1em;
+}
+
+.math-error {
+    padding: 12px 16px;
+    background: #fff2f0;
+    border: 1px solid #ffccc7;
+    border-radius: 4px;
+    color: #cf1322;
+    font-size: 13px;
+    text-align: left;
+}
+
+[data-theme="dark"] .post-content .katex {
+    color: #d4d4d8;
+}
+
+[data-theme="dark"] .math-error {
+    background: #2a1215;
+    border-color: #58181c;
+    color: #ff6b6b;
+}
+
 /* 标签 */
 .tags {
     margin-top: 20px;

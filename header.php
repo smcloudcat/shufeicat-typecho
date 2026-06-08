@@ -150,7 +150,8 @@
         'style' => $themeUrl . 'assets/css/style.css',
         'fontawesome' => $themeUrl . 'assets/vendor/font-awesome/css/font-awesome.min.css',
         'prism' => $themeUrl . 'assets/vendor/prismjs/themes/prism-tomorrow.min.css',
-        'lightbox' => $themeUrl . 'assets/vendor/lightbox2/css/lightbox.min.css'
+        'lightbox' => $themeUrl . 'assets/vendor/lightbox2/css/lightbox.min.css',
+        'katex' => $themeUrl . 'assets/vendor/katex/katex.min.css'
     ];
     
     // 根据配置调整资源路径
@@ -159,6 +160,7 @@
         $cssUrls['fontawesome'] = 'https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css';
         $cssUrls['prism'] = 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css';
         $cssUrls['lightbox'] = 'https://cdn.jsdelivr.net/npm/lightbox2@2.11.4/dist/css/lightbox.min.css';
+        $cssUrls['katex'] = 'https://cdn.jsdelivr.net/npm/katex@0.17.0/dist/katex.min.css';
     } elseif ($resourceMode === 'custom' && $customCdn) {
         // 使用自建CDN
         $cssUrls['normalize'] = $customCdn . '/assets/css/normalize.css';
@@ -167,6 +169,7 @@
         $cssUrls['fontawesome'] = $customCdn . '/assets/vendor/font-awesome/css/font-awesome.min.css';
         $cssUrls['prism'] = $customCdn . '/assets/vendor/prismjs/themes/prism-tomorrow.min.css';
         $cssUrls['lightbox'] = $customCdn . '/assets/vendor/lightbox2/css/lightbox.min.css';
+        $cssUrls['katex'] = $customCdn . '/assets/vendor/katex/katex.min.css';
     }
     // local 模式使用默认的 themeUrl 路径
     ?>
@@ -180,10 +183,17 @@
     <link rel="stylesheet" href="<?php echo $cssUrls['fontawesome']; ?>">
     
     <!-- Prism.js 代码高亮样式 -->
+    <?php if (empty($this->options->codeHighlightEnabled) || $this->options->codeHighlightEnabled !== 'off'): ?>
     <link href="<?php echo $cssUrls['prism']; ?>" rel="stylesheet" />
+    <?php endif; ?>
     
     <!-- Lightbox2 图片灯箱样式 -->
     <link href="<?php echo $cssUrls['lightbox']; ?>" rel="stylesheet" />
+    
+    <!-- KaTeX 数学公式样式 -->
+    <?php if (!empty($this->options->katexEnabled) && $this->options->katexEnabled === 'on'): ?>
+    <link href="<?php echo $cssUrls['katex']; ?>" rel="stylesheet" />
+    <?php endif; ?>
     
     <?php if (shufei_is_turnstile_enabled() && !empty(shufei_get_turnstile_site_key())): ?>
     <!-- Cloudflare Turnstile -->

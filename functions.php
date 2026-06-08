@@ -125,6 +125,7 @@ function themeConfig($form)
                     '<li data-id="cat-mail">评论邮件通知</li>' .
                     '<li data-id="cat-ai">AI 评论审核</li>' .
                     '<li data-id="cat-verify">人机验证</li>' .
+                    '<li data-id="cat-enhance">功能增强</li>' .
                     '<li data-id="cat-data">数据管理</li>' .
                 '</ul>' .
             '</div>' .
@@ -141,7 +142,7 @@ function themeConfig($form)
             'var c = document.getElementById("cat-tpl").querySelector(".cat-config-container");' .
             'var pWrap = c.querySelector("#cat-panes");' .
             'f.insertBefore(c, f.firstChild);' .
-            'var ids = ["cat-basic", "cat-avatar", "cat-appearance", "cat-pjax", "cat-resource", "cat-article", "cat-stats", "cat-seo", "cat-mail", "cat-ai", "cat-verify", "cat-data"];' .
+            'var ids = ["cat-basic", "cat-avatar", "cat-appearance", "cat-pjax", "cat-resource", "cat-article", "cat-stats", "cat-seo", "cat-mail", "cat-ai", "cat-verify", "cat-enhance", "cat-data"];' .
             'ids.forEach(function(id) {' .
                 'var p = document.createElement("div");' .
                 'p.id = id; p.className = "cat-pane" + (id === "cat-basic" ? " active" : "");' .
@@ -931,6 +932,47 @@ function themeConfig($form)
     );
     $turnstileSecretKey->setAttribute('class', 'typecho-option cat-group-verify');
     $form->addInput($turnstileSecretKey);
+
+    // ===== 功能增强配置 =====
+    $codeHighlightEnabled = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'codeHighlightEnabled',
+        array('on' => _t('开启'), 'off' => _t('关闭')),
+        'on',
+        _t('代码高亮（Prism.js）'),
+        _t('介绍：开启后，文章中的代码块将使用 Prism.js 进行语法高亮渲染<br>关闭后，代码块将以纯文本形式显示')
+    );
+    $codeHighlightEnabled->setAttribute('class', 'typecho-option cat-group-enhance');
+    $form->addInput($codeHighlightEnabled);
+
+    $mermaidEnabled = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'mermaidEnabled',
+        array('on' => _t('开启'), 'off' => _t('关闭')),
+        'off',
+        _t('Mermaid 图表渲染'),
+        _t('介绍：开启后，支持在文章中使用 ```mermaid 代码块渲染流程图、时序图、甘特图等<br>使用方法：在代码块标记后加上 mermaid，例如：<br>```mermaid<br>graph TD<br>&nbsp;&nbsp;&nbsp;&nbsp;A[开始] --> B[结束]<br>```<br>支持所有 Mermaid 官方图表类型')
+    );
+    $mermaidEnabled->setAttribute('class', 'typecho-option cat-group-enhance');
+    $form->addInput($mermaidEnabled);
+
+    $echartsEnabled = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'echartsEnabled',
+        array('on' => _t('开启'), 'off' => _t('关闭')),
+        'off',
+        _t('ECharts 图表渲染'),
+        _t('介绍：开启后，支持在文章中使用 ```echarts 代码块渲染 ECharts 图表<br>使用方法：在代码块标记后加上 echarts，代码内容为标准 ECharts option JSON 配置<br>例如：```echarts<br>{"xAxis":{"type":"category","data":["A","B","C"]},"yAxis":{"type":"value"},"series":[{"data":[120,200,150],"type":"bar"}]}<br>```<br>支持所有 ECharts 官方图表类型和配置参数')
+    );
+    $echartsEnabled->setAttribute('class', 'typecho-option cat-group-enhance');
+    $form->addInput($echartsEnabled);
+
+    $katexEnabled = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'katexEnabled',
+        array('on' => _t('开启'), 'off' => _t('关闭')),
+        'off',
+        _t('KaTeX 数学公式渲染'),
+        _t('介绍：开启后，支持在文章中渲染数学公式<br>行内公式：使用 $...$ 包裹，例如 $E=mc^2$<br>块级公式：使用 $$...$$ 包裹，例如：<br>$$<br>\\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}<br>$$<br>支持常见数学符号和公式结构')
+    );
+    $katexEnabled->setAttribute('class', 'typecho-option cat-group-enhance');
+    $form->addInput($katexEnabled);
 }
 
 /**
@@ -1067,6 +1109,69 @@ function shufei_comment_check($comment, $post) {
 
 // 注册钩子（整合AI审核功能）
 \Typecho\Plugin::factory('Widget_Feedback')->comment = 'shufei_comment_check';
+
+// 注册 KaTeX 内容过滤器（防止 Markdown 破坏数学公式语法）
+\Typecho\Plugin::factory('Widget_Abstract_Contents')->content = 'shufei_katex_content_filter';
+
+/**
+ * KaTeX 内容过滤器
+ * 在 Markdown 处理后修复数学公式，防止 Markdown 解析器将 _ 转为 <em> 等标签破坏公式语法
+ * 将公式内容提取并包装在 .math-tex 元素中，由前端 KaTeX 渲染
+ */
+function shufei_katex_content_filter($content, $widget, $lastResult)
+{
+    $content = $lastResult ?: $content;
+
+    $options = \Typecho\Widget::widget('Widget_Options');
+    if (empty($options->katexEnabled) || $options->katexEnabled !== 'on') {
+        return $content;
+    }
+
+    // 处理块级公式 $$...$$（优先处理，避免与行内公式冲突）
+    $content = preg_replace_callback('/\$\$([\s\S]+?)\$\$/', function ($matches) {
+        $math = shufei_fix_markdown_in_math($matches[1]);
+        return '<span class="math-tex" data-mode="display" data-math="' . htmlspecialchars($math, ENT_QUOTES, 'UTF-8') . '"></span>';
+    }, $content);
+
+    // 处理块级公式 \[...\]
+    $content = preg_replace_callback('/\\\\\[([\s\S]+?)\\\\\]/', function ($matches) {
+        $math = shufei_fix_markdown_in_math($matches[1]);
+        return '<span class="math-tex" data-mode="display" data-math="' . htmlspecialchars($math, ENT_QUOTES, 'UTF-8') . '"></span>';
+    }, $content);
+
+    // 处理行内公式 $...$（排除 $$ 和货币金额）
+    $content = preg_replace_callback('/(?<!\$)\$(?!\$)([^\$\n]+?)(?<!\$)\$(?!\$)/', function ($matches) {
+        $math = shufei_fix_markdown_in_math($matches[1]);
+        return '<span class="math-tex" data-mode="inline" data-math="' . htmlspecialchars($math, ENT_QUOTES, 'UTF-8') . '"></span>';
+    }, $content);
+
+    // 处理行内公式 \(...\)
+    $content = preg_replace_callback('/\\\\\(([\s\S]+?)\\\\\)/', function ($matches) {
+        $math = shufei_fix_markdown_in_math($matches[1]);
+        return '<span class="math-tex" data-mode="inline" data-math="' . htmlspecialchars($math, ENT_QUOTES, 'UTF-8') . '"></span>';
+    }, $content);
+
+    return $content;
+}
+
+/**
+ * 修复 Markdown 在数学公式中产生的副作用
+ * 将 Markdown 生成的 HTML 标签还原为原始符号
+ */
+function shufei_fix_markdown_in_math($text)
+{
+    // 将 <em> 还原为下划线（Markdown 将 _ 转为 <em>）
+    $text = preg_replace('/<em>(.*?)<\/em>/s', '_$1_', $text);
+    // 将 <strong> 还原为星号
+    $text = preg_replace('/<strong>(.*?)<\/strong>/s', '**$1**', $text);
+    // 将 <del> 还原为波浪号
+    $text = preg_replace('/<del>(.*?)<\/del>/s', '~~$1~~', $text);
+    // 移除 <br> 标签
+    $text = preg_replace('/<br\s*\/?>/i', '', $text);
+    // 解码 HTML 实体（如 &amp; → &）
+    $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    return trim($text);
+}
 
 /**
  * 检查Turnstile人机验证是否启用

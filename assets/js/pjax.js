@@ -416,6 +416,12 @@
     document.addEventListener('pjax:complete', function() {
         updateProgress(100);
         hideLoading();
+        console.log('pjax:complete 事件触发 [V1.0.3]');
+        // 切换前先清理 ECharts 实例，防止内存泄漏
+        if (typeof window.destroyECharts === 'function') {
+            window.destroyECharts();
+        }
+        window.reinitPageFunctions();
     });
     
     document.addEventListener('pjax:timeout', function(e) {
@@ -435,11 +441,6 @@
     createLoadingIndicator();
     addAnimationStyles();
     initPjax();
-    
-    document.addEventListener('pjax:complete', function() {
-        console.log('pjax:complete 事件触发 [V1.0.3]');
-        window.reinitPageFunctions();
-    });
     
     window.reinitPageFunctions = function() {
         if (window.reinitTimer) clearTimeout(window.reinitTimer);
@@ -480,6 +481,18 @@
 
             if (typeof window.initPostViews === 'function') {
                 window.initPostViews();
+            }
+
+            if (typeof window.initMermaid === 'function') {
+                window.initMermaid();
+            }
+
+            if (typeof window.initECharts === 'function') {
+                window.initECharts();
+            }
+
+            if (typeof window.initKaTeX === 'function') {
+                window.initKaTeX();
             }
         }, 50);
     };

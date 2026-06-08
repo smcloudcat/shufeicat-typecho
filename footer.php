@@ -77,7 +77,11 @@ $jsUrls = [
     'pjax_lib' => $themeUrl . 'assets/vendor/pjax/pjax.min.js',
     'prism' => $themeUrl . 'assets/vendor/prismjs/prism.js',
     'prismAutoloader' => $themeUrl . 'assets/vendor/prismjs/plugins/autoloader/prism-autoloader.min.js',
-    'lightbox' => $themeUrl . 'assets/vendor/lightbox2/js/lightbox.min.js'
+    'lightbox' => $themeUrl . 'assets/vendor/lightbox2/js/lightbox.min.js',
+    'mermaid' => $themeUrl . 'assets/vendor/mermaid/mermaid.min.js',
+    'echarts' => $themeUrl . 'assets/vendor/echarts/echarts.min.js',
+    'katex' => $themeUrl . 'assets/vendor/katex/katex.min.js',
+    'katexAutoRender' => $themeUrl . 'assets/vendor/katex/auto-render.min.js'
 ];
 
 // 根据配置调整资源路径
@@ -88,6 +92,10 @@ if ($resourceMode === 'cdn') {
     $jsUrls['prism'] = 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js';
     $jsUrls['prismAutoloader'] = 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/autoloader/prism-autoloader.min.js';
     $jsUrls['lightbox'] = 'https://cdn.jsdelivr.net/npm/lightbox2@2.11.4/dist/js/lightbox.min.js';
+    $jsUrls['mermaid'] = 'https://cdn.jsdelivr.net/npm/mermaid@10.9.6/dist/mermaid.min.js';
+    $jsUrls['echarts'] = 'https://cdn.jsdelivr.net/npm/echarts@6.1.0/dist/echarts.min.js';
+    $jsUrls['katex'] = 'https://cdn.jsdelivr.net/npm/katex@0.17.0/dist/katex.min.js';
+    $jsUrls['katexAutoRender'] = 'https://cdn.jsdelivr.net/npm/katex@0.17.0/dist/contrib/auto-render.min.js';
 } elseif ($resourceMode === 'custom' && $customCdn) {
     // 使用自建CDN
     $jsUrls['jquery'] = $customCdn . '/assets/vendor/jquery/jquery.min.js';
@@ -98,6 +106,10 @@ if ($resourceMode === 'cdn') {
     $jsUrls['prism'] = $customCdn . '/assets/vendor/prismjs/prism.js';
     $jsUrls['prismAutoloader'] = $customCdn . '/assets/vendor/prismjs/plugins/autoloader/prism-autoloader.min.js';
     $jsUrls['lightbox'] = $customCdn . '/assets/vendor/lightbox2/js/lightbox.min.js';
+    $jsUrls['mermaid'] = $customCdn . '/assets/vendor/mermaid/mermaid.min.js';
+    $jsUrls['echarts'] = $customCdn . '/assets/vendor/echarts/echarts.min.js';
+    $jsUrls['katex'] = $customCdn . '/assets/vendor/katex/katex.min.js';
+    $jsUrls['katexAutoRender'] = $customCdn . '/assets/vendor/katex/auto-render.min.js';
 }
 // local 模式使用默认的 themeUrl 路径
 ?>
@@ -106,6 +118,7 @@ if ($resourceMode === 'cdn') {
 <script src="<?php echo $jsUrls['jquery']; ?>"></script>
 
 <!-- Prism.js 代码高亮脚本 - 使用Autoloader自动加载依赖 -->
+<?php if (empty($this->options->codeHighlightEnabled) || $this->options->codeHighlightEnabled !== 'off'): ?>
 <script src="<?php echo $jsUrls['prism']; ?>"></script>
 <script src="<?php echo $jsUrls['prismAutoloader']; ?>"></script>
 <?php if ($resourceMode !== 'cdn'): ?>
@@ -115,15 +128,36 @@ if ($resourceMode === 'cdn') {
     }
 </script>
 <?php endif; ?>
+<?php endif; ?>
 
 <!-- Lightbox2 图片灯箱脚本 -->
 <script src="<?php echo $jsUrls['lightbox']; ?>"></script>
+
+<!-- Mermaid 图表渲染脚本 -->
+<?php if (!empty($this->options->mermaidEnabled) && $this->options->mermaidEnabled === 'on'): ?>
+<script src="<?php echo $jsUrls['mermaid']; ?>"></script>
+<?php endif; ?>
+
+<!-- ECharts 图表渲染脚本 -->
+<?php if (!empty($this->options->echartsEnabled) && $this->options->echartsEnabled === 'on'): ?>
+<script src="<?php echo $jsUrls['echarts']; ?>"></script>
+<?php endif; ?>
+
+<!-- KaTeX 数学公式渲染脚本 -->
+<?php if (!empty($this->options->katexEnabled) && $this->options->katexEnabled === 'on'): ?>
+<script src="<?php echo $jsUrls['katex']; ?>"></script>
+<script src="<?php echo $jsUrls['katexAutoRender']; ?>"></script>
+<?php endif; ?>
 
 <!-- Pjax加载配置 -->
 <script>
 window.pjaxEnabled = <?php echo (!empty($this->options->pjaxLoad) && $this->options->pjaxLoad === 'on') ? 'true' : 'false'; ?>;
 window.pjaxLoadStyle = '<?php echo !empty($this->options->pjaxLoadStyle) ? $this->options->pjaxLoadStyle : 'progress'; ?>';
 window.pjaxTimeout = <?php echo !empty($this->options->pjaxTimeout) ? intval($this->options->pjaxTimeout) : 10000; ?>;
+window.codeHighlightEnabled = <?php echo (empty($this->options->codeHighlightEnabled) || $this->options->codeHighlightEnabled !== 'off') ? 'true' : 'false'; ?>;
+window.mermaidEnabled = <?php echo (!empty($this->options->mermaidEnabled) && $this->options->mermaidEnabled === 'on') ? 'true' : 'false'; ?>;
+window.echartsEnabled = <?php echo (!empty($this->options->echartsEnabled) && $this->options->echartsEnabled === 'on') ? 'true' : 'false'; ?>;
+window.katexEnabled = <?php echo (!empty($this->options->katexEnabled) && $this->options->katexEnabled === 'on') ? 'true' : 'false'; ?>;
 </script>
 
 <!-- 主题主脚本 -->

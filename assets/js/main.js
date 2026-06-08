@@ -92,6 +92,7 @@ window.initDarkMode = function() {
 };
 
 window.initPrismHighlight = function() {
+    if (!window.codeHighlightEnabled) return;
     if (typeof Prism === 'undefined') {
         setTimeout(window.initPrismHighlight, 100);
         return;
@@ -99,6 +100,12 @@ window.initPrismHighlight = function() {
     
     const codeBlocks = document.querySelectorAll('.post-content pre code');
     codeBlocks.forEach(function(code) {
+        // 跳过 mermaid 和 echarts 代码块，由各自的渲染器处理
+        // Typecho 生成 lang-xxx 格式，需同时检查两种格式
+        if (code.classList.contains('language-mermaid') || code.classList.contains('lang-mermaid') ||
+            code.classList.contains('language-echarts') || code.classList.contains('lang-echarts')) {
+            return;
+        }
         const className = code.className;
         const langMatch = className.match(/lang-(\w+)/);
         if (langMatch) {
@@ -472,6 +479,173 @@ window.initPostViews = function() {
     }, 1500);
 };
 
+/**
+ * Mermaid 图表渲染功能
+ */
+window.initMermaid = function() {
+    if (!window.mermaidEnabled) return;
+    if (typeof mermaid === 'undefined') {
+        setTimeout(window.initMermaid, 100);
+        return;
+    }
+
+    // 初始化 Mermaid 配置（仅首次）
+    if (!window._mermaidInitialized) {
+        mermaid.initialize({
+            startOnLoad: false,
+            theme: document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default',
+            securityLevel: 'loose',
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+        });
+        window._mermaidInitialized = true;
+    }
+
+    // 查找所有 mermaid 代码块并渲染
+    var mermaidBlocks = document.querySelectorAll('.post-content pre code.language-mermaid, .post-content pre code.lang-mermaid');
+    mermaidBlocks.forEach(function(codeBlock) {
+        var pre = codeBlock.parentElement;
+        if (!pre || pre.getAttribute('data-mermaid-processed')) return;
+        // 标记为已处理，防止重复渲染
+        pre.setAttribute('data-mermaid-processed', 'true');
+
+        var id = 'mermaid-' + Math.random().toString(36).substr(2, 9);
+        var source = codeBlock.textContent || codeBlock.innerText;
+
+        var container = document.createElement('div');
+        container.className = 'mermaid-container';
+        container.setAttribute('data-mermaid-id', id);
+
+        pre.parentNode.replaceChild(container, pre);
+
+        try {
+            mermaid.render(id, source).then(function(result) {
+                container.innerHTML = result.svg;
+            }).catch(function(err) {
+                container.innerHTML = '<div class="mermaid-error">Mermaid 渲染错误: ' + err.message + '</div>';
+            });
+        } catch (err) {
+            container.innerHTML = '<div class="mermaid-error">Mermaid 渲染错误: ' + err.message + '</div>';
+        }
+    });
+};
+
+/**
+ * ECharts 图表渲染功能
+ */
+window.initECharts = function() {
+    if (!window.echartsEnabled) return;
+    if (typeof echarts === 'undefined') {
+        setTimeout(window.initECharts, 100);
+        return;
+    }
+
+    var echartsBlocks = document.querySelectorAll('.post-content pre code.language-echarts, .post-content pre code.lang-echarts');
+    echartsBlocks.forEach(function(codeBlock) {
+        var pre = codeBlock.parentElement;
+        if (!pre || pre.getAttribute('data-echarts-processed')) return;
+        // 标记为已处理，防止重复渲染
+        pre.setAttribute('data-echarts-processed', 'true');
+
+        var source = codeBlock.textContent || codeBlock.innerText;
+        source = source.trim();
+
+        var container = document.createElement('div');
+        container.className = 'echarts-container';
+        container.style.cssText = 'width: 100%; height: 400px; margin: 16px 0;';
+
+        pre.parentNode.replaceChild(container, pre);
+
+        try {
+            var option = JSON.parse(source);
+            var chart = echarts.init(container);
+            chart.setOption(option);
+
+            // 响应式：窗口大小变化时自动调整
+            var resizeHandler = function() {
+                chart.resize();
+            };
+            window.addEventListener('resize', resizeHandler);
+
+            // 保存引用以便 PJAX 切换时清理
+            if (!window._echartsInstances) window._echartsInstances = [];
+            window._echartsInstances.push({ chart: chart, resizeHandler: resizeHandler });
+        } catch (err) {
+            container.innerHTML = '<div class="echarts-error">ECharts 配置解析错误: ' + err.message + '</div>';
+            container.style.height = 'auto';
+        }
+    });
+};
+
+/**
+ * 清理 ECharts 实例（PJAX 切换前调用）
+ */
+window.destroyECharts = function() {
+    if (window._echartsInstances) {
+        window._echartsInstances.forEach(function(item) {
+            window.removeEventListener('resize', item.resizeHandler);
+            item.chart.dispose();
+        });
+        window._echartsInstances = [];
+    }
+};
+
+/**
+ * KaTeX 数学公式渲染功能
+ */
+window.initKaTeX = function() {
+    if (!window.katexEnabled) return;
+    if (typeof katex === 'undefined') {
+        setTimeout(window.initKaTeX, 100);
+        return;
+    }
+
+    // 优先处理 PHP 过滤器生成的 .math-tex 元素（已修复 Markdown 副作用）
+    var mathElements = document.querySelectorAll('.post-content .math-tex');
+    if (mathElements.length > 0) {
+        mathElements.forEach(function(el) {
+            if (el.getAttribute('data-katex-processed')) return;
+            el.setAttribute('data-katex-processed', 'true');
+
+            var math = el.getAttribute('data-math');
+            var mode = el.getAttribute('data-mode');
+
+            if (!math) return;
+
+            try {
+                katex.render(math, el, {
+                    displayMode: mode === 'display',
+                    throwOnError: false,
+                    output: 'html'
+                });
+            } catch (err) {
+                el.textContent = math;
+                el.className = 'math-error';
+            }
+        });
+        return;
+    }
+
+    // 回退：使用 auto-render 扫描定界符（当 PHP 过滤器未生效时）
+    if (typeof renderMathInElement === 'undefined') {
+        setTimeout(window.initKaTeX, 100);
+        return;
+    }
+
+    var postContent = document.querySelector('.post-content');
+    if (!postContent) return;
+
+    renderMathInElement(postContent, {
+        delimiters: [
+            { left: '$$', right: '$$', display: true },
+            { left: '$', right: '$', display: false },
+            { left: '\\(', right: '\\)', display: false },
+            { left: '\\[', right: '\\]', display: true }
+        ],
+        throwOnError: false,
+        output: 'html'
+    });
+};
+
 document.addEventListener('DOMContentLoaded', function() {
     // 初始化夜间模式（优先执行，避免页面闪烁）
     window.initDarkMode();
@@ -516,5 +690,14 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 初始化浏览量统计
     window.initPostViews();
+    
+    // 初始化 Mermaid 图表渲染
+    setTimeout(window.initMermaid, 350);
+    
+    // 初始化 ECharts 图表渲染
+    setTimeout(window.initECharts, 400);
+    
+    // 初始化 KaTeX 数学公式渲染
+    setTimeout(window.initKaTeX, 450);
     
 });

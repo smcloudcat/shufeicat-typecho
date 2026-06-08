@@ -171,3 +171,9 @@ shufeicat-typecho/
 - 修复pjax页面切换后新的点赞按钮没有被绑定点击事件
 - 修复 PostgreSQL 数据库下启用主题报 500 异常的问题（`post_stats` 表创建 SQL 与 PostgreSQL 语法冲突）
 - 修复排行榜查询中表名引号不兼容 PostgreSQL 的问题
+
+### 版本 1.4.0-rc.1
+- 新增Mermaid 图表渲染
+- 新增ECharts 图表渲染
+- 新增KaTeX 数学公式渲染
+- 支持渲染开关
