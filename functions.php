@@ -1196,8 +1196,27 @@ function shufei_get_turnstile_site_key()
 }
 
 /**
+ * 获取所有置顶文章的CID
+ *
+ * @return array 置顶文章CID数组
+ */
+function shufei_get_sticky_cids()
+{
+    $db = \Typecho\Db::get();
+    $rows = $db->fetchAll($db->select('cid')->from('table.fields')
+        ->where('name = ?', 'sticky')
+        ->where('str_value = ?', '1'));
+
+    $cids = [];
+    foreach ($rows as $row) {
+        $cids[] = $row['cid'];
+    }
+    return $cids;
+}
+
+/**
  * 获取文章缩略图
- * 
+ *
  * @param object $post 文章对象
  * @return string 缩略图URL
  */

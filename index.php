@@ -199,20 +199,58 @@ $this->need('header.php');
     <?php if ($this->have()): ?>
     <div id="ajax-post-list" class="post-list-<?php echo !empty($this->options->postListStyle) ? $this->options->postListStyle : 'classic'; ?>">
     <?php
+    // 获取所有置顶文章的CID
+    $stickyCids = shufei_get_sticky_cids();
+
     // 分离置顶文章和普通文章
     $stickyPosts = array();
     $normalPosts = array();
-    
+
     while ($this->next()) {
-        if ($this->fields->sticky == '1') {
+        if (in_array($this->cid, $stickyCids)) {
             $stickyPosts[] = clone $this;
         } else {
             $normalPosts[] = clone $this;
         }
     }
-    
-    // 合并文章列表：置顶文章在前
-    $allPosts = array_merge($stickyPosts, $normalPosts);
+
+    // 在首页第一页时，获取不在当前页的置顶文章
+    $isFirstPage = $this->is('index') && intval($this->_currentPage) <= 1;
+
+    if ($isFirstPage && !empty($stickyCids)) {
+        // 获取当前页已有的置顶文章CID
+        $currentStickyCids = array();
+        foreach ($stickyPosts as $sp) {
+            $currentStickyCids[] = $sp->cid;
+        }
+
+        // 获取不在当前页的置顶文章CID
+        $missingCids = array_diff($stickyCids, $currentStickyCids);
+
+        if (!empty($missingCids)) {
+            $db = \Typecho\Db::get();
+            $query = $db->select('table.contents.*')->from('table.contents')
+                ->where('table.contents.status = ?', 'publish')
+                ->where('table.contents.created < ?', \Typecho\Date::time())
+                ->where('table.contents.type = ?', 'post')
+                ->where('table.contents.cid IN ?', array_values($missingCids))
+                ->order('table.contents.created', \Typecho\Db::SORT_DESC);
+
+            $stickyFromWidget = \Widget\Contents\From::allocWithAlias('sticky_extra', ['query' => $query]);
+            while ($stickyFromWidget->next()) {
+                $stickyPosts[] = clone $stickyFromWidget;
+            }
+        }
+
+        // 合并文章列表：置顶文章在前
+        $allPosts = array_merge($stickyPosts, $normalPosts);
+    } elseif (!empty($stickyCids) && $this->is('index')) {
+        // 非首页第一页，跳过置顶文章（已在第一页显示）
+        $allPosts = $normalPosts;
+    } else {
+        // 非首页（分类、标签等），保持原有逻辑
+        $allPosts = array_merge($stickyPosts, $normalPosts);
+    }
     ?>
     <?php foreach ($allPosts as $post): ?>
         <?php
@@ -234,7 +272,7 @@ $this->need('header.php');
             }
         }
         
-        $isSticky = ($post->fields->sticky == '1');
+        $isSticky = in_array($post->cid, $stickyCids);
         $hasThumb = !empty($thumbnail);
         $postListStyle = !empty($this->options->postListStyle) ? $this->options->postListStyle : 'classic';
         ?>

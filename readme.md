@@ -177,3 +177,5 @@ shufeicat-typecho/
 - 新增ECharts 图表渲染
 - 新增KaTeX 数学公式渲染
 - 支持渲染开关
+- 修复顶置文章显示问题
+- 更新jquery至4.0.0
