@@ -143,7 +143,17 @@ window.initLightbox = function() {
             const link = document.createElement('a');
             link.href = imgSrc;
             link.setAttribute('data-lightbox', 'post-images');
-            link.setAttribute('data-title', img.getAttribute('alt') || '图片 ' + (imageIndex + 1));
+            // 优先使用 figcaption，其次 alt，最后默认标题
+            var lightboxTitle = img.getAttribute('alt') || '';
+            var figCaption = img.closest('figure');
+            if (figCaption) {
+                var capEl = figCaption.querySelector('figcaption');
+                if (capEl && capEl.textContent) {
+                    lightboxTitle = capEl.textContent;
+                }
+            }
+            if (!lightboxTitle) lightboxTitle = '图片 ' + (imageIndex + 1);
+            link.setAttribute('data-title', lightboxTitle);
             
             img.parentNode.insertBefore(link, img);
             link.appendChild(img);
@@ -646,6 +656,48 @@ window.initKaTeX = function() {
     });
 };
 
+/**
+ * Markdown 扩展功能初始化
+ * 处理任务列表交互、折叠区块、提示框等前端增强
+ */
+window.initMarkdownExt = function() {
+    var postContent = document.querySelector('.post-content');
+    if (!postContent) return;
+
+    // 任务列表：允许点击切换勾选状态（视觉反馈，实际 disabled 但添加交互样式）
+    var taskCheckboxes = postContent.querySelectorAll('.task-list-checkbox');
+    taskCheckboxes.forEach(function(checkbox) {
+        checkbox.removeAttribute('disabled');
+        checkbox.addEventListener('change', function() {
+            var li = this.closest('.task-list-item');
+            if (li) {
+                if (this.checked) {
+                    li.classList.add('task-done');
+                } else {
+                    li.classList.remove('task-done');
+                }
+            }
+        });
+        // 初始化已完成项的样式
+        if (checkbox.checked) {
+            var li = checkbox.closest('.task-list-item');
+            if (li) li.classList.add('task-done');
+        }
+    });
+
+    // 折叠区块：添加动画支持
+    var detailsElements = postContent.querySelectorAll('.post-details');
+    detailsElements.forEach(function(details) {
+        details.addEventListener('toggle', function() {
+            if (this.open) {
+                this.classList.add('details-open');
+            } else {
+                this.classList.remove('details-open');
+            }
+        });
+    });
+};
+
 document.addEventListener('DOMContentLoaded', function() {
     // 初始化夜间模式（优先执行，避免页面闪烁）
     window.initDarkMode();
@@ -699,5 +751,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 初始化 KaTeX 数学公式渲染
     setTimeout(window.initKaTeX, 450);
-    
+
+    // 初始化 Markdown 扩展功能
+    setTimeout(window.initMarkdownExt, 500);
+
 });

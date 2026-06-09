@@ -197,7 +197,7 @@
         </header>
         
         <div class="post-content" itemprop="articleBody">
-            <?php $this->content(); ?>
+            <?php echo shufei_render_post_content($this); ?>
         </div>
     </article>
     

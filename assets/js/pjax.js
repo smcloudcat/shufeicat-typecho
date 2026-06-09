@@ -494,6 +494,10 @@
             if (typeof window.initKaTeX === 'function') {
                 window.initKaTeX();
             }
+
+            if (typeof window.initMarkdownExt === 'function') {
+                window.initMarkdownExt();
+            }
         }, 50);
     };
     

@@ -973,6 +973,26 @@ function themeConfig($form)
     );
     $katexEnabled->setAttribute('class', 'typecho-option cat-group-enhance');
     $form->addInput($katexEnabled);
+
+    $markdownExtEnabled = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'markdownExtEnabled',
+        array('on' => _t('开启'), 'off' => _t('关闭')),
+        'on',
+        _t('Markdown 扩展语法'),
+        _t('介绍：开启后，支持以下扩展 Markdown 语法：<br><br>' .
+            '<b>1. 图片大小</b>：在 alt 文本后加 |宽x高，例如 <code>![描述|300x200](url)</code> 或 <code>![描述|50%](url)</code><br>' .
+            '<b>2. 图片对齐</b>：在 alt 文本后加 #对齐方式，例如 <code>![描述#center](url)</code> 支持 left/center/right<br>' .
+            '<b>3. 图片标题</b>：alt 文本自动显示为图片下方标题（figcaption）<br>' .
+            '<b>4. 高亮文本</b>：使用 ==包裹==，例如 <code>==高亮内容==</code><br>' .
+            '<b>5. 任务列表</b>：<code>- [x] 已完成</code> 和 <code>- [ ] 未完成</code><br>' .
+            '<b>6. 提示框</b>：引用块首行写 <code>[!tip]</code>，支持 tip/note/info/warning/danger<br>' .
+            '&nbsp;&nbsp;&nbsp;&nbsp;例如：<code>> [!tip] 提示标题</code><br>' .
+            '<b>7. 折叠区块</b>：引用块首行写 <code>[details:标题]</code><br>' .
+            '&nbsp;&nbsp;&nbsp;&nbsp;例如：<code>> [details:点击展开]</code><br>' .
+            '<b>8. 图片懒加载</b>：自动为所有图片添加 loading="lazy"')
+    );
+    $markdownExtEnabled->setAttribute('class', 'typecho-option cat-group-enhance');
+    $form->addInput($markdownExtEnabled);
 }
 
 /**
@@ -1111,12 +1131,17 @@ function shufei_comment_check($comment, $post) {
 \Typecho\Plugin::factory('Widget_Feedback')->comment = 'shufei_comment_check';
 
 // 注册 KaTeX 内容过滤器（防止 Markdown 破坏数学公式语法）
-\Typecho\Plugin::factory('Widget_Abstract_Contents')->content = 'shufei_katex_content_filter';
+// handle 使用 Widget\Base\Contents，因为 ___content() 中 Contents::pluginHandle() 的 static::class 解析为该类
+// nativeClassName() 会将反斜杠转为下划线，最终查找键为 Widget_Base_Contents:content
+\Typecho\Plugin::factory('Widget\Base\Contents')->content = 'shufei_katex_content_filter';
+
+// 注册 Markdown 扩展内容过滤器（在 Markdown 解析后处理扩展语法）
+\Typecho\Plugin::factory('Widget\Base\Contents')->contentEx = 'shufei_markdown_ext_filter';
 
 /**
  * KaTeX 内容过滤器
- * 在 Markdown 处理后修复数学公式，防止 Markdown 解析器将 _ 转为 <em> 等标签破坏公式语法
- * 将公式内容提取并包装在 .math-tex 元素中，由前端 KaTeX 渲染
+ * 在 Markdown 解析前提取数学公式，防止 Markdown 解析器将 _ 转为 <em> 等标签破坏公式语法
+ * 将公式内容提取并包装在占位符中，Markdown 解析后再还原
  */
 function shufei_katex_content_filter($content, $widget, $lastResult)
 {
@@ -1124,32 +1149,54 @@ function shufei_katex_content_filter($content, $widget, $lastResult)
 
     $options = \Typecho\Widget::widget('Widget_Options');
     if (empty($options->katexEnabled) || $options->katexEnabled !== 'on') {
-        return $content;
+        // KaTeX 未开启，直接走默认 Markdown 解析
+        return $widget->isMarkdown ? $widget->markdown($content) : $widget->autoP($content);
     }
 
+    // 用占位符保护数学公式，避免 Markdown 解析器破坏
+    $mathBlocks = array();
+
     // 处理块级公式 $$...$$（优先处理，避免与行内公式冲突）
-    $content = preg_replace_callback('/\$\$([\s\S]+?)\$\$/', function ($matches) {
+    $content = preg_replace_callback('/\$\$([\s\S]+?)\$\$/', function ($matches) use (&$mathBlocks) {
         $math = shufei_fix_markdown_in_math($matches[1]);
-        return '<span class="math-tex" data-mode="display" data-math="' . htmlspecialchars($math, ENT_QUOTES, 'UTF-8') . '"></span>';
+        $placeholder = '<!--MATH' . count($mathBlocks) . '-->';
+        $mathBlocks[] = '<span class="math-tex" data-mode="display" data-math="' . htmlspecialchars($math, ENT_QUOTES, 'UTF-8') . '"></span>';
+        return $placeholder;
     }, $content);
 
     // 处理块级公式 \[...\]
-    $content = preg_replace_callback('/\\\\\[([\s\S]+?)\\\\\]/', function ($matches) {
+    $content = preg_replace_callback('/\\\\\[([\s\S]+?)\\\\\]/', function ($matches) use (&$mathBlocks) {
         $math = shufei_fix_markdown_in_math($matches[1]);
-        return '<span class="math-tex" data-mode="display" data-math="' . htmlspecialchars($math, ENT_QUOTES, 'UTF-8') . '"></span>';
+        $placeholder = '<!--MATH' . count($mathBlocks) . '-->';
+        $mathBlocks[] = '<span class="math-tex" data-mode="display" data-math="' . htmlspecialchars($math, ENT_QUOTES, 'UTF-8') . '"></span>';
+        return $placeholder;
     }, $content);
 
     // 处理行内公式 $...$（排除 $$ 和货币金额）
-    $content = preg_replace_callback('/(?<!\$)\$(?!\$)([^\$\n]+?)(?<!\$)\$(?!\$)/', function ($matches) {
+    $content = preg_replace_callback('/(?<!\$)\$(?!\$)([^\$\n]+?)(?<!\$)\$(?!\$)/', function ($matches) use (&$mathBlocks) {
         $math = shufei_fix_markdown_in_math($matches[1]);
-        return '<span class="math-tex" data-mode="inline" data-math="' . htmlspecialchars($math, ENT_QUOTES, 'UTF-8') . '"></span>';
+        $placeholder = '<!--MATH' . count($mathBlocks) . '-->';
+        $mathBlocks[] = '<span class="math-tex" data-mode="inline" data-math="' . htmlspecialchars($math, ENT_QUOTES, 'UTF-8') . '"></span>';
+        return $placeholder;
     }, $content);
 
     // 处理行内公式 \(...\)
-    $content = preg_replace_callback('/\\\\\(([\s\S]+?)\\\\\)/', function ($matches) {
+    $content = preg_replace_callback('/\\\\\(([\s\S]+?)\\\\\)/', function ($matches) use (&$mathBlocks) {
         $math = shufei_fix_markdown_in_math($matches[1]);
-        return '<span class="math-tex" data-mode="inline" data-math="' . htmlspecialchars($math, ENT_QUOTES, 'UTF-8') . '"></span>';
+        $placeholder = '<!--MATH' . count($mathBlocks) . '-->';
+        $mathBlocks[] = '<span class="math-tex" data-mode="inline" data-math="' . htmlspecialchars($math, ENT_QUOTES, 'UTF-8') . '"></span>';
+        return $placeholder;
     }, $content);
+
+    // 执行 Markdown 解析
+    $content = $widget->isMarkdown ? $widget->markdown($content) : $widget->autoP($content);
+
+    // 还原数学公式占位符
+    foreach ($mathBlocks as $i => $mathHtml) {
+        $content = str_replace('<!--MATH' . $i . '-->', $mathHtml, $content);
+        // Markdown 可能在占位符外面包了 <p> 标签
+        $content = str_replace('<p><!--MATH' . $i . '--></p>', $mathHtml, $content);
+    }
 
     return $content;
 }
@@ -1584,4 +1631,520 @@ function shufei_get_robots_content()
     }
 
     return 'index,follow';
+}
+
+/**
+ * 渲染文章内容（模板调用入口）
+ * 整合预处理、Markdown 解析、回复可见、扩展处理
+ *
+ * @param Widget\Base\Contents $widget 文章 widget 实例
+ * @return string 处理后的 HTML 内容
+ */
+function shufei_render_post_content($widget)
+{
+    if ($widget->isMarkdown) {
+        // 获取原始 Markdown 文本（___text() 已剥离 <!--markdown--> 前缀）
+        $rawText = $widget->text;
+        // 预处理：修复表格中行内代码内的 | 等问题
+        $rawText = shufei_pre_markdown_process($rawText);
+        // 手动 Markdown 解析
+        $html = \Utils\Markdown::convert($rawText);
+    } else {
+        // 非 Markdown 内容，使用默认解析
+        $html = $widget->content;
+    }
+
+    // 处理回复可见
+    $html = shufei_parse_reply_content($html, $widget->cid);
+
+    // 应用 Markdown 扩展
+    $html = shufei_apply_markdown_ext($html);
+
+    return $html;
+}
+
+/**
+ * 预处理 Markdown 文本，修复 HyperDown 解析器的已知问题
+ * 1. 表格中行内代码内的 | 会被误当作列分隔符，替换为 &#124;
+ * 2. 表格中 \| 转义在 HyperDown 中无效，也需替换
+ */
+function shufei_pre_markdown_process($text)
+{
+    if (empty($text) || strpos($text, '|') === false) {
+        return $text;
+    }
+
+    // 检查是否包含表格（含 | 分隔的行，允许行尾空白）
+    if (!preg_match('/^\|.+\|\s*$/m', $text)) {
+        return $text;
+    }
+
+    // 逐行处理：只处理表格行
+    $lines = explode("\n", $text);
+    foreach ($lines as &$line) {
+        // 跳过非表格行
+        if (strpos($line, '|') === false) {
+            continue;
+        }
+
+        // 1. 保护行内代码中的 | 和 \| 字符
+        $line = preg_replace_callback('/`[^`]+`/', function ($m) {
+            // 先处理 \| （去掉无意义的反斜杠转义），再处理 |
+            $result = str_replace('\\|', '&#124;', $m[0]);
+            $result = str_replace('|', '&#124;', $result);
+            return $result;
+        }, $line);
+
+        // 2. 保护表格行中非代码的 \| 转义（HyperDown 不支持 \| 转义）
+        // 只在表格行中处理，避免影响普通段落
+        $line = preg_replace('/\\\\\|/', '&#124;', $line);
+    }
+
+    return implode("\n", $lines);
+}
+
+/**
+ * 还原 <code> 和 <pre> 内的 | 占位符
+ * 由于 shufei_pre_markdown_process 在预处理阶段将 | 转为 &#124; 避免破坏表格列分隔，
+ * Markdown 解析后 &#124; 会被 HTML 实体化为 &amp;#124;，导致在代码块中显示为字面量 &#124;
+ * 此函数在最终输出前将 &amp;#124; / &#124; 还原为 |
+ */
+function shufei_fix_inline_code_pipe($content)
+{
+    if (empty($content) || (strpos($content, '&#124;') === false && strpos($content, '&amp;#124;') === false)) {
+        return $content;
+    }
+
+    return preg_replace_callback(
+        '/<(code|pre)[^>]*>.*?<\/\1>/si',
+        function ($matches) {
+            $fixed = str_replace('&amp;#124;', '|', $matches[0]);
+            $fixed = str_replace('&#124;', '|', $fixed);
+            return $fixed;
+        },
+        $content
+    );
+}
+
+/**
+ * 直接应用 Markdown 扩展处理（模板调用入口）
+ * 绕过钩子系统，直接在模板中处理内容
+ *
+ * @param string $content 已解析的 HTML 内容
+ * @return string 处理后的 HTML 内容
+ */
+function shufei_apply_markdown_ext($content)
+{
+    if (empty($content)) {
+        return $content;
+    }
+
+    // 检查是否开启 Markdown 扩展
+    $options = \Typecho\Widget::widget('Widget_Options');
+    if (!empty($options->markdownExtEnabled) && $options->markdownExtEnabled === 'off') {
+        return $content;
+    }
+
+    // 清理可能残留的 <!--markdown--> 标记
+    $content = preg_replace('/<p><!--markdown--><\/p>/', '', $content);
+    $content = str_replace('<!--markdown-->', '', $content);
+
+    // 1. 处理图片扩展语法（大小、对齐、标题、懒加载）
+    $content = shufei_process_images($content);
+
+    // 2. 处理高亮文本 ==text==
+    $content = shufei_process_mark($content);
+
+    // 3. 处理任务列表 - [x] / - [ ]
+    $content = shufei_process_task_lists($content);
+
+    // 4. 处理 blockquote 中的提示框和折叠区块（统一处理，避免嵌套）
+    $content = shufei_process_blockquote_extensions($content);
+
+    // 5. 还原 <code>/<pre> 内的 | 占位符（表格预处理产生）
+    $content = shufei_fix_inline_code_pipe($content);
+
+    // 6. 清理残留的空 blockquote 标签
+    $content = preg_replace('/<blockquote>\s*<\/blockquote>/s', '', $content);
+    // 清理仅包含 admonition/details div 的 blockquote（合并提示框处理后残留）
+    $content = preg_replace_callback(
+        '/<blockquote>(.*?)<\/blockquote>/s',
+        function ($matches) {
+            $inner = trim($matches[1]);
+            // 如果内部只包含 div 元素（admonition/details），移除 blockquote 包裹
+            if (preg_match('/^(<div[^>]*>.*<\/div>)\s*$/s', $inner) ||
+                preg_match('/^(<div[^>]*>.*<\/div>\s*)+$/s', $inner)) {
+                return $inner;
+            }
+            return $matches[0];
+        },
+        $content
+    );
+
+    return $content;
+}
+
+/**
+ * Markdown 扩展内容过滤器（钩子版本）
+ * 在 Markdown 解析后处理扩展语法，增强文章内容显示
+ *
+ * 支持的扩展语法：
+ * 1. 图片大小：![alt|300x200](url) 或 ![alt|50%](url)
+ * 2. 图片对齐：![alt#center](url)、![alt#left](url)、![alt#right](url)
+ * 3. 图片带标题：![这是标题](url) 自动转为 <figure>+<figcaption>
+ * 4. 高亮文本：==高亮内容== → <mark>高亮内容</mark>
+ * 5. 任务列表：- [x] 已完成 / - [ ] 未完成 → 复选框
+ * 6. 提示框：> [!tip] 内容 / > [!warning] 内容 / > [!note] 内容 等
+ * 7. 折叠区块：> [details:标题] 内容 → <details><summary>标题</summary>内容</details>
+ * 8. 图片懒加载：自动为图片添加 loading="lazy"
+ *
+ * @param string $content 已解析的 HTML 内容
+ * @param object $widget Contents widget 实例
+ * @param string $lastResult 上一个钩子的返回值
+ * @return string 处理后的 HTML 内容
+ */
+function shufei_markdown_ext_filter($content, $widget, $lastResult)
+{
+    $content = $lastResult ?: $content;
+
+    // 仅在文章/页面内容中处理
+    if (empty($content)) {
+        return $content;
+    }
+
+    // 检查是否开启 Markdown 扩展
+    $options = \Typecho\Widget::widget('Widget_Options');
+    if (!empty($options->markdownExtEnabled) && $options->markdownExtEnabled === 'off') {
+        return $content;
+    }
+
+    // 清理可能残留的 <!--markdown--> 标记
+    $content = preg_replace('/<p><!--markdown--><\/p>/', '', $content);
+    $content = str_replace('<!--markdown-->', '', $content);
+
+    // 1. 处理图片扩展语法（大小、对齐、标题、懒加载）
+    $content = shufei_process_images($content);
+
+    // 2. 处理高亮文本 ==text==
+    $content = shufei_process_mark($content);
+
+    // 3. 处理任务列表 - [x] / - [ ]
+    $content = shufei_process_task_lists($content);
+
+    // 4. 处理 blockquote 中的提示框和折叠区块（统一处理，避免嵌套）
+    $content = shufei_process_blockquote_extensions($content);
+
+    // 5. 还原 <code>/<pre> 内的 | 占位符（表格预处理产生）
+    $content = shufei_fix_inline_code_pipe($content);
+
+    // 6. 清理残留的空 blockquote 标签
+    $content = preg_replace('/<blockquote>\s*<\/blockquote>/s', '', $content);
+    // 清理仅包含 admonition/details div 的 blockquote（合并提示框处理后残留）
+    $content = preg_replace_callback(
+        '/<blockquote>(.*?)<\/blockquote>/s',
+        function ($matches) {
+            $inner = trim($matches[1]);
+            // 如果内部只包含 div 元素（admonition/details），移除 blockquote 包裹
+            if (preg_match('/^(<div[^>]*>.*<\/div>)\s*$/s', $inner) ||
+                preg_match('/^(<div[^>]*>.*<\/div>\s*)+$/s', $inner)) {
+                return $inner;
+            }
+            return $matches[0];
+        },
+        $content
+    );
+
+    return $content;
+}
+
+/**
+ * 处理图片扩展语法
+ * - 图片大小：![alt|300x200](url) 或 ![alt|50%](url)
+ * - 图片对齐：![alt#center](url)、![alt#left](url)、![alt#right](url)
+ * - 图片标题：alt 文本自动作为 figcaption
+ * - 图片懒加载：自动添加 loading="lazy"
+ */
+function shufei_process_images($content)
+{
+    // 匹配 Markdown 生成的 <img> 标签
+    // HyperDown 生成格式：<img src="URL" alt="ALT" title="TITLE">
+    $content = preg_replace_callback(
+        '/<img\s+src="([^"]+)"\s+alt="([^"]*)"(?:\s+title="([^"]*)")?\s*>/s',
+        function ($matches) {
+            $src = $matches[1];
+            $alt = $matches[2];
+            $title = isset($matches[3]) ? $matches[3] : '';
+
+            $width = '';
+            $height = '';
+            $align = '';
+            $caption = '';
+            $cleanAlt = $alt;
+
+            // 解析 alt 中的扩展语法
+            // 格式：alt文本|宽x高#对齐
+            // 例如：图片描述|300x200#center
+
+            // 提取对齐方式 #left / #center / #right
+            if (preg_match('/#(left|center|right)$/i', $cleanAlt, $alignMatch)) {
+                $align = strtolower($alignMatch[1]);
+                $cleanAlt = preg_replace('/#(left|center|right)$/i', '', $cleanAlt);
+            }
+
+            // 提取尺寸 |300x200 或 |50% 或 |300 或 |x200
+            if (preg_match('/\|(\d*%?)(?:x(\d*%?))?$/i', $cleanAlt, $sizeMatch)) {
+                if (!empty($sizeMatch[1])) {
+                    $width = $sizeMatch[1];
+                }
+                if (!empty($sizeMatch[2])) {
+                    $height = $sizeMatch[2];
+                }
+                $cleanAlt = preg_replace('/\|\d*%?(?:x\d*%?)?$/i', '', $cleanAlt);
+            }
+
+            // 构建 img 属性
+            $imgAttrs = 'src="' . htmlspecialchars($src) . '"';
+            $imgAttrs .= ' alt="' . htmlspecialchars($cleanAlt) . '"';
+            if (!empty($title) && $title !== $cleanAlt) {
+                $imgAttrs .= ' title="' . htmlspecialchars($title) . '"';
+            }
+            // 收集百分比样式，合并到同一个 style 属性中
+            $styleParts = array();
+            if (!empty($width)) {
+                if (substr($width, -1) === '%') {
+                    $styleParts[] = 'width:' . intval($width) . '%';
+                } else {
+                    $imgAttrs .= ' width="' . intval($width) . '"';
+                }
+            }
+            if (!empty($height)) {
+                if (substr($height, -1) === '%') {
+                    $styleParts[] = 'height:' . intval($height) . '%';
+                } else {
+                    $imgAttrs .= ' height="' . intval($height) . '"';
+                }
+            }
+            if (!empty($styleParts)) {
+                $imgAttrs .= ' style="' . implode(';', $styleParts) . '"';
+            }
+            // 懒加载
+            $imgAttrs .= ' loading="lazy"';
+
+            $imgTag = '<img ' . $imgAttrs . '>';
+
+            // 如果有对齐方式或 alt 文本（作为标题），包裹在 figure 中
+            if (!empty($align) || !empty($cleanAlt)) {
+                $figureClass = 'post-figure';
+                if (!empty($align)) {
+                    $figureClass .= ' post-figure-' . $align;
+                }
+                $html = '<figure class="' . $figureClass . '">';
+                $html .= $imgTag;
+                if (!empty($cleanAlt)) {
+                    $html .= '<figcaption>' . htmlspecialchars($cleanAlt) . '</figcaption>';
+                }
+                $html .= '</figure>';
+                return $html;
+            }
+
+            return $imgTag;
+        },
+        $content
+    );
+
+    return $content;
+}
+
+/**
+ * 处理高亮文本 ==text== → <mark>text</mark>
+ */
+function shufei_process_mark($content)
+{
+    // 先保护 <code> 和 <pre> 内的内容，避免误处理
+    $protected = array();
+    $content = preg_replace_callback('/<(code|pre)[^>]*>.*?<\/\1>/si', function ($m) use (&$protected) {
+        $key = '<!--PROTECT' . count($protected) . '-->';
+        $protected[] = $m[0];
+        return $key;
+    }, $content);
+
+    // 匹配 ==text== 但排除 HTML 标签内的 ==（如属性值）
+    $content = preg_replace_callback(
+        '/(?<![=<\/])==(?!==)(.+?)(?<!<\/)==(?!==)(?![^<]*>)/s',
+        function ($matches) {
+            return '<mark>' . $matches[1] . '</mark>';
+        },
+        $content
+    );
+
+    // 还原保护的内容
+    foreach ($protected as $i => $html) {
+        $content = str_replace('<!--PROTECT' . $i . '-->', $html, $content);
+    }
+
+    return $content;
+}
+
+/**
+ * 处理任务列表
+ * - [x] 已完成 → <li class="task-list-item"><input type="checkbox" checked disabled>
+ * - [ ] 未完成 → <li class="task-list-item"><input type="checkbox" disabled>
+ */
+function shufei_process_task_lists($content)
+{
+    // 匹配 <li>- [x] 或 <li>[x] 等变体
+    $content = preg_replace_callback(
+        '/<li>(\s*)\[([ xX])\]\s*/s',
+        function ($matches) {
+            $checked = strtolower($matches[2]) === 'x';
+            $checkbox = '<input type="checkbox" class="task-list-checkbox"' .
+                ($checked ? ' checked' : '') .
+                ' disabled>';
+            return '<li class="task-list-item">' . $matches[1] . $checkbox . ' ';
+        },
+        $content
+    );
+
+    return $content;
+}
+
+/**
+ * 统一处理 blockquote 中的提示框和折叠区块
+ * 逐段解析，避免合并 blockquote 时的嵌套问题
+ *
+ * 支持语法：
+ * > [!tip] 标题          → 提示框
+ * > [details:标题]       → 折叠区块
+ */
+function shufei_process_blockquote_extensions($content)
+{
+    $content = preg_replace_callback(
+        '/<blockquote>(.*?)<\/blockquote>/sis',
+        function ($matches) {
+            $inner = $matches[1];
+
+            // 检查是否包含扩展标记
+            if (!preg_match('/<p>\[!(tip|note|info|warning|danger)\]|<p>\[details:/i', $inner)) {
+                return $matches[0]; // 无标记，原样返回
+            }
+
+            // 先保护 <pre> 块，避免段落拆分时破坏代码块
+            $preBlocks = array();
+            $inner = preg_replace_callback('/<pre[^>]*>.*?<\/pre>/si', function ($m) use (&$preBlocks) {
+                $key = '<!--PRE' . count($preBlocks) . '-->';
+                $preBlocks[] = $m[0];
+                return $key;
+            }, $inner);
+
+            // 按段落拆分（保留分隔符）
+            $parts = preg_split('/(<p>.*?<\/p>)/si', $inner, -1, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY);
+
+            $result = '';
+            $currentBlock = null; // 当前正在构建的块
+
+            foreach ($parts as $part) {
+                $trimmed = trim($part);
+                if (empty($trimmed)) continue;
+
+                // 检查是否为提示框标记段落
+                if (preg_match('/^<p>\[!(tip|note|info|warning|danger)\](.*?)<\/p>$/si', $trimmed, $m)) {
+                    // 先输出之前的块
+                    if ($currentBlock !== null) {
+                        $result .= shufei_build_ext_block_html($currentBlock);
+                    }
+
+                    $type = strtolower($m[1]);
+                    $titleAndBody = trim($m[2]);
+                    $title = '';
+                    $body = '';
+                    if (preg_match('/^(.*?)(?:<br\s*\/?>)(.*)$/s', $titleAndBody, $titleParts)) {
+                        $title = trim($titleParts[1]);
+                        $body = trim($titleParts[2]);
+                    } else {
+                        $title = $titleAndBody;
+                    }
+
+                    $currentBlock = array('type' => 'admonition', 'subtype' => $type, 'title' => $title, 'body' => $body);
+                }
+                // 检查是否为折叠区块标记段落
+                elseif (preg_match('/^<p>\[details:(.*?)\](.*?)<\/p>$/si', $trimmed, $m)) {
+                    if ($currentBlock !== null) {
+                        $result .= shufei_build_ext_block_html($currentBlock);
+                    }
+
+                    $summary = trim($m[1]);
+                    $inlineBody = trim($m[2]);
+                    $body = '';
+                    if (preg_match('/^(?:<br\s*\/?>)?(.*)$/s', $inlineBody, $bodyMatch)) {
+                        $body = trim($bodyMatch[1]);
+                    }
+
+                    $currentBlock = array('type' => 'details', 'summary' => $summary, 'body' => $body);
+                }
+                // 内容段落：归属当前块，或作为独立内容
+                elseif ($currentBlock !== null) {
+                    $currentBlock['body'] .= (empty($currentBlock['body']) ? '' : ' ') . $trimmed;
+                } else {
+                    $result .= $part;
+                }
+            }
+
+            // 输出最后一个块
+            if ($currentBlock !== null) {
+                $result .= shufei_build_ext_block_html($currentBlock);
+            }
+
+            // 还原 <pre> 块
+            foreach ($preBlocks as $i => $preHtml) {
+                $result = str_replace('<!--PRE' . $i . '-->', $preHtml, $result);
+            }
+
+            return $result;
+        },
+        $content
+    );
+
+    return $content;
+}
+
+/**
+ * 构建扩展块的 HTML（提示框或折叠区块）
+ */
+function shufei_build_ext_block_html($block)
+{
+    if ($block['type'] === 'admonition') {
+        $type = $block['subtype'];
+        $title = $block['title'];
+        $body = $block['body'];
+
+        $typeNames = array(
+            'tip'    => '提示',
+            'note'   => '备注',
+            'info'   => '信息',
+            'warning' => '警告',
+            'danger' => '危险'
+        );
+        $displayTitle = !empty($title) ? $title : (isset($typeNames[$type]) ? $typeNames[$type] : ucfirst($type));
+
+        $html = '<div class="admonition admonition-' . $type . '">';
+        $html .= '<div class="admonition-title">' . htmlspecialchars($displayTitle) . '</div>';
+        if (!empty($body)) {
+            $html .= '<div class="admonition-content">' . $body . '</div>';
+        }
+        $html .= '</div>';
+        return $html;
+    }
+
+    if ($block['type'] === 'details') {
+        $summary = $block['summary'];
+        $body = $block['body'];
+
+        $html = '<details class="post-details">';
+        $html .= '<summary>' . htmlspecialchars($summary) . '</summary>';
+        $html .= '<div class="details-content">' . $body . '</div>';
+        $html .= '</details>';
+        return $html;
+    }
+
+    return '';
 }

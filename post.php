@@ -230,7 +230,7 @@
                     <p class="password-hint"><i class="fa fa-info-circle"></i> 请联系博主获取访问密码</p>
                 </div>
             <?php else: ?>
-                <?php echo shufei_parse_reply_content($this->content, $this->cid); ?>
+                <?php echo shufei_render_post_content($this); ?>
             <?php endif; ?>
         </div>
         
