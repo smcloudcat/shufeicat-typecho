@@ -1275,14 +1275,26 @@ function shufei_get_post_thumbnail($post)
         return $thumbnail;
     }
     
-    // 2. 从文章内容中提取第一张图片
+    // 2. 从文章内容中提取第一张图片（支持HTML img标签）
     $content = $post->content;
     preg_match_all('/<img.*?src=["\'](.*?)["\']/', $content, $matches);
     if (!empty($matches[1])) {
         return $matches[1][0];
     }
     
-    // 3. 使用随机缩略图
+    // 3. 从文章原始文本中提取第一张图片（支持Markdown格式 ![alt](url)）
+    if (!empty($post->text)) {
+        // 先去掉 Typecho 的 <!--markdown--> 前缀
+        $rawText = preg_replace('/^<!--markdown-->/', '', $post->text);
+        // 剔除行内代码块，避免匹配到示例语法如 `![desc](url)` 中的 url
+        $cleanText = preg_replace('/`[^`]*`/', '', $rawText);
+        preg_match_all('/!\[.*?\]\(([^)]+)\)/', $cleanText, $mdMatches);
+        if (!empty($mdMatches[1][0])) {
+            return $mdMatches[1][0];
+        }
+    }
+    
+    // 4. 使用随机缩略图
     return shufei_get_random_thumbnail();
 }
 
