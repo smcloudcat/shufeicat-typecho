@@ -1861,6 +1861,42 @@ pre[class*="language-"].line-numbers > code {
     color: #fff;
 }
 
+/* 复制按钮 - JS 动态创建时使用的完整样式 */
+.post-content pre .copy-code-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    padding: 5px 10px;
+    background: rgba(102, 126, 234, 0.9);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    z-index: 10;
+}
+
+.post-content pre .copy-code-btn:hover {
+    background: rgba(102, 126, 234, 1);
+}
+
+.post-content pre .copy-code-btn.copied {
+    background: #28a745;
+}
+
+/* 移动端菜单打开状态 - 汉堡按钮动画 */
+.mobile-menu-btn.active .hamburger-line:nth-child(1) {
+    transform: rotate(45deg) translate(5px, 5px);
+}
+
+.mobile-menu-btn.active .hamburger-line:nth-child(2) {
+    opacity: 0;
+}
+
+.mobile-menu-btn.active .hamburger-line:nth-child(3) {
+    transform: rotate(-45deg) translate(5px, -5px);
+}
+
 /* ============================================
  * Mermaid 图表样式
  * ============================================ */
@@ -1909,6 +1945,8 @@ pre[class*="language-"].line-numbers > code {
     border: 1px solid #eee;
     background: #fff;
     min-height: 300px;
+    width: 100%;
+    height: 400px;
 }
 
 .echarts-error {
@@ -5583,4 +5621,207 @@ pre[class*="language-"].line-numbers > code {
     .post-content .details-content {
         padding: 12px 14px;
     }
+}
+
+/* ============================================
+ * Pjax 加载指示器样式
+ * ============================================ */
+
+/* 进度条样式 */
+.pjax-loading.pjax-progress {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    z-index: 99999;
+    display: none;
+    overflow: hidden;
+}
+
+.pjax-progress-bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    transition: width 0.3s ease;
+    position: absolute;
+    left: 0;
+    top: 0;
+}
+
+/* 圆形加载样式 */
+.pjax-loading.pjax-circle {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 99999;
+    display: none;
+}
+
+.pjax-circle-wrapper {
+    background: rgba(255, 255, 255, 0.95);
+    padding: 30px 40px;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+}
+
+.pjax-circle-spinner {
+    width: 50px;
+    height: 50px;
+    border: 3px solid rgba(102, 126, 234, 0.2);
+    border-top-color: #667eea;
+    border-radius: 50%;
+    animation: pjax-spin 0.8s linear infinite;
+}
+
+.pjax-circle-text {
+    text-align: center;
+    margin-top: 15px;
+    font-size: 14px;
+    color: #667eea;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* 点点加载样式 */
+.pjax-loading.pjax-dots {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 99999;
+    display: none;
+}
+
+.pjax-dots-wrapper {
+    background: rgba(255, 255, 255, 0.95);
+    padding: 15px 25px;
+    border-radius: 30px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.pjax-dots-text {
+    font-size: 14px;
+    color: #666;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    margin-right: 5px;
+}
+
+.pjax-dots-container {
+    display: flex;
+    gap: 6px;
+}
+
+.pjax-dot {
+    width: 8px;
+    height: 8px;
+    background: #667eea;
+    border-radius: 50%;
+    animation: pjax-pulse 1.4s ease-in-out infinite;
+}
+
+.pjax-dot:nth-child(1) { animation-delay: 0s; }
+.pjax-dot:nth-child(2) { animation-delay: 0.2s; }
+.pjax-dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes pjax-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@keyframes pjax-pulse {
+    0%, 80%, 100% { transform: scale(0.6); opacity: 0.5; }
+    40% { transform: scale(1); opacity: 1; }
+}
+
+/* Pjax 暗色模式 */
+[data-theme="dark"] .pjax-circle-wrapper {
+    background: rgba(26, 26, 36, 0.95);
+}
+
+[data-theme="dark"] .pjax-circle-text {
+    color: var(--primary-color);
+}
+
+[data-theme="dark"] .pjax-dots-wrapper {
+    background: rgba(26, 26, 36, 0.95);
+}
+
+[data-theme="dark"] .pjax-dots-text {
+    color: var(--text-secondary);
+}
+
+/* ============================================
+ * Toast 通知样式
+ * ============================================ */
+.shufei-toast {
+    position: fixed;
+    top: 80px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-20px);
+    padding: 10px 24px;
+    border-radius: 8px;
+    font-size: 14px;
+    z-index: 10000;
+    opacity: 0;
+    transition: all 0.3s ease;
+    pointer-events: none;
+    white-space: nowrap;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.shufei-toast.shufei-toast-show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+.shufei-toast-info {
+    background: #e6f7ff;
+    color: #1890ff;
+    border: 1px solid #91d5ff;
+}
+
+.shufei-toast-success {
+    background: #f6ffed;
+    color: #52c41a;
+    border: 1px solid #b7eb8f;
+}
+
+.shufei-toast-error {
+    background: #fff2f0;
+    color: #ff4d4f;
+    border: 1px solid #ffccc7;
+}
+
+.shufei-toast-warning {
+    background: #fffbe6;
+    color: #faad14;
+    border: 1px solid #ffe58f;
+}
+
+[data-theme="dark"] .shufei-toast-info {
+    background: #111d33;
+    color: #69c0ff;
+    border-color: #15395b;
+}
+
+[data-theme="dark"] .shufei-toast-success {
+    background: #12261a;
+    color: #95de64;
+    border-color: #1f3d1f;
+}
+
+[data-theme="dark"] .shufei-toast-error {
+    background: #2a1215;
+    color: #ff7875;
+    border-color: #58181c;
+}
+
+[data-theme="dark"] .shufei-toast-warning {
+    background: #2b2111;
+    color: #ffc53d;
+    border-color: #594214;
 }
