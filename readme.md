@@ -172,10 +172,9 @@ shufeicat-typecho/
 - 修复排行榜查询中表名引号不兼容 PostgreSQL 的问题
 
 ### 版本 1.4.0-rc.1
-- 新增Mermaid 图表渲染
-- 新增ECharts 图表渲染
+- 新增Mermaid和ECharts图表渲染
 - 新增KaTeX 数学公式渲染
-- 支持渲染开关
-- Markdown 扩展功能
+- Markdown扩展功能
+- 支持手动渲染开关
 - 修复顶置文章显示问题
 - 更新jquery至4.0.0

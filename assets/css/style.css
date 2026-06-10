@@ -2584,6 +2584,45 @@ pre[class*="language-"].line-numbers > code {
     margin: 16px 0;
 }
 
+.captcha-container {
+    margin: 16px 0;
+}
+
+.captcha-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.captcha-img {
+    height: 40px;
+    border-radius: 4px;
+    cursor: pointer;
+    border: 1px solid #ddd;
+    flex-shrink: 0;
+    transition: border-color 0.2s;
+}
+
+.captcha-img:hover {
+    border-color: var(--primary-color);
+}
+
+.captcha-input {
+    width: 140px;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+    background: #fff;
+    color: #333;
+}
+
+.captcha-input:focus {
+    border-color: var(--primary-color);
+}
+
 .comment-closed {
     text-align: center;
     padding: 30px;
@@ -4881,6 +4920,17 @@ pre[class*="language-"].line-numbers > code {
     border-color: var(--primary-color);
     background: #1e1e2a;
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 10%, transparent);
+}
+[data-theme="dark"] .captcha-img {
+    border-color: #2a2a36;
+}
+[data-theme="dark"] .captcha-input {
+    background: #1e1e2a;
+    color: var(--text-color);
+    border-color: #2a2a36;
+}
+[data-theme="dark"] .captcha-input:focus {
+    border-color: var(--primary-color);
 }
 [data-theme="dark"] .comment-closed {
     background: #1a1a24;

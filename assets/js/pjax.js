@@ -171,12 +171,10 @@
         var btn = document.getElementById('comment-submit-btn');
         if (!btn) return;
         btn.disabled = loading;
-        var icon = btn.querySelector('i');
         if (loading) {
-            if (icon) {
-                icon.className = 'fa fa-spinner fa-spin';
+            if (!btn.getAttribute('data-original-text')) {
+                btn.setAttribute('data-original-text', btn.innerHTML);
             }
-            btn.setAttribute('data-original-text', btn.innerHTML);
             var textNode = document.createTextNode(' 提交中...');
             while (btn.firstChild) btn.removeChild(btn.firstChild);
             var newIcon = document.createElement('i');
@@ -188,6 +186,7 @@
             if (original) {
                 btn.innerHTML = original;
             }
+            btn.removeAttribute('data-original-text');
         }
     }
 
@@ -263,6 +262,7 @@
                             if (errorMsg) {
                                 hasError = true;
                                 showSubmitTip(errorMsg.textContent.trim() || '评论提交失败', 'error');
+                                initCaptcha();
                             }
                         }
 
@@ -272,8 +272,20 @@
                     }
                 } else if (xhr.status === 403) {
                     showSubmitTip('评论被拒绝，请刷新页面后重试', 'error');
+                    initCaptcha();
                 } else {
-                    showSubmitTip('提交失败，请稍后重试 (错误: ' + xhr.status + ')', 'error');
+                    // 尝试从响应中提取 Typecho 错误消息
+                    var errorMsg = '提交失败，请稍后重试';
+                    try {
+                        var doc = parser.parseFromString(xhr.responseText, 'text/html');
+                        var errorEl = doc.querySelector('.message.error, .error-message, .alert-error, .error-content, h2');
+                        if (errorEl) {
+                            var msg = errorEl.textContent.trim();
+                            if (msg) errorMsg = msg;
+                        }
+                    } catch(e) {}
+                    showSubmitTip(errorMsg, 'error');
+                    initCaptcha();
                 }
             };
 
@@ -299,6 +311,12 @@
             textarea.value = '';
         }
 
+        // 清空验证码输入
+        var captchaInput = document.getElementById('captcha-code');
+        if (captchaInput) {
+            captchaInput.value = '';
+        }
+
         var parentInput = form.querySelector('input[name="parent"]');
         var parentId = parentInput ? parentInput.value : '';
 
@@ -318,6 +336,7 @@
                     currentComments.innerHTML = newComments.innerHTML;
                     initAjaxComment();
                     initTurnstile();
+                    initCaptcha();
                     var targetEl = document.querySelector(commentAnchor);
                     if (targetEl) {
                         targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -375,6 +394,24 @@
                 window.turnstileIsRendering = false;
             }
         }, 3000);
+    }
+
+    function initCaptcha() {
+        var captchaImg = document.getElementById('captcha-img');
+        if (!captchaImg) return;
+        // 刷新验证码图片
+        var src = captchaImg.src;
+        if (src.indexOf('t=') !== -1) {
+            src = src.replace(/t=\d+/, 't=' + Date.now());
+        } else {
+            src += (src.indexOf('?') !== -1 ? '&' : '?') + 't=' + Date.now();
+        }
+        captchaImg.src = src;
+        // 清空输入框
+        var captchaInput = document.getElementById('captcha-code');
+        if (captchaInput) {
+            captchaInput.value = '';
+        }
     }
 
     function initPjax() {

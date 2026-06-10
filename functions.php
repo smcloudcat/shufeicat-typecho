@@ -903,22 +903,28 @@ function themeConfig($form)
     $form->addInput($aiModerationModel);
 
     
-    $turnstileEnabled = new \Typecho\Widget\Helper\Form\Element\Radio(
-        'turnstileEnabled',
-        array('off' => _t('关闭'), 'on' => _t('开启')),
-        'off',
-        _t('Turnstile人机验证'),
-        _t('介绍：开启后评论提交将进行 Cloudflare Turnstile 人机验证，有效防止机器人灌水')
+    $captchaType = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'captchaType',
+        array(
+            'none' => _t('关闭'),
+            'turnstile' => _t('Cloudflare Turnstile'),
+            'captcha_number' => _t('图片验证码（纯数字）'),
+            'captcha_alpha' => _t('图片验证码（纯字母）'),
+            'captcha_alnum' => _t('图片验证码（数字+字母）')
+        ),
+        'none',
+        _t('评论验证方式'),
+        _t('介绍：选择评论提交时的人机验证方式。图片验证码无需第三方服务，Turnstile 需要 Cloudflare 账号')
     );
-    $turnstileEnabled->setAttribute('class', 'typecho-option cat-group-verify');
-    $form->addInput($turnstileEnabled);
+    $captchaType->setAttribute('class', 'typecho-option cat-group-verify');
+    $form->addInput($captchaType);
 
     $turnstileSiteKey = new \Typecho\Widget\Helper\Form\Element\Text(
         'turnstileSiteKey',
         null,
         null,
-        _t('Site Key'),
-        _t('介绍：填写 Cloudflare Turnstile 提供的 Site Key')
+        _t('Turnstile Site Key'),
+        _t('介绍：填写 Cloudflare Turnstile 提供的 Site Key（仅 Turnstile 验证方式需要）')
     );
     $turnstileSiteKey->setAttribute('class', 'typecho-option cat-group-verify');
     $form->addInput($turnstileSiteKey);
@@ -927,11 +933,21 @@ function themeConfig($form)
         'turnstileSecretKey',
         null,
         null,
-        _t('Secret Key'),
-        _t('介绍：填写 Cloudflare Turnstile 提供的 Secret Key')
+        _t('Turnstile Secret Key'),
+        _t('介绍：填写 Cloudflare Turnstile 提供的 Secret Key（仅 Turnstile 验证方式需要）')
     );
     $turnstileSecretKey->setAttribute('class', 'typecho-option cat-group-verify');
     $form->addInput($turnstileSecretKey);
+
+    $captchaLength = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'captchaLength',
+        array('4' => _t('4位'), '5' => _t('5位'), '6' => _t('6位')),
+        '4',
+        _t('图片验证码位数'),
+        _t('介绍：选择图片验证码的字符位数（仅图片验证码方式有效）')
+    );
+    $captchaLength->setAttribute('class', 'typecho-option cat-group-verify');
+    $form->addInput($captchaLength);
 
     // ===== 功能增强配置 =====
     $codeHighlightEnabled = new \Typecho\Widget\Helper\Form\Element\Radio(
@@ -1106,25 +1122,79 @@ function shufei_parse_reply_content($content, $cid)
 }
 
 /**
- * 核心逻辑钩子：评论安全性校验（包含AI审核）
+ * 核心逻辑钩子：评论安全性校验（包含验证码校验 + AI审核）
  */
 function shufei_comment_check($comment, $post) {
     $options = \Typecho\Widget::widget('Widget_Options');
-    
-    // 1. 人机验证校验
-    if (isset($options->turnstileEnabled) && $options->turnstileEnabled === 'on') {
+    $captchaType = shufei_get_captcha_type();
+
+    // 1. 验证码校验
+    if ($captchaType === 'turnstile') {
+        // Turnstile 验证
         $token = isset($_POST['cf-turnstile-response']) ? $_POST['cf-turnstile-response'] : '';
         if (empty($token)) {
             throw new \Typecho\Widget\Exception(_t('请先完成人机验证'));
         }
+        // 调用 Cloudflare Siteverify API 验证 token
+        $secretKey = isset($options->turnstileSecretKey) ? $options->turnstileSecretKey : '';
+        if (!empty($secretKey)) {
+            $verifyResult = shufei_turnstile_verify_curl($secretKey, $token);
+            if ($verifyResult !== null && isset($verifyResult['success']) && !$verifyResult['success']) {
+                throw new \Typecho\Widget\Exception(_t('人机验证未通过，请重试'));
+            }
+        }
+    } elseif (shufei_is_captcha_enabled()) {
+        // 图片验证码验证
+        session_start();
+        $captchaInput = isset($_POST['captcha_code']) ? strtolower(trim($_POST['captcha_code'])) : '';
+        $captchaSession = isset($_SESSION['shufei_captcha_code']) ? $_SESSION['shufei_captcha_code'] : '';
+
+        // 验证后立即清除，防止重复使用
+        unset($_SESSION['shufei_captcha_code']);
+        unset($_SESSION['shufei_captcha_time']);
+
+        if (empty($captchaInput)) {
+            throw new \Typecho\Widget\Exception(_t('请填写验证码'));
+        }
+        if (empty($captchaSession)) {
+            throw new \Typecho\Widget\Exception(_t('验证码已过期，请刷新验证码后重试'));
+        }
+        if ($captchaInput !== $captchaSession) {
+            throw new \Typecho\Widget\Exception(_t('验证码错误，请重新输入'));
+        }
     }
-    
+
     // 2. AI评论审核
     if (function_exists('processAiModeration')) {
         $comment = processAiModeration($comment);
     }
-    
+
     return $comment;
+}
+
+/**
+ * 使用 cURL 验证 Turnstile token
+ */
+function shufei_turnstile_verify_curl($secretKey, $token) {
+    if (!function_exists('curl_init')) {
+        return null;
+    }
+    $ch = curl_init('https://challenges.cloudflare.com/turnstile/v0/siteverify');
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query(array(
+        'secret' => $secretKey,
+        'response' => $token,
+        'remoteip' => isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : ''
+    )));
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+    $response = curl_exec($ch);
+    curl_close($ch);
+    if ($response) {
+        return json_decode($response, true);
+    }
+    return null;
 }
 
 // 注册钩子（整合AI审核功能）
@@ -1221,19 +1291,65 @@ function shufei_fix_markdown_in_math($text)
 }
 
 /**
+ * 获取当前验证码类型
+ *
+ * @return string none|turnstile|captcha_number|captcha_alpha|captcha_alnum
+ */
+function shufei_get_captcha_type()
+{
+    $options = \Typecho\Widget::widget('Widget_Options');
+    return isset($options->captchaType) ? $options->captchaType : 'none';
+}
+
+/**
  * 检查Turnstile人机验证是否启用
- * 
+ *
  * @return bool
  */
 function shufei_is_turnstile_enabled()
 {
+    return shufei_get_captcha_type() === 'turnstile';
+}
+
+/**
+ * 检查图片验证码是否启用
+ *
+ * @return bool
+ */
+function shufei_is_captcha_enabled()
+{
+    $type = shufei_get_captcha_type();
+    return in_array($type, array('captcha_number', 'captcha_alpha', 'captcha_alnum'));
+}
+
+/**
+ * 获取验证码字符类型（用于captcha.php的type参数）
+ *
+ * @return string number|alpha|alnum
+ */
+function shufei_get_captcha_char_type()
+{
+    $type = shufei_get_captcha_type();
+    if ($type === 'captcha_number') return 'number';
+    if ($type === 'captcha_alpha') return 'alpha';
+    return 'alnum';
+}
+
+/**
+ * 获取验证码位数
+ *
+ * @return int
+ */
+function shufei_get_captcha_length()
+{
     $options = \Typecho\Widget::widget('Widget_Options');
-    return isset($options->turnstileEnabled) && $options->turnstileEnabled === 'on';
+    $length = isset($options->captchaLength) ? intval($options->captchaLength) : 4;
+    return max(4, min(6, $length));
 }
 
 /**
  * 获取Turnstile Site Key
- * 
+ *
  * @return string
  */
 function shufei_get_turnstile_site_key()

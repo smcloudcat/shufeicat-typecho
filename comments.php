@@ -135,6 +135,13 @@ function threadedComments($comments, $options) {
                 <div class="turnstile-container">
                     <div id="cf-turnstile" class="cf-turnstile" data-sitekey="<?php echo htmlspecialchars(shufei_get_turnstile_site_key()); ?>" data-theme="auto"></div>
                 </div>
+                <?php elseif (shufei_is_captcha_enabled()): ?>
+                <div class="captcha-container">
+                    <div class="captcha-row">
+                        <img id="captcha-img" class="captcha-img" src="<?php echo $this->options->themeUrl('core/captcha.php?type=' . shufei_get_captcha_char_type() . '&length=' . shufei_get_captcha_length()); ?>" alt="验证码" title="点击刷新验证码" onclick="this.src='<?php echo $this->options->themeUrl('core/captcha.php?type=' . shufei_get_captcha_char_type() . '&length=' . shufei_get_captcha_length()); ?>&t='+Date.now()" />
+                        <input type="text" name="captcha_code" id="captcha-code" class="captcha-input" placeholder="请输入验证码" autocomplete="off" required />
+                    </div>
+                </div>
                 <?php endif; ?>
 
                 <div class="form-actions">
