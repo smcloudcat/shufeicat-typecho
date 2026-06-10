@@ -1417,7 +1417,7 @@ function shufei_get_post_thumbnail($post)
     }
     
     // 2. 从文章内容中提取第一张图片（支持HTML img标签）
-    $content = $post->content;
+    $content = $post->content ?? '';
     preg_match_all('/<img.*?src=["\'](.*?)["\']/', $content, $matches);
     if (!empty($matches[1])) {
         return $matches[1][0];
