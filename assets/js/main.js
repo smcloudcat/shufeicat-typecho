@@ -91,10 +91,11 @@ window.initDarkMode = function() {
     }
 };
 
-window.initPrismHighlight = function() {
+window.initPrismHighlight = function(retryCount) {
     if (!window.codeHighlightEnabled) return;
+    retryCount = retryCount || 0;
     if (typeof Prism === 'undefined') {
-        setTimeout(window.initPrismHighlight, 100);
+        if (retryCount < 30) setTimeout(function() { window.initPrismHighlight(retryCount + 1); }, 100);
         return;
     }
     
@@ -121,9 +122,10 @@ window.initPrismHighlight = function() {
     Prism.highlightAll();
 };
 
-window.initLightbox = function() {
+window.initLightbox = function(retryCount) {
+    retryCount = retryCount || 0;
     if (typeof jQuery === 'undefined' || typeof lightbox === 'undefined') {
-        setTimeout(window.initLightbox, 100);
+        if (retryCount < 30) setTimeout(function() { window.initLightbox(retryCount + 1); }, 100);
         return;
     }
     
@@ -492,10 +494,11 @@ window.initPostViews = function() {
 /**
  * Mermaid 图表渲染功能
  */
-window.initMermaid = function() {
+window.initMermaid = function(retryCount) {
     if (!window.mermaidEnabled) return;
+    retryCount = retryCount || 0;
     if (typeof mermaid === 'undefined') {
-        setTimeout(window.initMermaid, 100);
+        if (retryCount < 30) setTimeout(function() { window.initMermaid(retryCount + 1); }, 100);
         return;
     }
 
@@ -542,10 +545,11 @@ window.initMermaid = function() {
 /**
  * ECharts 图表渲染功能
  */
-window.initECharts = function() {
+window.initECharts = function(retryCount) {
     if (!window.echartsEnabled) return;
+    retryCount = retryCount || 0;
     if (typeof echarts === 'undefined') {
-        setTimeout(window.initECharts, 100);
+        if (retryCount < 30) setTimeout(function() { window.initECharts(retryCount + 1); }, 100);
         return;
     }
 
@@ -602,10 +606,11 @@ window.destroyECharts = function() {
 /**
  * KaTeX 数学公式渲染功能
  */
-window.initKaTeX = function() {
+window.initKaTeX = function(retryCount) {
     if (!window.katexEnabled) return;
+    retryCount = retryCount || 0;
     if (typeof katex === 'undefined') {
-        setTimeout(window.initKaTeX, 100);
+        if (retryCount < 30) setTimeout(function() { window.initKaTeX(retryCount + 1); }, 100);
         return;
     }
 
@@ -637,7 +642,7 @@ window.initKaTeX = function() {
 
     // 回退：使用 auto-render 扫描定界符（当 PHP 过滤器未生效时）
     if (typeof renderMathInElement === 'undefined') {
-        setTimeout(window.initKaTeX, 100);
+        if (retryCount < 30) setTimeout(function() { window.initKaTeX(retryCount + 1); }, 100);
         return;
     }
 
