@@ -18,67 +18,61 @@
         var container = document.createElement('div');
         container.id = 'pjax-loading-progress';
         container.className = 'pjax-loading pjax-progress';
-        container.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; height: 4px; z-index: 99999; display: none; overflow: hidden;';
-        
+
         var bar = document.createElement('div');
         bar.className = 'pjax-progress-bar';
-        bar.style.cssText = 'height: 100%; width: 0%; background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); transition: width 0.3s ease; position: absolute; left: 0; top: 0;';
-        
+
         container.appendChild(bar);
         return container;
     }
-    
+
     function createCircleStyle() {
         var container = document.createElement('div');
         container.id = 'pjax-loading-circle';
         container.className = 'pjax-loading pjax-circle';
-        container.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 99999; display: none;';
-        
+
+        var wrapper = document.createElement('div');
+        wrapper.className = 'pjax-circle-wrapper';
+
         var spinner = document.createElement('div');
         spinner.className = 'pjax-circle-spinner';
-        spinner.style.cssText = 'width: 50px; height: 50px; border: 3px solid rgba(102, 126, 234, 0.2); border-top-color: #667eea; border-radius: 50%; animation: pjax-spin 0.8s linear infinite;';
-        
+
         var text = document.createElement('div');
         text.className = 'pjax-circle-text';
         text.textContent = '加载中...';
-        text.style.cssText = 'text-align: center; margin-top: 15px; font-size: 14px; color: #667eea; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;';
-        
-        var wrapper = document.createElement('div');
-        wrapper.style.cssText = 'background: rgba(255, 255, 255, 0.95); padding: 30px 40px; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.15);';
-        
+
         wrapper.appendChild(spinner);
         wrapper.appendChild(text);
         container.appendChild(wrapper);
-        
+
         return container;
     }
-    
+
     function createDotsStyle() {
         var container = document.createElement('div');
         container.id = 'pjax-loading-dots';
         container.className = 'pjax-loading pjax-dots';
-        container.style.cssText = 'position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); z-index: 99999; display: none;';
-        
+
         var wrapper = document.createElement('div');
-        wrapper.style.cssText = 'background: rgba(255, 255, 255, 0.95); padding: 15px 25px; border-radius: 30px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 10px;';
-        
+        wrapper.className = 'pjax-dots-wrapper';
+
         var text = document.createElement('span');
+        text.className = 'pjax-dots-text';
         text.textContent = '加载中';
-        text.style.cssText = 'font-size: 14px; color: #666; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin-right: 5px;';
-        
+
         var dots = document.createElement('div');
-        dots.style.cssText = 'display: flex; gap: 6px;';
-        
+        dots.className = 'pjax-dots-container';
+
         for (var i = 0; i < 3; i++) {
             var dot = document.createElement('span');
-            dot.style.cssText = 'width: 8px; height: 8px; background: #667eea; border-radius: 50%; animation: pjax-pulse 1.4s ease-in-out infinite; animation-delay: ' + (i * 0.2) + 's;';
+            dot.className = 'pjax-dot';
             dots.appendChild(dot);
         }
-        
+
         wrapper.appendChild(text);
         wrapper.appendChild(dots);
         container.appendChild(wrapper);
-        
+
         return container;
     }
     
@@ -91,15 +85,6 @@
             loadingContainer = createProgressStyle();
         }
         document.body.appendChild(loadingContainer);
-    }
-    
-    function addAnimationStyles() {
-        if (document.getElementById('pjax-animation-styles')) return;
-        
-        var style = document.createElement('style');
-        style.id = 'pjax-animation-styles';
-        style.textContent = '@keyframes pjax-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } } @keyframes pjax-pulse { 0%, 80%, 100% { transform: scale(0.6); opacity: 0.5; } 40% { transform: scale(1); opacity: 1; } }';
-        document.head.appendChild(style);
     }
     
     function showLoading() {
@@ -194,51 +179,52 @@
         var commentForm = document.getElementById('comment-form');
         if (!commentForm) return;
 
-        var clonedForm = commentForm.cloneNode(true);
-        commentForm.parentNode.replaceChild(clonedForm, commentForm);
+        // 如果已经绑定过事件委托，跳过
+        if (commentForm.getAttribute('data-ajax-bound')) return;
+        commentForm.setAttribute('data-ajax-bound', 'true');
 
-        clonedForm.addEventListener('submit', function(e) {
+        commentForm.addEventListener('submit', function(e) {
             e.preventDefault();
 
-            var textarea = clonedForm.querySelector('#textarea');
+            var textarea = commentForm.querySelector('#textarea');
             if (!textarea || !textarea.value.trim()) {
                 showSubmitTip('请填写评论内容', 'error');
                 return;
             }
 
-            var author = clonedForm.querySelector('#author');
+            var author = commentForm.querySelector('#author');
             if (author && author.required && !author.value.trim()) {
                 showSubmitTip('请填写称呼', 'error');
                 return;
             }
 
-            var mail = clonedForm.querySelector('#mail');
+            var mail = commentForm.querySelector('#mail');
             if (mail && mail.required && !mail.value.trim()) {
                 showSubmitTip('请填写邮箱', 'error');
                 return;
             }
 
-            var tokenInputs = clonedForm.querySelectorAll('input[name="_"]');
+            var tokenInputs = commentForm.querySelectorAll('input[name="_"]');
             for (var i = 0; i < tokenInputs.length; i++) {
                 tokenInputs[i].parentNode.removeChild(tokenInputs[i]);
             }
 
-            var token = clonedForm.getAttribute('data-token');
+            var token = commentForm.getAttribute('data-token');
             if (token) {
                 var tokenInput = document.createElement('input');
                 tokenInput.type = 'hidden';
                 tokenInput.name = '_';
                 tokenInput.value = token;
-                clonedForm.appendChild(tokenInput);
+                commentForm.appendChild(tokenInput);
             }
 
-            var formData = new FormData(clonedForm);
+            var formData = new FormData(commentForm);
 
             setSubmitLoading(true);
             showSubmitTip('正在提交...', '');
 
             var xhr = new XMLHttpRequest();
-            xhr.open('POST', clonedForm.getAttribute('action'), true);
+            xhr.open('POST', commentForm.getAttribute('action'), true);
             xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
 
             xhr.onload = function() {
@@ -249,7 +235,7 @@
                     var currentUrl = window.location.href.split('#')[0];
 
                     if (responseUrl && responseUrl !== currentUrl) {
-                        onCommentSuccess(clonedForm, textarea);
+                        onCommentSuccess(commentForm, textarea);
                     } else {
                         var parser = new DOMParser();
                         var doc = parser.parseFromString(xhr.responseText, 'text/html');
@@ -267,17 +253,17 @@
                         }
 
                         if (!hasError) {
-                            onCommentSuccess(clonedForm, textarea);
+                            onCommentSuccess(commentForm, textarea);
                         }
                     }
                 } else if (xhr.status === 403) {
                     showSubmitTip('评论被拒绝，请刷新页面后重试', 'error');
                     initCaptcha();
                 } else {
-                    // 尝试从响应中提取 Typecho 错误消息
                     var errorMsg = '提交失败，请稍后重试';
                     try {
-                        var doc = parser.parseFromString(xhr.responseText, 'text/html');
+                        var errParser = new DOMParser();
+                        var doc = errParser.parseFromString(xhr.responseText, 'text/html');
                         var errorEl = doc.querySelector('.message.error, .error-message, .alert-error, .error-content, h2');
                         if (errorEl) {
                             var msg = errorEl.textContent.trim();
@@ -382,7 +368,6 @@
                         turnstileContainer.setAttribute('data-turnstile-widget-id', widgetId);
                     }
                 } catch (e) {
-                    console.warn('[Turnstile] 渲染出错:', e);
                 }
                 window.turnstileIsRendering = false;
             }
@@ -416,7 +401,6 @@
 
     function initPjax() {
         if (typeof Pjax === 'undefined') {
-            console.error('Pjax库未加载');
             return;
         }
         
@@ -437,7 +421,6 @@
         
         initAjaxComment();
         
-        console.log('Pjax已初始化 [V1.0.3]，样式：' + pjaxLoadStyle);
         return pjax;
     }
     
@@ -453,7 +436,6 @@
     document.addEventListener('pjax:complete', function() {
         updateProgress(100);
         hideLoading();
-        console.log('pjax:complete 事件触发 [V1.0.3]');
         // 切换前先清理 ECharts 实例，防止内存泄漏
         if (typeof window.destroyECharts === 'function') {
             window.destroyECharts();
@@ -462,12 +444,10 @@
     });
     
     document.addEventListener('pjax:timeout', function(e) {
-        console.warn('Pjax加载超时');
         e.continue();
     });
     
     document.addEventListener('pjax:error', function(e) {
-        console.error('Pjax加载失败:', e);
         if (e.requestedUrl) {
             window.location.href = e.requestedUrl;
         } else {
@@ -476,15 +456,12 @@
     });
     
     createLoadingIndicator();
-    addAnimationStyles();
     initPjax();
     
     window.reinitPageFunctions = function() {
         if (window.reinitTimer) clearTimeout(window.reinitTimer);
         
         window.reinitTimer = setTimeout(function() {
-            console.log('开始重新初始化页面功能 [V1.0.3]...');
-            
             if (typeof window.initDarkMode === 'function') {
                 window.initDarkMode();
             }
@@ -539,11 +516,9 @@
     };
     
     if (document.readyState === 'complete') {
-        console.log('页面已加载完成 [V1.0.3]，执行初始化');
         window.reinitPageFunctions();
     } else {
         window.addEventListener('load', function() {
-            console.log('页面load事件触发 [V1.0.3]，执行初始化');
             window.reinitPageFunctions();
         });
     }

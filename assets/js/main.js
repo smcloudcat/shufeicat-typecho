@@ -4,6 +4,32 @@
  */
 
 /**
+ * 轻量级 Toast 通知
+ * 替代 alert()，提供一致的用户提示体验
+ */
+window.showToast = function(message, type) {
+    type = type || 'info';
+    var existing = document.getElementById('shufei-toast');
+    if (existing) existing.remove();
+
+    var toast = document.createElement('div');
+    toast.id = 'shufei-toast';
+    toast.className = 'shufei-toast shufei-toast-' + type;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+
+    // 触发动画
+    requestAnimationFrame(function() {
+        toast.classList.add('shufei-toast-show');
+    });
+
+    setTimeout(function() {
+        toast.classList.remove('shufei-toast-show');
+        setTimeout(function() { toast.remove(); }, 300);
+    }, 3000);
+};
+
+/**
  * 夜间模式功能
  * 支持 localStorage 持久化，并检测系统颜色偏好
  */
@@ -91,10 +117,11 @@ window.initDarkMode = function() {
     }
 };
 
-window.initPrismHighlight = function() {
+window.initPrismHighlight = function(retryCount) {
     if (!window.codeHighlightEnabled) return;
+    retryCount = retryCount || 0;
     if (typeof Prism === 'undefined') {
-        setTimeout(window.initPrismHighlight, 100);
+        if (retryCount < 30) setTimeout(function() { window.initPrismHighlight(retryCount + 1); }, 100);
         return;
     }
     
@@ -121,9 +148,10 @@ window.initPrismHighlight = function() {
     Prism.highlightAll();
 };
 
-window.initLightbox = function() {
+window.initLightbox = function(retryCount) {
+    retryCount = retryCount || 0;
     if (typeof jQuery === 'undefined' || typeof lightbox === 'undefined') {
-        setTimeout(window.initLightbox, 100);
+        if (retryCount < 30) setTimeout(function() { window.initLightbox(retryCount + 1); }, 100);
         return;
     }
     
@@ -189,7 +217,6 @@ window.initCopyButtons = function() {
         copyBtn.className = 'copy-code-btn';
         copyBtn.innerHTML = '<i class="fa fa-copy"></i> 复制';
         copyBtn.title = '复制代码';
-        copyBtn.style.cssText = 'position: absolute; top: 10px; right: 10px; padding: 5px 10px; background: rgba(102, 126, 234, 0.9); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; z-index: 10;';
         
         copyBtn.addEventListener('click', function(e) {
             e.stopPropagation();
@@ -208,7 +235,6 @@ window.initCopyButtons = function() {
                         copyBtn.classList.remove('copied');
                     }, 2000);
                 }).catch(function(err) {
-                    console.error('复制失败:', err);
                     copyBtn.innerHTML = '<i class="fa fa-exclamation-triangle"></i> 失败';
                 });
             }
@@ -235,17 +261,15 @@ window.initCollapsibleSidebar = function() {
         return 'sidebar_state_' + (specificClass || 'unknown');
     }
 
-    var toggles = sidebar.querySelectorAll('.collapsible-toggle');
-    toggles.forEach(function(toggle) {
-        var newToggle = toggle.cloneNode(true);
-        toggle.parentNode.replaceChild(newToggle, toggle);
-    });
-
-    toggles = sidebar.querySelectorAll('.collapsible-toggle');
-    toggles.forEach(function(toggle) {
-        toggle.addEventListener('click', function(e) {
+    // 使用 document 级别事件委托，只绑定一次，避免 PJAX / 多重初始化导致重复绑定
+    if (!window._collapsibleSidebarBound) {
+        window._collapsibleSidebarBound = true;
+        document.addEventListener('click', function(e) {
+            var toggle = e.target.closest('.collapsible-toggle');
+            if (!toggle) return;
             e.preventDefault();
-            var widget = this.closest('.collapsible-widget');
+
+            var widget = toggle.closest('.collapsible-widget');
             if (!widget) return;
 
             var isCollapsed = widget.classList.contains('collapsed');
@@ -257,8 +281,10 @@ window.initCollapsibleSidebar = function() {
                 try { localStorage.setItem(getWidgetKey(widget), 'collapsed'); } catch (e) {}
             }
         });
-    });
+    }
 
+    // 恢复折叠状态
+    var toggles = sidebar.querySelectorAll('.collapsible-toggle');
     toggles.forEach(function(toggle) {
         var widget = toggle.closest('.collapsible-widget');
         if (!widget) return;
@@ -277,35 +303,15 @@ window.initCollapsibleSidebar = function() {
 };
 
 // 初始化移动端菜单功能 - 控制左侧边栏
-window.initMobileMenu = function() {
-    const mobileMenuBtn = document.getElementById('mobile-menu-btn');
-    const leftSidebar = document.getElementById('left-sidebar');
-    const bodyShade = document.getElementById('body-shade');
-
-    if (!mobileMenuBtn || !leftSidebar) {
-        console.warn('移动端菜单元素未找到');
-        return;
-    }
-
-    // 移除旧的事件监听器（通过克隆节点）
-    const newBtn = mobileMenuBtn.cloneNode(true);
-    mobileMenuBtn.parentNode.replaceChild(newBtn, mobileMenuBtn);
-
-    const newShade = bodyShade ? bodyShade.cloneNode(true) : null;
-    if (bodyShade && newShade) {
-        bodyShade.parentNode.replaceChild(newShade, bodyShade);
-    }
-
-    // 重新获取元素引用
-    const btn = document.getElementById('mobile-menu-btn');
-    const sidebar = document.getElementById('left-sidebar');
-    const shade = document.getElementById('body-shade');
-
-    // 关闭菜单的通用函数
-    var closeSidebar = function() {
+// 使用 document 级别事件委托 + 实时 DOM 查询，避免 PJAX 替换元素后闭包引用失效
+(function() {
+    // 关闭菜单
+    function closeSidebar() {
+        var btn = document.getElementById('mobile-menu-btn');
+        var sidebar = document.getElementById('left-sidebar');
+        var shade = document.getElementById('body-shade');
         if (btn) {
             btn.classList.remove('active');
-            btn.innerHTML = '<span class="hamburger-line"></span><span class="hamburger-line"></span><span class="hamburger-line"></span>';
             btn.title = '展开菜单';
         }
         if (sidebar) {
@@ -314,13 +320,15 @@ window.initMobileMenu = function() {
         if (shade) {
             shade.classList.remove('active');
         }
-    };
+    }
 
-    // 打开菜单的通用函数
-    var openSidebar = function() {
+    // 打开菜单
+    function openSidebar() {
+        var btn = document.getElementById('mobile-menu-btn');
+        var sidebar = document.getElementById('left-sidebar');
+        var shade = document.getElementById('body-shade');
         if (btn) {
             btn.classList.add('active');
-            btn.innerHTML = '<span class="hamburger-line" style="transform: rotate(45deg) translate(5px, 5px);"></span><span class="hamburger-line" style="opacity: 0;"></span><span class="hamburger-line" style="transform: rotate(-45deg) translate(5px, -5px);"></span>';
             btn.title = '关闭菜单';
         }
         if (sidebar) {
@@ -329,62 +337,79 @@ window.initMobileMenu = function() {
         if (shade) {
             shade.classList.add('active');
         }
-    };
+    }
 
-    if (btn && sidebar) {
-        btn.addEventListener('click', function(e) {
+    // 只绑定一次事件委托
+    if (!window._mobileMenuDocBound) {
+        window._mobileMenuDocBound = true;
+
+        document.addEventListener('click', function(e) {
+            // 遮罩层点击关闭
+            if (e.target.closest('#body-shade')) {
+                e.preventDefault();
+                closeSidebar();
+                return;
+            }
+
+            // 点击侧边栏外部关闭菜单
+            var sidebar = document.getElementById('left-sidebar');
+            var btn = document.getElementById('mobile-menu-btn');
+            if (window.innerWidth <= 992 && sidebar && sidebar.classList.contains('admin-side-show')) {
+                if (!sidebar.contains(e.target) && !(btn && btn.contains(e.target))) {
+                    closeSidebar();
+                }
+            }
+
+            // 点击侧边栏链接后关闭菜单
+            if (e.target.closest('#left-sidebar a') && window.innerWidth <= 992) {
+                closeSidebar();
+            }
+        });
+
+        // 触摸事件关闭遮罩
+        document.addEventListener('touchstart', function(e) {
+            if (e.target.closest('#body-shade')) {
+                e.preventDefault();
+                closeSidebar();
+            }
+        }, { passive: false });
+
+        // ESC键关闭菜单
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                var sidebar = document.getElementById('left-sidebar');
+                if (sidebar && sidebar.classList.contains('admin-side-show')) {
+                    closeSidebar();
+                }
+            }
+        });
+    }
+
+    // 按钮点击：直接绑定到元素，每次调用都重新绑定（PJAX 后元素会被替换）
+    window.initMobileMenu = function() {
+        var btn = document.getElementById('mobile-menu-btn');
+        if (!btn) return;
+
+        // 移除旧处理器（防止重复绑定）
+        if (btn._mobileMenuHandler) {
+            btn.removeEventListener('click', btn._mobileMenuHandler);
+        }
+
+        btn._mobileMenuHandler = function(e) {
+            e.preventDefault();
             e.stopPropagation();
-            var isOpen = sidebar.classList.contains('admin-side-show');
+            var sidebar = document.getElementById('left-sidebar');
+            var isOpen = sidebar && sidebar.classList.contains('admin-side-show');
             if (isOpen) {
                 closeSidebar();
             } else {
                 openSidebar();
             }
-        });
+        };
 
-        // 点击遮罩层关闭菜单
-        if (shade) {
-            shade.addEventListener('click', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                closeSidebar();
-            });
-            // 触摸事件也绑定
-            shade.addEventListener('touchstart', function(e) {
-                e.preventDefault();
-                closeSidebar();
-            }, { passive: false });
-        }
-
-        // 点击侧边栏链接后关闭菜单
-        var sidebarLinks = sidebar.querySelectorAll('a');
-        sidebarLinks.forEach(function(link) {
-            link.addEventListener('click', function() {
-                if (window.innerWidth <= 992) {
-                    closeSidebar();
-                }
-            });
-        });
-
-        // 点击侧边栏外部关闭菜单（作为后备方案）
-        document.addEventListener('click', function(e) {
-            if (window.innerWidth <= 992 && sidebar.classList.contains('admin-side-show')) {
-                var isClickInsideSidebar = sidebar.contains(e.target);
-                var isClickOnBtn = btn.contains(e.target);
-                if (!isClickInsideSidebar && !isClickOnBtn) {
-                    closeSidebar();
-                }
-            }
-        });
-
-        // ESC键关闭菜单
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape' && sidebar.classList.contains('admin-side-show')) {
-                closeSidebar();
-            }
-        });
-    }
-};
+        btn.addEventListener('click', btn._mobileMenuHandler);
+    };
+})();
 
 /**
  * 文章点赞功能
@@ -430,19 +455,19 @@ window.initPostLike = function() {
                             var metaLikes = document.querySelector('.post-likes-count[data-cid="' + cid + '"]');
                             if (metaLikes) metaLikes.textContent = data.likes;
                         } else {
-                            alert(data.message || '点赞失败');
+                            window.showToast(data.message || '点赞失败', 'error');
                         }
                     } catch (err) {
-                        console.error('解析响应失败:', err);
+                        window.showToast('点赞请求异常', 'error');
                     }
                 } else {
-                    console.error('请求失败，状态码:', xhr.status);
+                    window.showToast('网络请求失败', 'error');
                 }
             }
         };
 
         xhr.onerror = function() {
-            console.error('网络请求失败');
+            window.showToast('网络连接失败', 'error');
         };
 
         xhr.send('cid=' + encodeURIComponent(cid));
@@ -476,13 +501,13 @@ window.initPostViews = function() {
                         viewsCount.textContent = data.views;
                     }
                 } catch (err) {
-                    console.error('解析浏览量响应失败:', err);
+                    // 浏览量统计失败静默处理，不影响用户体验
                 }
             }
         };
 
         xhr.onerror = function() {
-            console.error('浏览量统计网络请求失败');
+            // 浏览量统计网络失败静默处理
         };
 
         xhr.send('cid=' + encodeURIComponent(cid));
@@ -492,10 +517,11 @@ window.initPostViews = function() {
 /**
  * Mermaid 图表渲染功能
  */
-window.initMermaid = function() {
+window.initMermaid = function(retryCount) {
     if (!window.mermaidEnabled) return;
+    retryCount = retryCount || 0;
     if (typeof mermaid === 'undefined') {
-        setTimeout(window.initMermaid, 100);
+        if (retryCount < 30) setTimeout(function() { window.initMermaid(retryCount + 1); }, 100);
         return;
     }
 
@@ -542,10 +568,11 @@ window.initMermaid = function() {
 /**
  * ECharts 图表渲染功能
  */
-window.initECharts = function() {
+window.initECharts = function(retryCount) {
     if (!window.echartsEnabled) return;
+    retryCount = retryCount || 0;
     if (typeof echarts === 'undefined') {
-        setTimeout(window.initECharts, 100);
+        if (retryCount < 30) setTimeout(function() { window.initECharts(retryCount + 1); }, 100);
         return;
     }
 
@@ -561,7 +588,6 @@ window.initECharts = function() {
 
         var container = document.createElement('div');
         container.className = 'echarts-container';
-        container.style.cssText = 'width: 100%; height: 400px; margin: 16px 0;';
 
         pre.parentNode.replaceChild(container, pre);
 
@@ -602,10 +628,11 @@ window.destroyECharts = function() {
 /**
  * KaTeX 数学公式渲染功能
  */
-window.initKaTeX = function() {
+window.initKaTeX = function(retryCount) {
     if (!window.katexEnabled) return;
+    retryCount = retryCount || 0;
     if (typeof katex === 'undefined') {
-        setTimeout(window.initKaTeX, 100);
+        if (retryCount < 30) setTimeout(function() { window.initKaTeX(retryCount + 1); }, 100);
         return;
     }
 
@@ -637,7 +664,7 @@ window.initKaTeX = function() {
 
     // 回退：使用 auto-render 扫描定界符（当 PHP 过滤器未生效时）
     if (typeof renderMathInElement === 'undefined') {
-        setTimeout(window.initKaTeX, 100);
+        if (retryCount < 30) setTimeout(function() { window.initKaTeX(retryCount + 1); }, 100);
         return;
     }
 

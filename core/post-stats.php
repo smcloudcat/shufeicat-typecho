@@ -125,20 +125,27 @@ function shufei_get_likes($cid)
 
 /**
  * 增加文章浏览量
+ * 使用 Cookie 时间窗口防刷：同一访客对同一文章在指定时间窗口内只计一次浏览
  * @param int $cid 文章ID
  * @return int 新的浏览量
  */
 function shufei_add_view($cid)
 {
     shufei_ensure_stats_table();
-    
+
+    // Cookie 防刷：同一文章 3600 秒（1小时）内不重复计数
+    $cookieKey = 'shufei_viewed_' . $cid;
+    if (isset($_COOKIE[$cookieKey])) {
+        return shufei_get_views($cid);
+    }
+
     $db = \Typecho\Db::get();
     $prefix = shufei_get_db_prefix();
     $time = time();
-    
+
     // 检查记录是否存在
     $exists = $db->fetchRow($db->select('cid')->from($prefix . 'post_stats')->where('cid = ?', $cid));
-    
+
     if ($exists) {
         $db->query($db->update($prefix . 'post_stats')
             ->expression('views', 'views + 1')
@@ -148,7 +155,10 @@ function shufei_add_view($cid)
         $db->query($db->insert($prefix . 'post_stats')
             ->rows(array('cid' => $cid, 'views' => 1, 'likes' => 0, 'updated_at' => $time)));
     }
-    
+
+    // 设置防刷 Cookie，1 小时有效
+    setcookie($cookieKey, '1', time() + 3600, '/');
+
     return shufei_get_views($cid);
 }
 
@@ -202,13 +212,28 @@ function shufei_has_liked($cid)
 }
 
 /**
- * 获取排行榜文章列表
+ * 获取排行榜文章列表（带文件缓存）
  * @param string $type 排序类型: views(浏览量) | likes(点赞数)
  * @param int $limit 数量限制
  * @return array
  */
 function shufei_get_ranking_posts($type = 'views', $limit = 5)
 {
+    // 文件缓存：5 分钟内直接返回缓存结果，避免频繁查库
+    $cacheKey = 'ranking_' . $type . '_' . $limit;
+    $cacheDir = __DIR__ . '/../cache';
+    $cacheFile = $cacheDir . '/' . md5($cacheKey) . '.cache';
+
+    if (file_exists($cacheFile)) {
+        $cacheTime = filemtime($cacheFile);
+        if ($cacheTime && (time() - $cacheTime) < 300) {
+            $cached = @unserialize(file_get_contents($cacheFile));
+            if ($cached !== false) {
+                return $cached;
+            }
+        }
+    }
+
     shufei_ensure_stats_table();
 
     $db = \Typecho\Db::get();
@@ -237,23 +262,23 @@ function shufei_get_ranking_posts($type = 'views', $limit = 5)
             LIMIT {$limit}";
         $posts = $db->fetchAll($sql);
     }
-    
+
     foreach ($posts as &$post) {
         $date = new \Typecho\Date($post['created']);
         $post['year'] = $date->year;
         $post['month'] = $date->month;
         $post['day'] = $date->day;
         $post['slug'] = urlencode($post['slug']);
-        
+
         $categories = $db->fetchAll($db->select()->from($prefix . 'metas')
             ->join($prefix . 'relationships', $prefix . 'relationships.mid = ' . $prefix . 'metas.mid')
             ->where($prefix . 'relationships.cid = ?', $post['cid'])
             ->where($prefix . 'metas.type = ?', 'category')
             ->order($prefix . 'metas.order', \Typecho\Db::SORT_ASC));
-        
+
         if (!empty($categories)) {
             $post['category'] = urlencode($categories[0]['slug']);
-            
+
             $parentSlugs = [];
             $parentId = $categories[0]['parent'] ?? 0;
             while ($parentId > 0) {
@@ -275,6 +300,12 @@ function shufei_get_ranking_posts($type = 'views', $limit = 5)
         }
     }
     unset($post);
-    
+
+    // 写入缓存
+    if (!is_dir($cacheDir)) {
+        @mkdir($cacheDir, 0755, true);
+    }
+    @file_put_contents($cacheFile, serialize($posts));
+
     return $posts;
 }

@@ -187,8 +187,10 @@
     <link href="<?php echo $cssUrls['prism']; ?>" rel="stylesheet" />
     <?php endif; ?>
     
-    <!-- Lightbox2 图片灯箱样式 -->
+    <!-- Lightbox2 图片灯箱样式 - 文章/页面加载，开启Pjax时全站加载 -->
+    <?php if ($this->is('post') || $this->is('page') || (!empty($this->options->pjaxLoad) && $this->options->pjaxLoad === 'on')): ?>
     <link href="<?php echo $cssUrls['lightbox']; ?>" rel="stylesheet" />
+    <?php endif; ?>
     
     <!-- KaTeX 数学公式样式 -->
     <?php if (!empty($this->options->katexEnabled) && $this->options->katexEnabled === 'on'): ?>

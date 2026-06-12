@@ -134,7 +134,6 @@
                 }
             })
             .catch(function(error) {
-                console.error('Ajax加载失败:', error);
                 isLoading = false;
                 loadingIndicator.style.display = 'none';
                 loadMoreBtn.style.display = 'block';

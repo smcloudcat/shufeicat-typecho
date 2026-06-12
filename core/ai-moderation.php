@@ -89,13 +89,6 @@ class AiModeration
 {"result":"通过/不通过","reason":"审核不通过的原因说明","confidence":0.95}';
 
     /**
-     * 免费API配置
-     */
-    const FREE_API_URL = 'https://newapi.nki.pw/v1/chat/completions';
-    const FREE_API_KEY = 'sk-IZ5WDehg4A5P3XyNkZHdwxsPxFvMmIQP0m0dDkVOSwBsB0Dh';
-    const FREE_MODEL = '[低价沉浸式翻译]GPT-4o';
-
-    /**
      * API配置
      */
     private $apiUrl;
@@ -111,22 +104,21 @@ class AiModeration
     public function __construct()
     {
         $options = \Typecho\Widget::widget('Widget_Options');
-        
-        $this->apiType = isset($options->aiApiType) ? $options->aiApiType : 'free';
+
+        $this->apiType = isset($options->aiApiType) ? $options->aiApiType : 'custom';
         $customApiUrl = isset($options->aiModerationApiUrl) ? $options->aiModerationApiUrl : '';
         $customApiKey = isset($options->aiModerationApiKey) ? $options->aiModerationApiKey : '';
         $customModel = isset($options->aiModerationModel) ? $options->aiModerationModel : '';
-        
-        // 根据接口类型选择配置
-        if ($this->apiType === 'custom' && !empty($customApiUrl) && !empty($customApiKey)) {
+
+        // 使用自定义接口配置
+        if (!empty($customApiUrl) && !empty($customApiKey)) {
             $this->apiUrl = $customApiUrl;
             $this->apiKey = $customApiKey;
             $this->model = !empty($customModel) ? $customModel : 'gpt-3.5-turbo';
         } else {
-            // 使用免费接口
-            $this->apiUrl = self::FREE_API_URL;
-            $this->apiKey = self::FREE_API_KEY;
-            $this->model = self::FREE_MODEL;
+            $this->apiUrl = '';
+            $this->apiKey = '';
+            $this->model = 'gpt-3.5-turbo';
         }
         
         $this->timeout = isset($options->aiModerationTimeout) ? intval($options->aiModerationTimeout) : 30;
@@ -319,8 +311,8 @@ class AiModeration
             'Content-Type: application/json',
             'Authorization: Bearer ' . $this->apiKey
         ]);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
 
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -505,8 +497,8 @@ class AiModeration
             'Content-Type: application/json',
             'Authorization: Bearer ' . $this->apiKey
         ]);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
 
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);

@@ -14,35 +14,58 @@ if (!defined('__TYPECHO_ROOT_DIR__')) exit;
  */
 function shufei_check_theme_update()
 {
-    $currentVersion = '1.3.2';
+    $currentVersion = '1.4.0-rc.4';
+    $cacheKey = 'shufei_update_check';
+    $cacheTime = 3600; // 缓存1小时
+
+    // 尝试从缓存读取
+    $cacheFile = dirname(__FILE__) . '/cache/update_check.json';
+    if (file_exists($cacheFile)) {
+        $cache = @json_decode(file_get_contents($cacheFile), true);
+        if ($cache && isset($cache['timestamp']) && (time() - $cache['timestamp']) < $cacheTime) {
+            return $cache['result'];
+        }
+    }
+
     $blogUrl = '';
-    
+
     if (defined('__TYPECHO_SITE_URL__')) {
         $blogUrl = constant('__TYPECHO_SITE_URL__');
     } elseif (isset($_SERVER['HTTP_HOST'])) {
         $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https://' : 'http://';
         $blogUrl = $protocol . $_SERVER['HTTP_HOST'];
     }
-    
+
     $updateUrl = 'https://githubver.czzu.cn/?owner=smcloudcat&repo=lottery&version=' . $currentVersion . '&blogurl=' . urlencode($blogUrl);
-    
+
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, $updateUrl);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
-    
+
+    $result = array('code' => 0, 'msg' => '检测失败，请稍后重试');
     if ($httpCode == 200 && $response) {
-        $result = json_decode($response, true);
-        if ($result && isset($result['code'])) {
-            return $result;
+        $decoded = json_decode($response, true);
+        if ($decoded && isset($decoded['code'])) {
+            $result = $decoded;
         }
     }
-    
-    return array('code' => 0, 'msg' => '检测失败，请稍后重试');
+
+    // 写入缓存
+    $cacheDir = dirname($cacheFile);
+    if (!is_dir($cacheDir)) {
+        @mkdir($cacheDir, 0755, true);
+    }
+    @file_put_contents($cacheFile, json_encode(array(
+        'timestamp' => time(),
+        'result' => $result
+    )));
+
+    return $result;
 }
 
 /**
@@ -52,7 +75,7 @@ function shufei_check_theme_update()
  */
 function shufei_get_theme_version()
 {
-    return '1.3.2';
+    return '1.4.0-rc.4';
 }
 
 /**
@@ -792,7 +815,7 @@ function themeConfig($form)
     $commentMailAccount->setAttribute('class', 'typecho-option cat-group-mail');
     $form->addInput($commentMailAccount);
 
-    $commentMailPassword = new \Typecho\Widget\Helper\Form\Element\Text(
+    $commentMailPassword = new \Typecho\Widget\Helper\Form\Element\Password(
         'commentMailPassword',
         null,
         null,
@@ -820,54 +843,56 @@ function themeConfig($form)
         $apiUrl = isset($aiOptions->aiModerationApiUrl) ? $aiOptions->aiModerationApiUrl : '';
         $apiKey = isset($aiOptions->aiModerationApiKey) ? $aiOptions->aiModerationApiKey : '';
         $model = isset($aiOptions->aiModerationModel) ? $aiOptions->aiModerationModel : '';
-        
-        $freeApiUrl = 'https://newapi.nki.pw/v1/chat/completions';
-        $freeApiKey = 'sk-Db7pjBREaWCmkcZ0kTgDlILjMAsrfJRYFUpiRrH5SOlnpDtS';
-        $freeModel = '[低价沉浸式翻译]GPT-4o';
-        
-        $targetUrl = ($apiType === 'free' || empty($apiUrl)) ? $freeApiUrl : $apiUrl;
-        $targetKey = ($apiType === 'free' || empty($apiKey)) ? $freeApiKey : $apiKey;
-        $targetModel = ($apiType === 'free' || empty($model)) ? $freeModel : $model;
 
-        $apiStatus = '正在检测 AI 接口连通性...';
-        $apiClass = 'api-error';
-        
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $targetUrl);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(array(
-            'model' => $targetModel,
-            'messages' => array(array('role' => 'user', 'content' => 'ping')),
-            'max_tokens' => 1
-        )));
-        curl_setopt($ch, CURLOPT_TIMEOUT, 8);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, array(
-            'Content-Type: application/json',
-            'Authorization: Bearer ' . $targetKey
-        ));
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        
-        $resp = curl_exec($ch);
-        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $err = curl_error($ch);
-        curl_close($ch);
-        
-        if ($err) { $apiStatus = '✗ AI API 连接失败: ' . $err; $apiClass = 'api-error'; }
-        elseif ($code === 200) { $apiStatus = '✓ AI 接口正常连通 (HTTP 200)'; $apiClass = 'api-success'; }
-        else { $apiStatus = '✗ AI API 返回异常: HTTP ' . $code . ' (请检查 API 地址或密钥)'; $apiClass = 'api-error'; }
+        if ($apiType === 'free' && empty($apiUrl)) {
+            echo '<div class="typecho-option cat-group-ai"><div class="api-status-box api-error"><b>接口状态检测：</b><br>免费接口已下线，请切换到自定义接口并填写您自己的 API 地址和密钥</div></div>';
+        } elseif (empty($apiUrl) || empty($apiKey)) {
+            echo '<div class="typecho-option cat-group-ai"><div class="api-status-box api-error"><b>接口状态检测：</b><br>请先填写 AI API 地址和密钥</div></div>';
+        } else {
+            $targetUrl = $apiUrl;
+            $targetKey = $apiKey;
+            $targetModel = !empty($model) ? $model : 'gpt-3.5-turbo';
 
-        echo '<div class="typecho-option cat-group-ai"><div class="api-status-box ' . $apiClass . '"><b>接口状态检测：</b><br>' . $apiStatus . '</div></div>';
+            $apiStatus = '正在检测 AI 接口连通性...';
+            $apiClass = 'api-error';
+
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $targetUrl);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(array(
+                'model' => $targetModel,
+                'messages' => array(array('role' => 'user', 'content' => 'ping')),
+                'max_tokens' => 1
+            )));
+            curl_setopt($ch, CURLOPT_TIMEOUT, 8);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+                'Content-Type: application/json',
+                'Authorization: Bearer ' . $targetKey
+            ));
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+
+            $resp = curl_exec($ch);
+            $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $err = curl_error($ch);
+            curl_close($ch);
+
+            if ($err) { $apiStatus = '✗ AI API 连接失败: ' . $err; $apiClass = 'api-error'; }
+            elseif ($code === 200) { $apiStatus = '✓ AI 接口正常连通 (HTTP 200)'; $apiClass = 'api-success'; }
+            else { $apiStatus = '✗ AI API 返回异常: HTTP ' . $code . ' (请检查 API 地址或密钥)'; $apiClass = 'api-error'; }
+
+            echo '<div class="typecho-option cat-group-ai"><div class="api-status-box ' . $apiClass . '"><b>接口状态检测：</b><br>' . $apiStatus . '</div></div>';
+        }
     } else {
 
         echo '<div class="typecho-option cat-group-ai"><div class="api-status-box api-error"><b>接口状态检测：</b><br>AI审核功能已关闭，开启后自动检测接口状态</div></div>';
     }
     $aiApiType = new \Typecho\Widget\Helper\Form\Element\Radio(
         'aiApiType',
-        array('free' => '免费接口', 'custom' => '自定义接口'),
-        'free',
+        array('custom' => '自定义接口'),
+        'custom',
         _t('AI接口类型'),
-        _t('介绍：免费接口由主题内置提供；自定义接口可配置您自己的API地址')
+        _t('介绍：请配置您自己的兼容 OpenAI 格式的 API 地址和密钥')
     );
     $aiApiType->setAttribute('class', 'typecho-option cat-group-ai');
     $form->addInput($aiApiType);
@@ -882,7 +907,7 @@ function themeConfig($form)
     $aiModerationApiUrl->setAttribute('class', 'typecho-option cat-group-ai');
     $form->addInput($aiModerationApiUrl);
 
-    $aiModerationApiKey = new \Typecho\Widget\Helper\Form\Element\Text(
+    $aiModerationApiKey = new \Typecho\Widget\Helper\Form\Element\Password(
         'aiModerationApiKey',
         null,
         null,
@@ -929,7 +954,7 @@ function themeConfig($form)
     $turnstileSiteKey->setAttribute('class', 'typecho-option cat-group-verify');
     $form->addInput($turnstileSiteKey);
 
-    $turnstileSecretKey = new \Typecho\Widget\Helper\Form\Element\Text(
+    $turnstileSecretKey = new \Typecho\Widget\Helper\Form\Element\Password(
         'turnstileSecretKey',
         null,
         null,
@@ -1392,7 +1417,7 @@ function shufei_get_post_thumbnail($post)
     }
     
     // 2. 从文章内容中提取第一张图片（支持HTML img标签）
-    $content = $post->content;
+    $content = $post->content ?? '';
     preg_match_all('/<img.*?src=["\'](.*?)["\']/', $content, $matches);
     if (!empty($matches[1])) {
         return $matches[1][0];

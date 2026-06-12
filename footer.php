@@ -14,7 +14,7 @@
                     $currentYear = date('Y');
                     
                     // 输出Typecho驱动信息（固定显示）
-                    $typechoText = _t('由 <a href="https://typecho.org" target="_blank">Typecho</a> 强力驱动');
+                    $typechoText = _t('由 <a href="https://typecho.org" target="_blank" rel="noopener noreferrer">Typecho</a> 强力驱动');
                     echo '<p class="footer-line"><i class="fa fa-bolt"></i> ' . $typechoText . '</p>';
                     
                     // 输出主题信息（固定显示）
@@ -33,7 +33,7 @@
                     // 输出网站备案号（如果设置）
                     if (!empty($this->options->footerBeianNumber)) {
                         $beianLink = $this->options->footerBeianLink ?: 'https://beian.miit.gov.cn/';
-                        $beianHtml = '<a href="' . $beianLink . '" target="_blank" rel="nofollow">' . 
+                        $beianHtml = '<a href="' . $beianLink . '" target="_blank" rel="nofollow noopener noreferrer">' . 
                                     htmlspecialchars($this->options->footerBeianNumber) . '</a>';
                         echo '<p class="footer-line">' . $beianHtml . '</p>';
                     }
@@ -68,7 +68,7 @@ $themeUrl = rtrim($this->options->themeUrl, '/') . '/';
 
 // JS 资源路径配置
 // 添加版本号以防止缓存问题
-$version = '1.0.3';
+$version = shufei_get_theme_version();
 $jsUrls = [
     'jquery' => $themeUrl . 'assets/vendor/jquery/jquery.min.js',
     'main' => $themeUrl . 'assets/js/main.js?v=' . $version,
@@ -114,8 +114,10 @@ if ($resourceMode === 'cdn') {
 // local 模式使用默认的 themeUrl 路径
 ?>
 
-<!-- jQuery 库 - Lightbox2 依赖 -->
+<!-- jQuery 库 - Lightbox2 依赖，文章/页面加载，开启Pjax时全站加载 -->
+<?php if ($this->is('post') || $this->is('page') || (!empty($this->options->pjaxLoad) && $this->options->pjaxLoad === 'on')): ?>
 <script src="<?php echo $jsUrls['jquery']; ?>"></script>
+<?php endif; ?>
 
 <!-- Prism.js 代码高亮脚本 - 使用Autoloader自动加载依赖 -->
 <?php if (empty($this->options->codeHighlightEnabled) || $this->options->codeHighlightEnabled !== 'off'): ?>
@@ -130,8 +132,10 @@ if ($resourceMode === 'cdn') {
 <?php endif; ?>
 <?php endif; ?>
 
-<!-- Lightbox2 图片灯箱脚本 -->
+<!-- Lightbox2 图片灯箱脚本 - 文章/页面加载，开启Pjax时全站加载 -->
+<?php if ($this->is('post') || $this->is('page') || (!empty($this->options->pjaxLoad) && $this->options->pjaxLoad === 'on')): ?>
 <script src="<?php echo $jsUrls['lightbox']; ?>"></script>
+<?php endif; ?>
 
 <!-- Mermaid 图表渲染脚本 -->
 <?php if (!empty($this->options->mermaidEnabled) && $this->options->mermaidEnabled === 'on'): ?>
@@ -163,11 +167,13 @@ window.katexEnabled = <?php echo (!empty($this->options->katexEnabled) && $this-
 <!-- 主题主脚本 -->
 <script src="<?php echo $jsUrls['main']; ?>"></script>
 
-<!-- Pjax库 -->
+<!-- Pjax库 - 仅开启Pjax时加载 -->
+<?php if (!empty($this->options->pjaxLoad) && $this->options->pjaxLoad === 'on'): ?>
 <script src="<?php echo $jsUrls['pjax_lib']; ?>"></script>
 
 <!-- Pjax加载脚本 -->
 <script src="<?php echo $jsUrls['pjax']; ?>"></script>
+<?php endif; ?>
 
 </body>
 </html>
