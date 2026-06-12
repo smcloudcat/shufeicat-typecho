@@ -14,7 +14,7 @@ if (!defined('__TYPECHO_ROOT_DIR__')) exit;
  */
 function shufei_check_theme_update()
 {
-    $currentVersion = '1.4.0-rc.2';
+    $currentVersion = '1.4.0-rc.4';
     $cacheKey = 'shufei_update_check';
     $cacheTime = 3600; // 缓存1小时
 
@@ -75,7 +75,7 @@ function shufei_check_theme_update()
  */
 function shufei_get_theme_version()
 {
-    return '1.4.0-rc.2';
+    return '1.4.0-rc.4';
 }
 
 /**

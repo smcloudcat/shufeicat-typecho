@@ -261,24 +261,27 @@ window.initCollapsibleSidebar = function() {
         return 'sidebar_state_' + (specificClass || 'unknown');
     }
 
-    // 使用事件委托替代 cloneNode，避免重复绑定问题
-    sidebar.addEventListener('click', function(e) {
-        var toggle = e.target.closest('.collapsible-toggle');
-        if (!toggle) return;
-        e.preventDefault();
+    // 使用 document 级别事件委托，只绑定一次，避免 PJAX / 多重初始化导致重复绑定
+    if (!window._collapsibleSidebarBound) {
+        window._collapsibleSidebarBound = true;
+        document.addEventListener('click', function(e) {
+            var toggle = e.target.closest('.collapsible-toggle');
+            if (!toggle) return;
+            e.preventDefault();
 
-        var widget = toggle.closest('.collapsible-widget');
-        if (!widget) return;
+            var widget = toggle.closest('.collapsible-widget');
+            if (!widget) return;
 
-        var isCollapsed = widget.classList.contains('collapsed');
-        if (isCollapsed) {
-            widget.classList.remove('collapsed');
-            try { localStorage.setItem(getWidgetKey(widget), 'expanded'); } catch (e) {}
-        } else {
-            widget.classList.add('collapsed');
-            try { localStorage.setItem(getWidgetKey(widget), 'collapsed'); } catch (e) {}
-        }
-    });
+            var isCollapsed = widget.classList.contains('collapsed');
+            if (isCollapsed) {
+                widget.classList.remove('collapsed');
+                try { localStorage.setItem(getWidgetKey(widget), 'expanded'); } catch (e) {}
+            } else {
+                widget.classList.add('collapsed');
+                try { localStorage.setItem(getWidgetKey(widget), 'collapsed'); } catch (e) {}
+            }
+        });
+    }
 
     // 恢复折叠状态
     var toggles = sidebar.querySelectorAll('.collapsible-toggle');
@@ -300,18 +303,15 @@ window.initCollapsibleSidebar = function() {
 };
 
 // 初始化移动端菜单功能 - 控制左侧边栏
-window.initMobileMenu = function() {
-    var btn = document.getElementById('mobile-menu-btn');
-    var sidebar = document.getElementById('left-sidebar');
-    var shade = document.getElementById('body-shade');
-
-    if (!btn || !sidebar) return;
-
-    // 关闭菜单的通用函数
-    var closeSidebar = function() {
+// 使用 document 级别事件委托 + 实时 DOM 查询，避免 PJAX 替换元素后闭包引用失效
+(function() {
+    // 关闭菜单
+    function closeSidebar() {
+        var btn = document.getElementById('mobile-menu-btn');
+        var sidebar = document.getElementById('left-sidebar');
+        var shade = document.getElementById('body-shade');
         if (btn) {
             btn.classList.remove('active');
-            btn.innerHTML = '<span class="hamburger-line"></span><span class="hamburger-line"></span><span class="hamburger-line"></span>';
             btn.title = '展开菜单';
         }
         if (sidebar) {
@@ -320,13 +320,15 @@ window.initMobileMenu = function() {
         if (shade) {
             shade.classList.remove('active');
         }
-    };
+    }
 
-    // 打开菜单的通用函数
-    var openSidebar = function() {
+    // 打开菜单
+    function openSidebar() {
+        var btn = document.getElementById('mobile-menu-btn');
+        var sidebar = document.getElementById('left-sidebar');
+        var shade = document.getElementById('body-shade');
         if (btn) {
             btn.classList.add('active');
-            btn.innerHTML = '<span class="hamburger-line"></span><span class="hamburger-line"></span><span class="hamburger-line"></span>';
             btn.title = '关闭菜单';
         }
         if (sidebar) {
@@ -335,68 +337,79 @@ window.initMobileMenu = function() {
         if (shade) {
             shade.classList.add('active');
         }
-    };
-
-    // 使用事件委托，避免 cloneNode 带来的重复绑定问题
-    // 标记是否已绑定，防止 PJAX 重复初始化
-    if (document.getElementById('body-shade') && document.getElementById('body-shade').getAttribute('data-menu-bound')) {
-        // 只更新引用，不重复绑定事件
-        return;
     }
-    if (shade) shade.setAttribute('data-menu-bound', 'true');
 
-    document.addEventListener('click', function(e) {
-        // 菜单按钮点击
-        if (e.target.closest('#mobile-menu-btn')) {
+    // 只绑定一次事件委托
+    if (!window._mobileMenuDocBound) {
+        window._mobileMenuDocBound = true;
+
+        document.addEventListener('click', function(e) {
+            // 遮罩层点击关闭
+            if (e.target.closest('#body-shade')) {
+                e.preventDefault();
+                closeSidebar();
+                return;
+            }
+
+            // 点击侧边栏外部关闭菜单
+            var sidebar = document.getElementById('left-sidebar');
+            var btn = document.getElementById('mobile-menu-btn');
+            if (window.innerWidth <= 992 && sidebar && sidebar.classList.contains('admin-side-show')) {
+                if (!sidebar.contains(e.target) && !(btn && btn.contains(e.target))) {
+                    closeSidebar();
+                }
+            }
+
+            // 点击侧边栏链接后关闭菜单
+            if (e.target.closest('#left-sidebar a') && window.innerWidth <= 992) {
+                closeSidebar();
+            }
+        });
+
+        // 触摸事件关闭遮罩
+        document.addEventListener('touchstart', function(e) {
+            if (e.target.closest('#body-shade')) {
+                e.preventDefault();
+                closeSidebar();
+            }
+        }, { passive: false });
+
+        // ESC键关闭菜单
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                var sidebar = document.getElementById('left-sidebar');
+                if (sidebar && sidebar.classList.contains('admin-side-show')) {
+                    closeSidebar();
+                }
+            }
+        });
+    }
+
+    // 按钮点击：直接绑定到元素，每次调用都重新绑定（PJAX 后元素会被替换）
+    window.initMobileMenu = function() {
+        var btn = document.getElementById('mobile-menu-btn');
+        if (!btn) return;
+
+        // 移除旧处理器（防止重复绑定）
+        if (btn._mobileMenuHandler) {
+            btn.removeEventListener('click', btn._mobileMenuHandler);
+        }
+
+        btn._mobileMenuHandler = function(e) {
+            e.preventDefault();
             e.stopPropagation();
-            var isOpen = sidebar.classList.contains('admin-side-show');
+            var sidebar = document.getElementById('left-sidebar');
+            var isOpen = sidebar && sidebar.classList.contains('admin-side-show');
             if (isOpen) {
                 closeSidebar();
             } else {
                 openSidebar();
             }
-            return;
-        }
+        };
 
-        // 遮罩层点击关闭
-        if (e.target.closest('#body-shade')) {
-            e.preventDefault();
-            closeSidebar();
-            return;
-        }
-
-        // 点击侧边栏外部关闭菜单
-        if (window.innerWidth <= 992 && sidebar.classList.contains('admin-side-show')) {
-            var isClickInsideSidebar = sidebar.contains(e.target);
-            var isClickOnBtn = btn.contains(e.target);
-            if (!isClickInsideSidebar && !isClickOnBtn) {
-                closeSidebar();
-            }
-        }
-    });
-
-    // 触摸事件关闭遮罩
-    if (shade) {
-        shade.addEventListener('touchstart', function(e) {
-            e.preventDefault();
-            closeSidebar();
-        }, { passive: false });
-    }
-
-    // 点击侧边栏链接后关闭菜单
-    sidebar.addEventListener('click', function(e) {
-        if (e.target.closest('a') && window.innerWidth <= 992) {
-            closeSidebar();
-        }
-    });
-
-    // ESC键关闭菜单
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape' && sidebar.classList.contains('admin-side-show')) {
-            closeSidebar();
-        }
-    });
-};
+        btn.addEventListener('click', btn._mobileMenuHandler);
+    };
+})();
 
 /**
  * 文章点赞功能
