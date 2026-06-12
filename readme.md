@@ -171,13 +171,21 @@ shufeicat-typecho/
 - 修复 PostgreSQL 数据库下启用主题报 500 异常的问题（`post_stats` 表创建 SQL 与 PostgreSQL 语法冲突）
 - 修复排行榜查询中表名引号不兼容 PostgreSQL 的问题
 
-### 版本 1.4.0-rc.3
-- 重构部分代码，提升性能，优化细节，移除生产环境 console.log
+### 版本 1.4.0-rc.1
+- 重构部分代码，提升性能，优化细节
 - 新增Mermaid和ECharts图表渲染，KaTeX 数学公式渲染，支持手动渲染开关
-- Markdown扩展功能
 - 修复顶置文章显示问题
 - 更新jquery至4.0.0
+
+### 版本 1.4.0-rc.2
+- 移除生产环境console.log
+- Markdown扩展功能
+- 修复顶置文章显示问题
+
+### 版本 1.4.0-rc.3
 - 浏览量 Cookie 防刷，排行榜文件缓存
+- 支持Markdown表格
+- 评论支持图片验证码，可选cloudflare turnstile或图片验证码
 
 ### 版本 1.4.0-rc.4
 - 修复侧边栏打开异常
