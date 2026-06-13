@@ -189,3 +189,12 @@ shufeicat-typecho/
 
 ### 版本 1.4.0-rc.4
 - 修复侧边栏打开异常
+
+### 版本 1.4.0-rc.5
+- 修复反引号被错误解析问题
+- 修复KaTeX在shufei_render_post_content中不生效
+- 修复图片处理在链接内时破坏HTML结构
+- 修复blockquote嵌套时正则匹配错误
+- 修复"==高亮=="在HTML属性值中误匹配
+- 修复CSS行内代码样式不一致
+- 减少代码重复
