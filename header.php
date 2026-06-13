@@ -172,12 +172,16 @@
         $cssUrls['katex'] = $customCdn . '/assets/vendor/katex/katex.min.css';
     }
     // local 模式使用默认的 themeUrl 路径
+    
+    // 资源版本号：使用文件修改时间，文件更新后自动刷新缓存
+    $themeDir = dirname(__FILE__);
+    $cssVersion = filemtime($themeDir . '/assets/css/style.css') ?: shufei_get_theme_version();
     ?>
     
     <!-- 本地 CSS -->
-    <link rel="stylesheet" href="<?php echo $cssUrls['normalize']; ?>">
-    <link rel="stylesheet" href="<?php echo $cssUrls['grid']; ?>">
-    <link rel="stylesheet" href="<?php echo $cssUrls['style']; ?>">
+    <link rel="stylesheet" href="<?php echo $cssUrls['normalize']; ?>?v=<?php echo $cssVersion; ?>">
+    <link rel="stylesheet" href="<?php echo $cssUrls['grid']; ?>?v=<?php echo $cssVersion; ?>">
+    <link rel="stylesheet" href="<?php echo $cssUrls['style']; ?>?v=<?php echo $cssVersion; ?>">
     
     <!-- Font Awesome 图标库 -->
     <link rel="stylesheet" href="<?php echo $cssUrls['fontawesome']; ?>">

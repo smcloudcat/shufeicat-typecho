@@ -4,7 +4,7 @@
  *
  * @package ShuFeiCat
  * @author YunCat
- * @version 1.4.0-rc.5
+ * @version 1.4.0-rc.6
  * @link https://lwcat.cn
  */
 
@@ -96,7 +96,17 @@ $this->need('header.php');
             if (!empty($customExcerpt)) {
                 $excerpt = $customExcerpt;
             } else {
-                $content = strip_tags($post->content ?? '');
+                // 使用 text（原始 Markdown 文本）而非 content（解析后的 HTML），
+                // 因为 clone 后的对象访问 content 可能因钩子依赖导致返回空值
+                $rawText = $post->text ?? '';
+                // 去掉 Typecho 的 <!--markdown--> 前缀
+                $rawText = preg_replace('/^<!--markdown-->/', '', $rawText);
+                // 去掉 Markdown 图片语法、链接语法等，避免产生干扰文本
+                $rawText = preg_replace('/!\[.*?\]\(.*?\)/', '', $rawText);
+                $rawText = preg_replace('/\[([^\]]*)\]\(.*?\)/', '$1', $rawText);
+                $rawText = preg_replace('/^#{1,6}\s+/m', '', $rawText);
+                $rawText = preg_replace('/^[>\-\*\+]\s*/m', '', $rawText);
+                $content = strip_tags($rawText);
                 $content = preg_replace('/\s+/', ' ', trim($content));
                 if (mb_strlen($content, 'UTF-8') > 80) {
                     $excerpt = mb_substr($content, 0, 80, 'UTF-8') . '...';

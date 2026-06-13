@@ -67,13 +67,16 @@ $customCdn = !empty($this->options->customCdn) ? rtrim($this->options->customCdn
 $themeUrl = rtrim($this->options->themeUrl, '/') . '/';
 
 // JS 资源路径配置
-// 添加版本号以防止缓存问题
-$version = shufei_get_theme_version();
+// 添加版本号以防止缓存问题：使用文件修改时间，文件更新后自动刷新缓存
+$themeDir = dirname(__FILE__);
+$mainJsMtime = filemtime($themeDir . '/assets/js/main.js');
+$ajaxJsMtime = filemtime($themeDir . '/assets/js/ajax.js');
+$pjaxJsMtime = filemtime($themeDir . '/assets/js/pjax.js');
 $jsUrls = [
     'jquery' => $themeUrl . 'assets/vendor/jquery/jquery.min.js',
-    'main' => $themeUrl . 'assets/js/main.js?v=' . $version,
-    'ajax' => $themeUrl . 'assets/js/ajax.js?v=' . $version,
-    'pjax' => $themeUrl . 'assets/js/pjax.js?v=' . $version,
+    'main' => $themeUrl . 'assets/js/main.js?v=' . ($mainJsMtime ?: shufei_get_theme_version()),
+    'ajax' => $themeUrl . 'assets/js/ajax.js?v=' . ($ajaxJsMtime ?: shufei_get_theme_version()),
+    'pjax' => $themeUrl . 'assets/js/pjax.js?v=' . ($pjaxJsMtime ?: shufei_get_theme_version()),
     'pjax_lib' => $themeUrl . 'assets/vendor/pjax/pjax.min.js',
     'prism' => $themeUrl . 'assets/vendor/prismjs/prism.js',
     'prismAutoloader' => $themeUrl . 'assets/vendor/prismjs/plugins/autoloader/prism-autoloader.min.js',
