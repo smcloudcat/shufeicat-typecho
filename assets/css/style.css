@@ -1733,11 +1733,12 @@ img {
 }
 
 .post-content code {
-    background: #f0f0f0;
+    background: #2d2d2d;
+    color: #f8f8f2;
     padding: 2px 6px;
     border-radius: 3px;
     font-size: 13px;
-    color: #e83e8c;
+    font-family: 'Consolas', 'Monaco', 'Andale Mono', 'Ubuntu Mono', monospace;
 }
 
 .post-content pre code {
@@ -1767,17 +1768,6 @@ img {
     background: transparent !important;
     padding: 0 !important;
     margin: 0 !important;
-}
-
-/* 行内代码样式 */
-.post-content p > code,
-.post-content li > code {
-    background: #2d2d2d;
-    color: #f8f8f2;
-    padding: 2px 6px;
-    border-radius: 3px;
-    font-size: 13px;
-    font-family: 'Consolas', 'Monaco', 'Andale Mono', 'Ubuntu Mono', monospace;
 }
 
 /* 行号样式 */
