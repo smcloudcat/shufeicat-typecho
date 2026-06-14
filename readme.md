@@ -207,3 +207,4 @@ shufeicat-typecho/
 - 修复摘要显示异常问题
 - 优化css结构，并小幅度提高js运行效率
 - 修复header.php和footer.php的缓存机制
+- 修复文章标题显示不完整问题
