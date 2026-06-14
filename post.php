@@ -7,7 +7,26 @@
     <?php
     // 获取文章缩略图
     $thumbnail = shufei_get_post_thumbnail($this);
+    // 获取文章提示弹窗内容
+    $articleAlert = $this->fields->articleAlert;
+    // 获取点赞功能控制
+    $disableLike = $this->fields->disableLike;
     ?>
+    <?php if (!empty($articleAlert)): ?>
+    <div class="article-alert-box" id="article-alert-box">
+        <div class="article-alert-inner">
+            <button class="article-alert-close" id="article-alert-close" title="关闭提示">
+                <i class="fa fa-times"></i>
+            </button>
+            <div class="article-alert-icon">
+                <i class="fa fa-bell-o"></i>
+            </div>
+            <div class="article-alert-content">
+                <?php echo $articleAlert; ?>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
     <article class="post post-single <?php echo !empty($thumbnail) ? 'has-thumbnail' : ''; ?>" itemscope itemtype="http://schema.org/BlogPosting">
         <header class="post-header" <?php if (!empty($thumbnail)): ?>style="background-image: url(<?php echo htmlspecialchars($thumbnail); ?>);"<?php endif; ?>>
             <div class="post-header-overlay">
@@ -71,7 +90,7 @@
         
     </article>
 
-    <?php if (!empty($this->options->statsEnabled) && $this->options->statsEnabled === 'on'): ?>
+    <?php if (!empty($this->options->statsEnabled) && $this->options->statsEnabled === 'on' && $disableLike != '1'): ?>
     <div class="post-like-box">
         <div class="like-box-inner">
             <div class="like-box-stats">

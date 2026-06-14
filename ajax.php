@@ -156,6 +156,9 @@ if ($archive->have()) {
                 $excerpt = $customExcerpt;
             } else {
                 $content = strip_tags($post->content ?? '');
+                // 去掉数学公式占位符和标签
+                $content = preg_replace('/<!--MATH\d+-->/', '', $content);
+                $content = preg_replace('/<span class="math-tex"[^>]*>.*?<\/span>/', '', $content);
                 $content = preg_replace('/\s+/', ' ', trim($content));
                 if (mb_strlen($content, 'UTF-8') > 80) {
                     $excerpt = mb_substr($content, 0, 80, 'UTF-8') . '...';

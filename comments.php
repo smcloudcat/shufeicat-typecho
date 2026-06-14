@@ -45,7 +45,20 @@ function threadedComments($comments, $options) {
                 </span>
             </div>
             <div class="comment-content" itemprop="commentText">
-                <?php $comments->content(); ?>
+                <?php
+                $commentOptions = \Typecho\Widget::widget('Widget_Options');
+                $commentMarkdownEnabled = !empty($commentOptions->commentMarkdownEnabled) && $commentOptions->commentMarkdownEnabled === 'on';
+                if ($commentMarkdownEnabled) {
+                    $commentText = $comments->text;
+                    if ($commentText !== null) {
+                        echo shufei_parse_comment_markdown($commentText);
+                    } else {
+                        $comments->content();
+                    }
+                } else {
+                    $comments->content();
+                }
+                ?>
             </div>
         </div>
 
@@ -129,6 +142,71 @@ function threadedComments($comments, $options) {
                     </label>
                     <textarea rows="6" cols="50" name="text" id="textarea" class="textarea"
                               required placeholder="<?php _e('写下你的评论...'); ?>"><?php $this->remember('text'); ?></textarea>
+                    <?php
+                    $commentOptions = \Typecho\Widget::widget('Widget_Options');
+                    $commentKaomojiEnabled = !empty($commentOptions->commentKaomojiEnabled) && $commentOptions->commentKaomojiEnabled === 'on';
+                    if ($commentKaomojiEnabled):
+                    ?>
+                    <div class="kaomoji-panel" id="kaomoji-panel">
+                        <div class="kaomoji-toggle" id="kaomoji-toggle">
+                            <i class="fa fa-smile-o"></i> 颜文字
+                        </div>
+                        <div class="kaomoji-list" id="kaomoji-list" style="display:none;">
+                            <div class="kaomoji-category">
+                                <span class="kaomoji-category-title">开心</span>
+                                <span class="kaomoji-item" data-kaomoji="(*^▽^*)">(*^▽^*)</span>
+                                <span class="kaomoji-item" data-kaomoji="(≧▽≦)">(≧▽≦)</span>
+                                <span class="kaomoji-item" data-kaomoji="ヾ(≧▽≦*)o">ヾ(≧▽≦*)o</span>
+                                <span class="kaomoji-item" data-kaomoji="(✿◡‿◡)">(✿◡‿◡)</span>
+                                <span class="kaomoji-item" data-kaomoji="٩(๑>◡<๑)۶">٩(๑>◡<๑)۶</span>
+                                <span class="kaomoji-item" data-kaomoji="o(*￣▽￣*)ブ">o(*￣▽￣*)ブ</span>
+                            </div>
+                            <div class="kaomoji-category">
+                                <span class="kaomoji-category-title">卖萌</span>
+                                <span class="kaomoji-item" data-kaomoji="(｡◕‿◕｡)">(｡◕‿◕｡)</span>
+                                <span class="kaomoji-item" data-kaomoji="(●'◡'●)">(●'◡'●)</span>
+                                <span class="kaomoji-item" data-kaomoji="(◕ᴗ◕✿)">(◕ᴗ◕✿)</span>
+                                <span class="kaomoji-item" data-kaomoji="(づ￣ 3￣)づ">(づ￣ 3￣)づ</span>
+                                <span class="kaomoji-item" data-kaomoji="(๑•̀ㅂ•́)و✧">(๑•̀ㅂ•́)و✧</span>
+                                <span class="kaomoji-item" data-kaomoji="(⁎⁍̴̛ᴗ⁍̴̛⁎)">(⁎⁍̴̛ᴗ⁍̴̛⁎)</span>
+                            </div>
+                            <div class="kaomoji-category">
+                                <span class="kaomoji-category-title">惊讶</span>
+                                <span class="kaomoji-item" data-kaomoji="(°ー°〃)">(°ー°〃)</span>
+                                <span class="kaomoji-item" data-kaomoji="∑(っ°Д°;)っ">∑(っ°Д°;)っ</span>
+                                <span class="kaomoji-item" data-kaomoji="(⊙o⊙)">(⊙o⊙)</span>
+                                <span class="kaomoji-item" data-kaomoji="Σ(ﾟдﾟ;)">Σ(ﾟдﾟ;)</span>
+                                <span class="kaomoji-item" data-kaomoji="(ﾟДﾟ≡ﾟДﾟ)">(ﾟДﾟ≡ﾟДﾟ)</span>
+                            </div>
+                            <div class="kaomoji-category">
+                                <span class="kaomoji-category-title">无奈</span>
+                                <span class="kaomoji-item" data-kaomoji="(╯°□°）╯︵ ┻━┻">(╯°□°）╯︵ ┻━┻</span>
+                                <span class="kaomoji-item" data-kaomoji="┭┮﹏┭┮">┭┮﹏┭┮</span>
+                                <span class="kaomoji-item" data-kaomoji="(；´д｀)ゞ">(；´д｀)ゞ</span>
+                                <span class="kaomoji-item" data-kaomoji="╮(╯-╰)╭">╮(╯-╰)╭</span>
+                                <span class="kaomoji-item" data-kaomoji="(ಥ_ಥ)">(ಥ_ಥ)</span>
+                                <span class="kaomoji-item" data-kaomoji="(T_T)">(T_T)</span>
+                            </div>
+                            <div class="kaomoji-category">
+                                <span class="kaomoji-category-title">加油</span>
+                                <span class="kaomoji-item" data-kaomoji="(ง •_•)ง">(ง •_•)ง</span>
+                                <span class="kaomoji-item" data-kaomoji="ᕙ(`▿´)ᕗ">ᕙ(`▿´)ᕗ</span>
+                                <span class="kaomoji-item" data-kaomoji="d(≖‿≖)b">d(≖‿≖)b</span>
+                                <span class="kaomoji-item" data-kaomoji="(๑˃̵ᴗ˂̵)و">(๑˃̵ᴗ˂̵)و</span>
+                                <span class="kaomoji-item" data-kaomoji="ヾ(◍°∇°◍)ﾉﾞ">ヾ(◍°∇°◍)ﾉﾞ</span>
+                            </div>
+                            <div class="kaomoji-category">
+                                <span class="kaomoji-category-title">其他</span>
+                                <span class="kaomoji-item" data-kaomoji="(￣▽￣)～■干杯□～(￣▽￣)">(￣▽￣)～■干杯□～(￣▽￣)</span>
+                                <span class="kaomoji-item" data-kaomoji="Orz">Orz</span>
+                                <span class="kaomoji-item" data-kaomoji="Or2">Or2</span>
+                                <span class="kaomoji-item" data-kaomoji="OTL">OTL</span>
+                                <span class="kaomoji-item" data-kaomoji="(❁´◡`❁)">(❁´◡`❁)</span>
+                                <span class="kaomoji-item" data-kaomoji="♪(´ε` )">♪(´ε` )</span>
+                            </div>
+                        </div>
+                    </div>
+                    <?php endif; ?>
                 </div>
 
                 <?php if (shufei_is_turnstile_enabled() && !empty(shufei_get_turnstile_site_key())): ?>

@@ -4231,12 +4231,18 @@ pre[class*="language-"].line-numbers > code {
 
 /* 响应式调�?*/
 @media (max-width: 768px) {
+    #footer {
+        margin-left: 0;
+        margin-right: 0;
+        padding: 20px 15px;
+    }
+
     .footer-powered {
         font-size: 12px;
         line-height: 1.5;
         padding: 10px 0;
     }
-    
+
     .footer-line {
         margin: 4px 0;
         padding: 2px 0;
@@ -5585,4 +5591,604 @@ pre[class*="language-"].line-numbers > code {
     background: #2b2111;
     color: #ffc53d;
     border-color: #594214;
+}
+
+/* ===== 文章提示弹窗 ===== */
+.article-alert-box {
+    margin-bottom: 20px;
+    animation: alertSlideIn 0.4s ease;
+}
+
+@keyframes alertSlideIn {
+    from { opacity: 0; transform: translateY(-15px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes alertSlideOut {
+    from { opacity: 1; transform: translateY(0); }
+    to { opacity: 0; transform: translateY(-15px); }
+}
+
+.article-alert-inner {
+    position: relative;
+    background: linear-gradient(135deg, #e8f4fd 0%, #f0f7ff 100%);
+    border: 1px solid #b3d8fd;
+    border-left: 4px solid #409eff;
+    border-radius: 8px;
+    padding: 16px 45px 16px 20px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.article-alert-icon {
+    flex-shrink: 0;
+    font-size: 20px;
+    color: #409eff;
+    margin-top: 2px;
+}
+
+.article-alert-content {
+    flex: 1;
+    color: #4a6a8a;
+    font-size: 14px;
+    line-height: 1.7;
+}
+
+.article-alert-content p {
+    margin: 0;
+}
+
+.article-alert-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: none;
+    border: none;
+    color: #8cb8d8;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 4px;
+    line-height: 1;
+    transition: color 0.2s;
+}
+
+.article-alert-close:hover {
+    color: #409eff;
+}
+
+[data-theme="dark"] .article-alert-inner {
+    background: linear-gradient(135deg, #1a2a3a 0%, #1e2d3d 100%);
+    border-color: #1e3a5f;
+    border-left-color: #409eff;
+}
+
+[data-theme="dark"] .article-alert-icon {
+    color: #409eff;
+}
+
+[data-theme="dark"] .article-alert-content {
+    color: #8cb8d8;
+}
+
+[data-theme="dark"] .article-alert-close {
+    color: #4a6a8a;
+}
+
+[data-theme="dark"] .article-alert-close:hover {
+    color: #409eff;
+}
+
+/* ===== 留言板页面 ===== */
+.guestbook-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    text-align: center;
+    padding: 50px 20px !important;
+}
+
+.guestbook-header-inner {
+    position: relative;
+    z-index: 1;
+}
+
+.guestbook-icon {
+    font-size: 48px;
+    color: rgba(255,255,255,0.9);
+    margin-bottom: 15px;
+}
+
+.guestbook-header .post-title {
+    color: #fff;
+    margin-bottom: 10px;
+}
+
+.guestbook-desc {
+    color: rgba(255,255,255,0.8);
+    font-size: 15px;
+    margin: 0;
+}
+
+/* ===== GitHub 项目展示页面 ===== */
+.github-header {
+    background: linear-gradient(135deg, #24292e 0%, #1a1e23 100%) !important;
+    text-align: center;
+    padding: 50px 20px !important;
+}
+
+.github-header-inner {
+    position: relative;
+    z-index: 1;
+}
+
+.github-icon {
+    font-size: 48px;
+    color: rgba(255,255,255,0.9);
+    margin-bottom: 15px;
+}
+
+.github-header .post-title {
+    color: #fff;
+    margin-bottom: 10px;
+}
+
+.github-desc {
+    color: rgba(255,255,255,0.7);
+    font-size: 14px;
+    margin: 0;
+}
+
+.github-desc a {
+    color: #79b8ff;
+    text-decoration: none;
+}
+
+.github-desc a:hover {
+    text-decoration: underline;
+}
+
+.github-not-configured {
+    text-align: center;
+    padding: 60px 20px;
+    color: #999;
+}
+
+.github-not-configured i {
+    font-size: 64px;
+    color: #ddd;
+    margin-bottom: 20px;
+    display: block;
+}
+
+.github-not-configured h3 {
+    font-size: 18px;
+    color: #666;
+    margin-bottom: 10px;
+}
+
+.github-repos-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+    margin-top: 20px;
+}
+
+.github-repo-card {
+    background: #f6f8fa;
+    border: 1px solid #e1e4e8;
+    border-radius: 8px;
+    padding: 16px;
+    transition: all 0.2s ease;
+}
+
+.github-repo-card:hover {
+    border-color: #b4bfc8;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.repo-card-header {
+    margin-bottom: 8px;
+}
+
+.repo-name {
+    font-size: 15px;
+    margin: 0;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.repo-name i {
+    color: #586069;
+    margin-right: 4px;
+    font-size: 13px;
+}
+
+.repo-name a {
+    color: #0366d6;
+    text-decoration: none;
+}
+
+.repo-name a:hover {
+    text-decoration: underline;
+}
+
+.repo-desc {
+    color: #586069;
+    font-size: 13px;
+    line-height: 1.5;
+    margin: 0 0 10px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.repo-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 12px;
+    color: #586069;
+    flex-wrap: wrap;
+}
+
+.repo-meta-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.repo-lang-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #b0b0b0;
+}
+
+.repo-lang-dot[data-lang="JavaScript"] { background: #f1e05a; }
+.repo-lang-dot[data-lang="TypeScript"] { background: #2b7489; }
+.repo-lang-dot[data-lang="Python"] { background: #3572A5; }
+.repo-lang-dot[data-lang="Java"] { background: #b07219; }
+.repo-lang-dot[data-lang="Go"] { background: #00ADD8; }
+.repo-lang-dot[data-lang="Rust"] { background: #dea584; }
+.repo-lang-dot[data-lang="C"] { background: #555555; }
+.repo-lang-dot[data-lang="C++"] { background: #f34b7d; }
+.repo-lang-dot[data-lang="C#"] { background: #178600; }
+.repo-lang-dot[data-lang="PHP"] { background: #4F5D95; }
+.repo-lang-dot[data-lang="Ruby"] { background: #701516; }
+.repo-lang-dot[data-lang="Swift"] { background: #ffac45; }
+.repo-lang-dot[data-lang="Kotlin"] { background: #F18E33; }
+.repo-lang-dot[data-lang="Shell"] { background: #89e051; }
+.repo-lang-dot[data-lang="Vue"] { background: #2c3e50; }
+.repo-lang-dot[data-lang="HTML"] { background: #e34c26; }
+.repo-lang-dot[data-lang="CSS"] { background: #563d7c; }
+.repo-lang-dot[data-lang="Dart"] { background: #00B4AB; }
+.repo-lang-dot[data-lang="Scala"] { background: #c22d40; }
+
+[data-theme="dark"] .github-repo-card {
+    background: #1c2128;
+    border-color: #30363d;
+}
+
+[data-theme="dark"] .github-repo-card:hover {
+    border-color: #484f58;
+}
+
+[data-theme="dark"] .repo-name a {
+    color: #58a6ff;
+}
+
+[data-theme="dark"] .repo-desc,
+[data-theme="dark"] .repo-meta {
+    color: #8b949e;
+}
+
+/* ===== 颜文字面板 ===== */
+.kaomoji-panel {
+    margin-top: 8px;
+}
+
+.kaomoji-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 12px;
+    background: #f5f5f5;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    color: #666;
+    transition: all 0.2s;
+    user-select: none;
+}
+
+.kaomoji-toggle:hover {
+    background: #e8e8e8;
+    color: #333;
+}
+
+.kaomoji-list {
+    margin-top: 8px;
+    background: #fff;
+    border: 1px solid #e5e5e5;
+    border-radius: 8px;
+    padding: 12px;
+    max-height: 220px;
+    overflow-y: auto;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.kaomoji-category {
+    margin-bottom: 10px;
+}
+
+.kaomoji-category:last-child {
+    margin-bottom: 0;
+}
+
+.kaomoji-category-title {
+    display: block;
+    font-size: 12px;
+    color: #999;
+    margin-bottom: 6px;
+    font-weight: 600;
+}
+
+.kaomoji-item {
+    display: inline-block;
+    padding: 4px 8px;
+    margin: 2px;
+    background: #f8f8f8;
+    border: 1px solid #eee;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.15s;
+    user-select: none;
+}
+
+.kaomoji-item:hover {
+    background: var(--primary-color, #FF6B6B);
+    color: #fff;
+    border-color: var(--primary-color, #FF6B6B);
+    transform: scale(1.05);
+}
+
+[data-theme="dark"] .kaomoji-toggle {
+    background: #2a2a3a;
+    border-color: #3a3a4a;
+    color: #aaa;
+}
+
+[data-theme="dark"] .kaomoji-toggle:hover {
+    background: #3a3a4a;
+    color: #ddd;
+}
+
+[data-theme="dark"] .kaomoji-list {
+    background: #1e1e2e;
+    border-color: #3a3a4a;
+}
+
+[data-theme="dark"] .kaomoji-category-title {
+    color: #777;
+}
+
+[data-theme="dark"] .kaomoji-item {
+    background: #2a2a3a;
+    border-color: #3a3a4a;
+    color: #ccc;
+}
+
+[data-theme="dark"] .kaomoji-item:hover {
+    background: var(--primary-color, #FF6B6B);
+    color: #fff;
+    border-color: var(--primary-color, #FF6B6B);
+}
+
+/* ===== 视频播放器 ===== */
+.post-video-wrap {
+    margin: 20px 0;
+}
+
+.post-video-container {
+    position: relative;
+    width: 100%;
+    padding-bottom: 56.25%; /* 16:9 */
+    height: 0;
+    overflow: hidden;
+    border-radius: 8px;
+    background: #000;
+}
+
+.post-video-player {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    outline: none;
+}
+
+.post-video-player:focus {
+    box-shadow: 0 0 0 3px rgba(64, 158, 255, 0.3);
+}
+
+/* ===== 音乐播放器 ===== */
+.post-music-wrap {
+    margin: 20px 0;
+}
+
+.post-music-player {
+    background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
+    border-radius: 12px;
+    padding: 20px;
+    border: 1px solid #e5e8ec;
+    overflow: hidden;
+}
+
+.music-player-inner {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.music-cover {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background-size: cover;
+    background-position: center;
+    flex-shrink: 0;
+    border: 3px solid #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.music-disc {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #333 0%, #111 100%);
+    flex-shrink: 0;
+    position: relative;
+    border: 3px solid #e0e0e0;
+    transition: border-color 0.3s;
+}
+
+.music-disc-inner {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #fff;
+    border: 2px solid #ddd;
+}
+
+.music-disc-spinning {
+    animation: musicSpin 3s linear infinite;
+    border-color: var(--primary-color, #FF6B6B);
+}
+
+@keyframes musicSpin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.music-info {
+    flex: 1;
+    min-width: 120px;
+}
+
+.music-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.music-artist {
+    font-size: 13px;
+    color: #999;
+}
+
+.music-audio {
+    width: 100%;
+    margin-top: 12px;
+    height: 36px;
+}
+
+.music-audio::-webkit-media-controls-panel {
+    background: #f0f0f0;
+}
+
+[data-theme="dark"] .post-music-player {
+    background: linear-gradient(135deg, #1e1e2e 0%, #252535 100%);
+    border-color: #3a3a4a;
+}
+
+[data-theme="dark"] .music-disc {
+    border-color: #3a3a4a;
+}
+
+[data-theme="dark"] .music-title {
+    color: #ddd;
+}
+
+[data-theme="dark"] .music-artist {
+    color: #777;
+}
+
+/* ===== 自定义导航列表 ===== */
+.custom-nav-list li a {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.custom-nav-list li a i {
+    width: 16px;
+    text-align: center;
+    color: var(--primary-color, #FF6B6B);
+}
+
+/* ===== 评论区 Markdown 样式增强 ===== */
+.comment-content code {
+    background: #f0f0f0;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 90%;
+}
+
+.comment-content pre {
+    background: #282c34;
+    color: #abb2bf;
+    padding: 12px;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.comment-content pre code {
+    background: none;
+    padding: 0;
+    color: inherit;
+}
+
+.comment-content blockquote {
+    border-left: 3px solid var(--primary-color, #FF6B6B);
+    padding: 8px 16px;
+    margin: 8px 0;
+    background: #f9f9f9;
+    color: #666;
+}
+
+.comment-content mark {
+    background: #fff3cd;
+    padding: 1px 4px;
+    border-radius: 2px;
+}
+
+[data-theme="dark"] .comment-content code {
+    background: #2a2a3a;
+}
+
+[data-theme="dark"] .comment-content blockquote {
+    background: #1e1e2e;
+    color: #aaa;
+}
+
+[data-theme="dark"] .comment-content mark {
+    background: #594214;
+    color: #ffc53d;
 }
