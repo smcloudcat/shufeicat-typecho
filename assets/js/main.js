@@ -30,6 +30,72 @@ window.showToast = function(message, type) {
 };
 
 /**
+ * 工具函数：检查依赖库是否已加载，未加载则重试
+ * @param {string} libName - window 上的库名称
+ * @param {function} retryFn - 重试时调用的函数
+ * @param {number} retryCount - 当前重试次数
+ * @param {number} maxRetry - 最大重试次数
+ * @returns {boolean} true 表示库未就绪，false 表示库已可用
+ */
+function checkLib(libName, retryFn, retryCount, maxRetry) {
+    maxRetry = maxRetry || 30;
+    if (typeof window[libName] === 'undefined') {
+        if (retryCount < maxRetry) {
+            setTimeout(retryFn, 100);
+        }
+        return true;
+    }
+    return false;
+}
+
+/**
+ * 工具函数：节流
+ */
+function throttle(fn, delay) {
+    var lastCall = 0;
+    return function() {
+        var now = Date.now();
+        if (now - lastCall >= delay) {
+            lastCall = now;
+            fn.apply(this, arguments);
+        }
+    };
+}
+
+/**
+ * 工具函数：HTML 转纯文本
+ */
+function htmlToText(html) {
+    var tempDiv = document.createElement('div');
+    tempDiv.innerHTML = html;
+    return tempDiv.textContent || tempDiv.innerText;
+}
+
+/**
+ * 工具函数：剪贴板回退复制（使用 execCommand）
+ */
+function fallbackCopy(text, copyBtn) {
+    var textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.position = 'fixed';
+    textarea.style.left = '-9999px';
+    document.body.appendChild(textarea);
+    textarea.select();
+    try {
+        document.execCommand('copy');
+        copyBtn.innerHTML = '<i class="fa fa-check"></i> 已复制';
+        copyBtn.classList.add('copied');
+        setTimeout(function() {
+            copyBtn.innerHTML = '<i class="fa fa-copy"></i> 复制';
+            copyBtn.classList.remove('copied');
+        }, 2000);
+    } catch (err) {
+        copyBtn.innerHTML = '<i class="fa fa-exclamation-triangle"></i> 失败';
+    }
+    document.body.removeChild(textarea);
+}
+
+/**
  * 夜间模式功能
  * 支持 localStorage 持久化，并检测系统颜色偏好
  */
@@ -120,11 +186,8 @@ window.initDarkMode = function() {
 window.initPrismHighlight = function(retryCount) {
     if (!window.codeHighlightEnabled) return;
     retryCount = retryCount || 0;
-    if (typeof Prism === 'undefined') {
-        if (retryCount < 30) setTimeout(function() { window.initPrismHighlight(retryCount + 1); }, 100);
-        return;
-    }
-    
+    if (checkLib('Prism', function() { window.initPrismHighlight(retryCount + 1); }, retryCount)) return;
+
     const codeBlocks = document.querySelectorAll('.post-content pre code');
     codeBlocks.forEach(function(code) {
         // 跳过 mermaid 和 echarts 代码块，由各自的渲染器处理
@@ -138,22 +201,17 @@ window.initPrismHighlight = function(retryCount) {
         if (langMatch) {
             const language = langMatch[1];
             code.className = 'language-' + language;
-            
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = code.innerHTML;
-            code.innerHTML = tempDiv.textContent || tempDiv.innerText;
+            code.innerHTML = htmlToText(code.innerHTML);
         }
     });
-    
+
     Prism.highlightAll();
 };
 
 window.initLightbox = function(retryCount) {
     retryCount = retryCount || 0;
-    if (typeof jQuery === 'undefined' || typeof lightbox === 'undefined') {
-        if (retryCount < 30) setTimeout(function() { window.initLightbox(retryCount + 1); }, 100);
-        return;
-    }
+    if (checkLib('jQuery', function() { window.initLightbox(retryCount + 1); }, retryCount)) return;
+    if (checkLib('lightbox', function() { window.initLightbox(retryCount + 1); }, retryCount)) return;
     
     const postContent = document.querySelector('.post-content');
     if (postContent) {
@@ -222,21 +280,25 @@ window.initCopyButtons = function() {
             e.stopPropagation();
             const code = pre.querySelector('code');
             if (code) {
-                const tempDiv = document.createElement('div');
-                tempDiv.innerHTML = code.innerHTML;
-                const text = tempDiv.textContent || tempDiv.innerText || '';
-                
-                navigator.clipboard.writeText(text).then(function() {
-                    copyBtn.innerHTML = '<i class="fa fa-check"></i> 已复制';
-                    copyBtn.classList.add('copied');
-                    
-                    setTimeout(function() {
-                        copyBtn.innerHTML = '<i class="fa fa-copy"></i> 复制';
-                        copyBtn.classList.remove('copied');
-                    }, 2000);
-                }).catch(function(err) {
-                    copyBtn.innerHTML = '<i class="fa fa-exclamation-triangle"></i> 失败';
-                });
+                const text = htmlToText(code.innerHTML) || '';
+
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(text).then(function() {
+                        copyBtn.innerHTML = '<i class="fa fa-check"></i> 已复制';
+                        copyBtn.classList.add('copied');
+
+                        setTimeout(function() {
+                            copyBtn.innerHTML = '<i class="fa fa-copy"></i> 复制';
+                            copyBtn.classList.remove('copied');
+                        }, 2000);
+                    }).catch(function() {
+                        // clipboard API 失败，回退到 execCommand
+                        fallbackCopy(text, copyBtn);
+                    });
+                } else {
+                    // clipboard API 不可用，直接使用 execCommand
+                    fallbackCopy(text, copyBtn);
+                }
             }
         });
         
@@ -305,37 +367,33 @@ window.initCollapsibleSidebar = function() {
 // 初始化移动端菜单功能 - 控制左侧边栏
 // 使用 document 级别事件委托 + 实时 DOM 查询，避免 PJAX 替换元素后闭包引用失效
 (function() {
-    // 关闭菜单
-    function closeSidebar() {
+    // 设置侧边栏状态
+    function setSidebarState(isOpen) {
         var btn = document.getElementById('mobile-menu-btn');
         var sidebar = document.getElementById('left-sidebar');
         var shade = document.getElementById('body-shade');
         if (btn) {
-            btn.classList.remove('active');
-            btn.title = '展开菜单';
+            if (isOpen) {
+                btn.classList.add('active');
+                btn.title = '关闭菜单';
+            } else {
+                btn.classList.remove('active');
+                btn.title = '展开菜单';
+            }
         }
         if (sidebar) {
-            sidebar.classList.remove('admin-side-show');
+            if (isOpen) {
+                sidebar.classList.add('admin-side-show');
+            } else {
+                sidebar.classList.remove('admin-side-show');
+            }
         }
         if (shade) {
-            shade.classList.remove('active');
-        }
-    }
-
-    // 打开菜单
-    function openSidebar() {
-        var btn = document.getElementById('mobile-menu-btn');
-        var sidebar = document.getElementById('left-sidebar');
-        var shade = document.getElementById('body-shade');
-        if (btn) {
-            btn.classList.add('active');
-            btn.title = '关闭菜单';
-        }
-        if (sidebar) {
-            sidebar.classList.add('admin-side-show');
-        }
-        if (shade) {
-            shade.classList.add('active');
+            if (isOpen) {
+                shade.classList.add('active');
+            } else {
+                shade.classList.remove('active');
+            }
         }
     }
 
@@ -347,7 +405,7 @@ window.initCollapsibleSidebar = function() {
             // 遮罩层点击关闭
             if (e.target.closest('#body-shade')) {
                 e.preventDefault();
-                closeSidebar();
+                setSidebarState(false);
                 return;
             }
 
@@ -356,13 +414,13 @@ window.initCollapsibleSidebar = function() {
             var btn = document.getElementById('mobile-menu-btn');
             if (window.innerWidth <= 992 && sidebar && sidebar.classList.contains('admin-side-show')) {
                 if (!sidebar.contains(e.target) && !(btn && btn.contains(e.target))) {
-                    closeSidebar();
+                    setSidebarState(false);
                 }
             }
 
             // 点击侧边栏链接后关闭菜单
             if (e.target.closest('#left-sidebar a') && window.innerWidth <= 992) {
-                closeSidebar();
+                setSidebarState(false);
             }
         });
 
@@ -370,7 +428,7 @@ window.initCollapsibleSidebar = function() {
         document.addEventListener('touchstart', function(e) {
             if (e.target.closest('#body-shade')) {
                 e.preventDefault();
-                closeSidebar();
+                setSidebarState(false);
             }
         }, { passive: false });
 
@@ -379,7 +437,7 @@ window.initCollapsibleSidebar = function() {
             if (e.key === 'Escape') {
                 var sidebar = document.getElementById('left-sidebar');
                 if (sidebar && sidebar.classList.contains('admin-side-show')) {
-                    closeSidebar();
+                    setSidebarState(false);
                 }
             }
         });
@@ -400,11 +458,7 @@ window.initCollapsibleSidebar = function() {
             e.stopPropagation();
             var sidebar = document.getElementById('left-sidebar');
             var isOpen = sidebar && sidebar.classList.contains('admin-side-show');
-            if (isOpen) {
-                closeSidebar();
-            } else {
-                openSidebar();
-            }
+            setSidebarState(!isOpen);
         };
 
         btn.addEventListener('click', btn._mobileMenuHandler);
@@ -520,10 +574,7 @@ window.initPostViews = function() {
 window.initMermaid = function(retryCount) {
     if (!window.mermaidEnabled) return;
     retryCount = retryCount || 0;
-    if (typeof mermaid === 'undefined') {
-        if (retryCount < 30) setTimeout(function() { window.initMermaid(retryCount + 1); }, 100);
-        return;
-    }
+    if (checkLib('mermaid', function() { window.initMermaid(retryCount + 1); }, retryCount)) return;
 
     // 初始化 Mermaid 配置（仅首次）
     if (!window._mermaidInitialized) {
@@ -571,10 +622,7 @@ window.initMermaid = function(retryCount) {
 window.initECharts = function(retryCount) {
     if (!window.echartsEnabled) return;
     retryCount = retryCount || 0;
-    if (typeof echarts === 'undefined') {
-        if (retryCount < 30) setTimeout(function() { window.initECharts(retryCount + 1); }, 100);
-        return;
-    }
+    if (checkLib('echarts', function() { window.initECharts(retryCount + 1); }, retryCount)) return;
 
     var echartsBlocks = document.querySelectorAll('.post-content pre code.language-echarts, .post-content pre code.lang-echarts');
     echartsBlocks.forEach(function(codeBlock) {
@@ -596,10 +644,10 @@ window.initECharts = function(retryCount) {
             var chart = echarts.init(container);
             chart.setOption(option);
 
-            // 响应式：窗口大小变化时自动调整
-            var resizeHandler = function() {
+            // 响应式：窗口大小变化时自动调整（节流）
+            var resizeHandler = throttle(function() {
                 chart.resize();
-            };
+            }, 150);
             window.addEventListener('resize', resizeHandler);
 
             // 保存引用以便 PJAX 切换时清理
@@ -631,10 +679,7 @@ window.destroyECharts = function() {
 window.initKaTeX = function(retryCount) {
     if (!window.katexEnabled) return;
     retryCount = retryCount || 0;
-    if (typeof katex === 'undefined') {
-        if (retryCount < 30) setTimeout(function() { window.initKaTeX(retryCount + 1); }, 100);
-        return;
-    }
+    if (checkLib('katex', function() { window.initKaTeX(retryCount + 1); }, retryCount)) return;
 
     // 优先处理 PHP 过滤器生成的 .math-tex 元素（已修复 Markdown 副作用）
     var mathElements = document.querySelectorAll('.post-content .math-tex');
@@ -663,10 +708,7 @@ window.initKaTeX = function(retryCount) {
     }
 
     // 回退：使用 auto-render 扫描定界符（当 PHP 过滤器未生效时）
-    if (typeof renderMathInElement === 'undefined') {
-        if (retryCount < 30) setTimeout(function() { window.initKaTeX(retryCount + 1); }, 100);
-        return;
-    }
+    if (checkLib('renderMathInElement', function() { window.initKaTeX(retryCount + 1); }, retryCount)) return;
 
     var postContent = document.querySelector('.post-content');
     if (!postContent) return;
@@ -742,14 +784,14 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
         
-        // 滚动显示/隐藏
-        window.addEventListener('scroll', function() {
+        // 滚动显示/隐藏（节流）
+        window.addEventListener('scroll', throttle(function() {
             if (window.scrollY > 300) {
                 backToTop.classList.add('show');
             } else {
                 backToTop.classList.remove('show');
             }
-        });
+        }, 150));
     }
     
     // 初始化移动端菜单
