@@ -188,12 +188,20 @@ window.initPrismHighlight = function(retryCount) {
     retryCount = retryCount || 0;
     if (checkLib('Prism', function() { window.initPrismHighlight(retryCount + 1); }, retryCount)) return;
 
-    const codeBlocks = document.querySelectorAll('.post-content pre code');
+    const codeBlocks = document.querySelectorAll('.post-content pre code, .comment-content pre code');
+    // 收集需要排除的代码块（mermaid/echarts），临时移除其 language-* 类名防止 Prism autoloader 加载不存在的语言组件
+    var excludedBlocks = [];
     codeBlocks.forEach(function(code) {
-        // 跳过 mermaid 和 echarts 代码块，由各自的渲染器处理
-        // Typecho 生成 lang-xxx 格式，需同时检查两种格式
         if (code.classList.contains('language-mermaid') || code.classList.contains('lang-mermaid') ||
             code.classList.contains('language-echarts') || code.classList.contains('lang-echarts')) {
+            var removedClasses = [];
+            ['language-mermaid', 'lang-mermaid', 'language-echarts', 'lang-echarts'].forEach(function(cls) {
+                if (code.classList.contains(cls)) {
+                    code.classList.remove(cls);
+                    removedClasses.push(cls);
+                }
+            });
+            excludedBlocks.push({ element: code, classes: removedClasses });
             return;
         }
         const className = code.className;
@@ -206,6 +214,13 @@ window.initPrismHighlight = function(retryCount) {
     });
 
     Prism.highlightAll();
+
+    // 恢复被排除代码块的 language-* 类名，以便 echarts/mermaid 渲染器能找到它们
+    excludedBlocks.forEach(function(item) {
+        item.classes.forEach(function(cls) {
+            item.element.classList.add(cls);
+        });
+    });
 };
 
 window.initLightbox = function(retryCount) {
@@ -587,8 +602,8 @@ window.initMermaid = function(retryCount) {
         window._mermaidInitialized = true;
     }
 
-    // 查找所有 mermaid 代码块并渲染
-    var mermaidBlocks = document.querySelectorAll('.post-content pre code.language-mermaid, .post-content pre code.lang-mermaid');
+    // 查找所有 mermaid 代码块并渲染（包括评论区）
+    var mermaidBlocks = document.querySelectorAll('.post-content pre code.language-mermaid, .post-content pre code.lang-mermaid, .comment-content pre code.language-mermaid, .comment-content pre code.lang-mermaid');
     mermaidBlocks.forEach(function(codeBlock) {
         var pre = codeBlock.parentElement;
         if (!pre || pre.getAttribute('data-mermaid-processed')) return;
@@ -624,7 +639,7 @@ window.initECharts = function(retryCount) {
     retryCount = retryCount || 0;
     if (checkLib('echarts', function() { window.initECharts(retryCount + 1); }, retryCount)) return;
 
-    var echartsBlocks = document.querySelectorAll('.post-content pre code.language-echarts, .post-content pre code.lang-echarts');
+    var echartsBlocks = document.querySelectorAll('.post-content pre code.language-echarts, .post-content pre code.lang-echarts, .comment-content pre code.language-echarts, .comment-content pre code.lang-echarts');
     echartsBlocks.forEach(function(codeBlock) {
         var pre = codeBlock.parentElement;
         if (!pre || pre.getAttribute('data-echarts-processed')) return;
@@ -681,8 +696,8 @@ window.initKaTeX = function(retryCount) {
     retryCount = retryCount || 0;
     if (checkLib('katex', function() { window.initKaTeX(retryCount + 1); }, retryCount)) return;
 
-    // 优先处理 PHP 过滤器生成的 .math-tex 元素（已修复 Markdown 副作用）
-    var mathElements = document.querySelectorAll('.post-content .math-tex');
+    // 优先处理 PHP 过滤器生成的 .math-tex 元素（已修复 Markdown 副作用），包括评论区
+    var mathElements = document.querySelectorAll('.post-content .math-tex, .comment-content .math-tex');
     if (mathElements.length > 0) {
         mathElements.forEach(function(el) {
             if (el.getAttribute('data-katex-processed')) return;
@@ -707,21 +722,21 @@ window.initKaTeX = function(retryCount) {
         return;
     }
 
-    // 回退：使用 auto-render 扫描定界符（当 PHP 过滤器未生效时）
+    // 回退：使用 auto-render 扫描定界符（当 PHP 过滤器未生效时），包括评论区
     if (checkLib('renderMathInElement', function() { window.initKaTeX(retryCount + 1); }, retryCount)) return;
 
-    var postContent = document.querySelector('.post-content');
-    if (!postContent) return;
-
-    renderMathInElement(postContent, {
-        delimiters: [
-            { left: '$$', right: '$$', display: true },
-            { left: '$', right: '$', display: false },
-            { left: '\\(', right: '\\)', display: false },
-            { left: '\\[', right: '\\]', display: true }
-        ],
-        throwOnError: false,
-        output: 'html'
+    var renderTargets = document.querySelectorAll('.post-content, .comment-content');
+    renderTargets.forEach(function(target) {
+        renderMathInElement(target, {
+            delimiters: [
+                { left: '$$', right: '$$', display: true },
+                { left: '$', right: '$', display: false },
+                { left: '\\(', right: '\\)', display: false },
+                { left: '\\[', right: '\\]', display: true }
+            ],
+            throwOnError: false,
+            output: 'html'
+        });
     });
 };
 
@@ -763,6 +778,150 @@ window.initMarkdownExt = function() {
             } else {
                 this.classList.remove('details-open');
             }
+        });
+    });
+};
+
+/**
+ * 文章提示弹窗关闭功能
+ */
+window.initArticleAlert = function() {
+    var alertBox = document.getElementById('article-alert-box');
+    if (!alertBox) return;
+
+    var closeBtn = document.getElementById('article-alert-close');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', function() {
+            alertBox.style.animation = 'alertSlideOut 0.3s ease forwards';
+            setTimeout(function() {
+                alertBox.style.display = 'none';
+            }, 300);
+        });
+    }
+};
+
+/**
+ * 颜文字面板功能
+ */
+window.initKaomojiPanel = function() {
+    var toggle = document.getElementById('kaomoji-toggle');
+    var list = document.getElementById('kaomoji-list');
+    if (!toggle || !list) return;
+
+    // 切换面板显示
+    toggle.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (list.style.display === 'none') {
+            list.style.display = 'block';
+        } else {
+            list.style.display = 'none';
+        }
+    });
+
+    // 点击外部关闭面板
+    document.addEventListener('click', function(e) {
+        var panel = document.getElementById('kaomoji-panel');
+        if (panel && !panel.contains(e.target)) {
+            list.style.display = 'none';
+        }
+    });
+
+    // 点击颜文字插入到评论框
+    var items = list.querySelectorAll('.kaomoji-item');
+    var textarea = document.getElementById('textarea');
+    items.forEach(function(item) {
+        item.addEventListener('click', function() {
+            if (!textarea) return;
+            var kaomoji = this.getAttribute('data-kaomoji') || this.textContent;
+            var start = textarea.selectionStart;
+            var end = textarea.selectionEnd;
+            var text = textarea.value;
+            textarea.value = text.substring(0, start) + kaomoji + text.substring(end);
+            textarea.selectionStart = textarea.selectionEnd = start + kaomoji.length;
+            textarea.focus();
+        });
+    });
+};
+
+/**
+ * 视频播放器增强功能
+ * 响应式视频容器，支持全屏等控制
+ */
+window.initVideoPlayer = function() {
+    var videoPlayers = document.querySelectorAll('.post-video-player');
+    videoPlayers.forEach(function(video) {
+        // 双击全屏
+        video.addEventListener('dblclick', function() {
+            if (this.requestFullscreen) {
+                this.requestFullscreen();
+            } else if (this.webkitRequestFullscreen) {
+                this.webkitRequestFullscreen();
+            } else if (this.msRequestFullscreen) {
+                this.msRequestFullscreen();
+            }
+        });
+
+        // 键盘控制
+        video.setAttribute('tabindex', '0');
+        video.addEventListener('keydown', function(e) {
+            switch(e.key) {
+                case ' ':
+                case 'k':
+                    e.preventDefault();
+                    if (this.paused) { this.play(); } else { this.pause(); }
+                    break;
+                case 'f':
+                    e.preventDefault();
+                    if (this.requestFullscreen) { this.requestFullscreen(); }
+                    break;
+                case 'ArrowLeft':
+                    e.preventDefault();
+                    this.currentTime = Math.max(0, this.currentTime - 5);
+                    break;
+                case 'ArrowRight':
+                    e.preventDefault();
+                    this.currentTime = Math.min(this.duration, this.currentTime + 5);
+                    break;
+                case 'ArrowUp':
+                    e.preventDefault();
+                    this.volume = Math.min(1, this.volume + 0.1);
+                    break;
+                case 'ArrowDown':
+                    e.preventDefault();
+                    this.volume = Math.max(0, this.volume - 0.1);
+                    break;
+                case 'm':
+                    e.preventDefault();
+                    this.muted = !this.muted;
+                    break;
+            }
+        });
+    });
+};
+
+/**
+ * 音乐播放器增强功能
+ * 播放时旋转唱片动画
+ */
+window.initMusicPlayer = function() {
+    var musicPlayers = document.querySelectorAll('.post-music-player');
+    musicPlayers.forEach(function(player) {
+        var audio = player.querySelector('.music-audio');
+        var disc = player.querySelector('.music-disc');
+        if (!audio || !disc) return;
+
+        // 播放时旋转唱片
+        audio.addEventListener('play', function() {
+            disc.classList.add('music-disc-spinning');
+        });
+
+        audio.addEventListener('pause', function() {
+            disc.classList.remove('music-disc-spinning');
+        });
+
+        audio.addEventListener('ended', function() {
+            disc.classList.remove('music-disc-spinning');
         });
     });
 };
@@ -823,5 +982,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 初始化 Markdown 扩展功能
     setTimeout(window.initMarkdownExt, 500);
+
+    // 初始化文章提示弹窗关闭功能
+    window.initArticleAlert();
+
+    // 初始化颜文字面板
+    window.initKaomojiPanel();
+
+    // 初始化视频播放器增强
+    window.initVideoPlayer();
+
+    // 初始化音乐播放器增强
+    window.initMusicPlayer();
 
 });

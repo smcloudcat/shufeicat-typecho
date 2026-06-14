@@ -14,7 +14,7 @@ if (!defined('__TYPECHO_ROOT_DIR__')) exit;
  */
 function shufei_check_theme_update()
 {
-    $currentVersion = '1.4.0-rc.6';
+    $currentVersion = '1.4.0-rc.7';
     $cacheKey = 'shufei_update_check';
     $cacheTime = 3600; // 缓存1小时
 
@@ -75,7 +75,7 @@ function shufei_check_theme_update()
  */
 function shufei_get_theme_version()
 {
-    return '1.4.0-rc.6';
+    return '1.4.0-rc.7';
 }
 
 /**
@@ -149,6 +149,7 @@ function themeConfig($form)
                     '<li data-id="cat-ai">AI 评论审核</li>' .
                     '<li data-id="cat-verify">人机验证</li>' .
                     '<li data-id="cat-enhance">功能增强</li>' .
+                    '<li data-id="cat-nav">导航增强</li>' .
                     '<li data-id="cat-data">数据管理</li>' .
                 '</ul>' .
             '</div>' .
@@ -165,7 +166,7 @@ function themeConfig($form)
             'var c = document.getElementById("cat-tpl").querySelector(".cat-config-container");' .
             'var pWrap = c.querySelector("#cat-panes");' .
             'f.insertBefore(c, f.firstChild);' .
-            'var ids = ["cat-basic", "cat-avatar", "cat-appearance", "cat-pjax", "cat-resource", "cat-article", "cat-stats", "cat-seo", "cat-mail", "cat-ai", "cat-verify", "cat-enhance", "cat-data"];' .
+            'var ids = ["cat-basic", "cat-avatar", "cat-appearance", "cat-pjax", "cat-resource", "cat-article", "cat-stats", "cat-seo", "cat-mail", "cat-ai", "cat-verify", "cat-enhance", "cat-nav", "cat-data"];' .
             'ids.forEach(function(id) {' .
                 'var p = document.createElement("div");' .
                 'p.id = id; p.className = "cat-pane" + (id === "cat-basic" ? " active" : "");' .
@@ -1034,6 +1035,77 @@ function themeConfig($form)
     );
     $markdownExtEnabled->setAttribute('class', 'typecho-option cat-group-enhance');
     $form->addInput($markdownExtEnabled);
+
+    $commentKaomojiEnabled = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'commentKaomojiEnabled',
+        array('off' => _t('关闭'), 'on' => _t('开启')),
+        'off',
+        _t('评论快捷颜文字'),
+        _t('介绍：开启后，在评论框下方显示颜文字选择面板，支持快捷插入常用颜文字')
+    );
+    $commentKaomojiEnabled->setAttribute('class', 'typecho-option cat-group-enhance');
+    $form->addInput($commentKaomojiEnabled);
+
+    // ===== 导航增强配置 =====
+    $customNavItems = new \Typecho\Widget\Helper\Form\Element\Textarea(
+        'customNavItems',
+        null,
+        null,
+        _t('自定义导航项'),
+        _t('介绍：每行一个导航项，格式：图标类名|名称|链接<br>图标使用 Font Awesome 4.7 图标类名，例如：<br>fa-book|我的项目|https://example.com/projects<br>fa-download|资源下载|https://example.com/download<br>留空则不显示自定义导航')
+    );
+    $customNavItems->setAttribute('class', 'typecho-option cat-group-nav');
+    $form->addInput($customNavItems);
+
+    $categoryIcons = new \Typecho\Widget\Helper\Form\Element\Textarea(
+        'categoryIcons',
+        null,
+        null,
+        _t('分类目录图标设置'),
+        _t('介绍：为分类目录设置自定义图标，通过分类缩略名匹配<br>每行一个，格式：分类缩略名|图标类名<br>例如：<br>tech|fa-laptop<br>life|fa-coffee<br>code|fa-code<br>未设置的分类将使用默认图标 fa-folder-open-o')
+    );
+    $categoryIcons->setAttribute('class', 'typecho-option cat-group-nav');
+    $form->addInput($categoryIcons);
+
+    $guestbookEnabled = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'guestbookEnabled',
+        array('off' => _t('关闭'), 'on' => _t('开启')),
+        'off',
+        _t('留言板功能'),
+        _t('介绍：开启后，在左侧导航栏添加留言板入口，用户可以在留言板页面留言<br>留言功能基于 Typecho 评论系统实现，需要先创建一个独立页面并选择"留言板"模板')
+    );
+    $guestbookEnabled->setAttribute('class', 'typecho-option cat-group-nav');
+    $form->addInput($guestbookEnabled);
+
+    $guestbookPageId = new \Typecho\Widget\Helper\Form\Element\Text(
+        'guestbookPageId',
+        null,
+        null,
+        _t('留言板页面ID'),
+        _t('介绍：填写留言板独立页面的ID（在后台页面管理中查看）<br>如果留空，将尝试自动查找使用留言板模板的页面')
+    );
+    $guestbookPageId->setAttribute('class', 'typecho-option cat-group-nav');
+    $form->addInput($guestbookPageId);
+
+    $githubUsername = new \Typecho\Widget\Helper\Form\Element\Text(
+        'githubUsername',
+        null,
+        null,
+        _t('GitHub 用户名'),
+        _t('介绍：填写 GitHub 用户名，将自动获取该用户的前 20 个公开项目并展示<br>留空则不显示 GitHub 项目页面入口')
+    );
+    $githubUsername->setAttribute('class', 'typecho-option cat-group-nav');
+    $form->addInput($githubUsername);
+
+    $githubCacheTime = new \Typecho\Widget\Helper\Form\Element\Text(
+        'githubCacheTime',
+        null,
+        '3600',
+        _t('GitHub 项目缓存时间（秒）'),
+        _t('介绍：GitHub API 请求结果的缓存时间，默认 3600 秒（1小时）<br>建议设置 1800-7200 秒，避免频繁请求 API 导致限流')
+    );
+    $githubCacheTime->setAttribute('class', 'typecho-option cat-group-nav');
+    $form->addInput($githubCacheTime);
 }
 
 /**
@@ -1065,6 +1137,11 @@ function shufei_get_random_thumbnail()
  */
 function themeFields($layout)
 {
+    // 修复自定义字段提示词与输入框重叠的问题
+    echo '<style>' .
+        '.typecho-post-option .description { clear: both; display: block; margin-top: 6px; }' .
+        '</style>';
+
     $thumbnail = new \Typecho\Widget\Helper\Form\Element\Text('thumbnail', NULL, NULL, _t('文章缩略图'), _t('留空则自动获取文章图片或随机图片'));
     $layout->addItem($thumbnail);
     $excerpt = new \Typecho\Widget\Helper\Form\Element\Text('excerpt', NULL, NULL, _t('文章简介'), _t('留空则自动截取文章内容'));
@@ -1073,6 +1150,10 @@ function themeFields($layout)
     $layout->addItem($keywords);
     $sticky = new \Typecho\Widget\Helper\Form\Element\Radio('sticky', array('0' => _t('普通文章'), '1' => _t('置顶文章')), '0', _t('文章置顶'), _t('选择置顶后，该文章将在首页顶部显示'));
     $layout->addItem($sticky);
+    $articleAlert = new \Typecho\Widget\Helper\Form\Element\Textarea('articleAlert', NULL, NULL, _t('文章提示弹窗'), _t('填写后，文章页面顶部将显示提示弹窗。支持HTML。留空则不显示弹窗'));
+    $layout->addItem($articleAlert);
+    $disableLike = new \Typecho\Widget\Helper\Form\Element\Radio('disableLike', array('0' => _t('允许点赞'), '1' => _t('关闭点赞')), '0', _t('点赞功能控制'), _t('选择关闭点赞后，该文章将不显示点赞按钮'));
+    $layout->addItem($disableLike);
 }
 
 /* 加载核心逻辑库 */
@@ -2125,6 +2206,12 @@ function shufei_apply_markdown_ext($content)
         return $fullMatch;
     });
 
+    // 7. 处理视频短代码 [video]url[/video] 或 [video src="url"]
+    $content = shufei_process_video_shortcode($content);
+
+    // 8. 处理音乐短代码 [music]url[/music] 或 [music src="url"]
+    $content = shufei_process_music_shortcode($content);
+
     return $content;
 }
 
@@ -2584,4 +2671,349 @@ function shufei_build_ext_block_html($block)
     }
 
     return '';
+}
+
+/**
+ * 获取分类目录的自定义图标
+ * 通过分类缩略名匹配后台配置的图标
+ *
+ * @param string $slug 分类缩略名
+ * @return string Font Awesome 图标类名
+ */
+function shufei_get_category_icon($slug)
+{
+    $options = \Typecho\Widget::widget('Widget_Options');
+    $categoryIcons = isset($options->categoryIcons) ? $options->categoryIcons : '';
+
+    if (!empty($categoryIcons)) {
+        $lines = preg_split('/\R/', trim($categoryIcons));
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if (empty($line)) continue;
+            $parts = explode('|', $line, 2);
+            if (count($parts) == 2) {
+                $iconSlug = trim($parts[0]);
+                $iconClass = trim($parts[1]);
+                if ($iconSlug === $slug) {
+                    return $iconClass;
+                }
+            }
+        }
+    }
+
+    return 'fa-folder-open-o';
+}
+
+/**
+ * 获取自定义导航项
+ *
+ * @return array 导航项数组，每项包含 icon, name, url
+ */
+function shufei_get_custom_nav_items()
+{
+    $options = \Typecho\Widget::widget('Widget_Options');
+    $customNavItems = isset($options->customNavItems) ? $options->customNavItems : '';
+    $items = array();
+
+    if (!empty($customNavItems)) {
+        $lines = preg_split('/\R/', trim($customNavItems));
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if (empty($line)) continue;
+            $parts = explode('|', $line, 3);
+            if (count($parts) >= 2) {
+                $items[] = array(
+                    'icon' => !empty($parts[0]) ? trim($parts[0]) : 'fa-link',
+                    'name' => trim($parts[1]),
+                    'url'  => isset($parts[2]) ? trim($parts[2]) : '#'
+                );
+            }
+        }
+    }
+
+    return $items;
+}
+
+/**
+ * 获取留言板页面链接
+ *
+ * @return string 留言板页面URL，未找到返回空字符串
+ */
+function shufei_get_guestbook_url()
+{
+    $options = \Typecho\Widget::widget('Widget_Options');
+    $db = \Typecho\Db::get();
+
+    // 优先使用配置的页面ID
+    $pageId = isset($options->guestbookPageId) ? trim($options->guestbookPageId) : '';
+    if (!empty($pageId)) {
+        $row = $db->fetchRow($db->select('cid', 'slug')->from('table.contents')
+            ->where('cid = ?', intval($pageId))
+            ->where('status = ?', 'publish'));
+        if ($row) {
+            return $options->index . '/' . $row['slug'] . '.html';
+        }
+    }
+
+    // 自动查找使用留言板模板的页面
+    $rows = $db->fetchAll($db->select('cid', 'slug')->from('table.contents')
+        ->where('template = ?', 'guestbook.php')
+        ->where('status = ?', 'publish')
+        ->limit(1));
+
+    if (!empty($rows)) {
+        return $options->index . '/' . $rows[0]['slug'] . '.html';
+    }
+
+    return '';
+}
+
+/**
+ * 获取 GitHub 项目列表（带缓存）
+ *
+ * @return array 项目列表数组
+ */
+function shufei_get_github_repos()
+{
+    $options = \Typecho\Widget::widget('Widget_Options');
+    $username = isset($options->githubUsername) ? trim($options->githubUsername) : '';
+
+    if (empty($username)) {
+        return array();
+    }
+
+    $cacheTime = isset($options->githubCacheTime) ? intval($options->githubCacheTime) : 3600;
+    $cacheFile = dirname(__FILE__) . '/cache/github_repos.json';
+
+    // 尝试从缓存读取
+    if (file_exists($cacheFile)) {
+        $cache = @json_decode(file_get_contents($cacheFile), true);
+        if ($cache && isset($cache['timestamp']) && (time() - $cache['timestamp']) < $cacheTime) {
+            return $cache['repos'];
+        }
+    }
+
+    // 请求 GitHub API
+    $apiUrl = 'https://api.github.com/users/' . urlencode($username) . '/repos?sort=stars&per_page=20';
+
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $apiUrl);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+    curl_setopt($ch, CURLOPT_USERAGENT, 'ShuFeiCat-Typecho-Theme');
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    $repos = array();
+
+    if ($httpCode == 200 && $response) {
+        $data = json_decode($response, true);
+        if (is_array($data)) {
+            foreach ($data as $repo) {
+                $repos[] = array(
+                    'name' => isset($repo['name']) ? $repo['name'] : '',
+                    'full_name' => isset($repo['full_name']) ? $repo['full_name'] : '',
+                    'description' => isset($repo['description']) ? $repo['description'] : '',
+                    'url' => isset($repo['html_url']) ? $repo['html_url'] : '',
+                    'stars' => isset($repo['stargazers_count']) ? $repo['stargazers_count'] : 0,
+                    'forks' => isset($repo['forks_count']) ? $repo['forks_count'] : 0,
+                    'language' => isset($repo['language']) ? $repo['language'] : '',
+                    'updated_at' => isset($repo['updated_at']) ? $repo['updated_at'] : ''
+                );
+            }
+        }
+    }
+
+    // 写入缓存
+    $cacheDir = dirname($cacheFile);
+    if (!is_dir($cacheDir)) {
+        @mkdir($cacheDir, 0755, true);
+    }
+    @file_put_contents($cacheFile, json_encode(array(
+        'timestamp' => time(),
+        'repos' => $repos
+    )));
+
+    return $repos;
+}
+
+/**
+ * 解析评论内容中的 Markdown 语法
+ * 支持与文章相同的扩展语法
+ *
+ * @param string $text 评论原始文本
+ * @return string 解析后的 HTML
+ */
+function shufei_parse_comment_markdown($text)
+{
+    if (empty($text)) {
+        return $text;
+    }
+
+    $options = \Typecho\Widget::widget('Widget_Options');
+
+    // 先提取数学公式（防止 Markdown 破坏公式语法）
+    // 复用已有的公式提取函数，使用 <!--MATH0--> 格式占位符（不会被 Markdown 破坏）
+    $mathBlocks = array();
+    if (!empty($options->katexEnabled) && $options->katexEnabled === 'on') {
+        $text = shufei_extract_math_placeholders($text, $mathBlocks);
+    }
+
+    // 使用 Typecho 内置 Markdown 解析器
+    $html = \Utils\Markdown::convert($text);
+
+    // 还原数学公式占位符
+    if (!empty($mathBlocks)) {
+        $html = shufei_restore_math_placeholders($html, $mathBlocks);
+    }
+
+    // 应用 Markdown 扩展（高亮、提示框、Mermaid、ECharts、视频、音乐等）
+    $html = shufei_apply_markdown_ext($html);
+
+    return $html;
+}
+
+/**
+ * 处理视频短代码
+ * 支持格式：
+ * [video]url[/video]
+ * [video src="url"]
+ * [video src="url" poster="封面图url"]
+ * [video src="url" autoplay="true"]
+ *
+ * @param string $content HTML 内容
+ * @return string 处理后的 HTML 内容
+ */
+function shufei_process_video_shortcode($content)
+{
+    if ($content === null) {
+        $content = '';
+    }
+
+    // 处理 [video]url[/video] 格式
+    // Markdown 可能已将 URL 转为 <a href="url">url</a>，需要从中提取纯 URL
+    $content = preg_replace_callback(
+        '/\[video\](.*?)\[\/video\]/is',
+        function ($matches) {
+            $raw = trim($matches[1]);
+            if (empty($raw)) return '';
+            // 从 <a> 标签中提取 href
+            $url = $raw;
+            if (preg_match('/<a[^>]*href=["\']([^"\']+)["\'][^>]*>/i', $raw, $m)) {
+                $url = trim($m[1]);
+            }
+            if (empty($url)) return '';
+            return '<div class="post-video-wrap"><div class="post-video-container"><video class="post-video-player" controls preload="metadata" playsinline><source src="' . htmlspecialchars($url) . '" type="video/mp4">您的浏览器不支持视频播放</video></div></div>';
+        },
+        $content
+    );
+
+    // 处理 [video src="url" ...] 格式
+    $content = preg_replace_callback(
+        '/\[video\s+([^]]*)\]/is',
+        function ($matches) {
+            $attrs = $matches[1];
+            $src = '';
+            $poster = '';
+            $autoplay = false;
+
+            // 提取 src 属性
+            if (preg_match('/src=["\']([^"\']*)["\']/i', $attrs, $m)) {
+                $src = trim($m[1]);
+            }
+            // 提取 poster 属性
+            if (preg_match('/poster=["\']([^"\']*)["\']/i', $attrs, $m)) {
+                $poster = trim($m[1]);
+            }
+            // 提取 autoplay 属性
+            if (preg_match('/autoplay=["\']([^"\']*)["\']/i', $attrs, $m)) {
+                $autoplay = strtolower(trim($m[1])) === 'true';
+            }
+
+            if (empty($src)) return '';
+
+            $posterAttr = !empty($poster) ? ' poster="' . htmlspecialchars($poster) . '"' : '';
+            $autoplayAttr = $autoplay ? ' autoplay' : '';
+
+            return '<div class="post-video-wrap"><div class="post-video-container"><video class="post-video-player" controls preload="metadata" playsinline' . $posterAttr . $autoplayAttr . '><source src="' . htmlspecialchars($src) . '" type="video/mp4">您的浏览器不支持视频播放</video></div></div>';
+        },
+        $content
+    );
+
+    return $content;
+}
+
+/**
+ * 处理音乐短代码
+ * 支持格式：
+ * [music]url[/music]
+ * [music src="url"]
+ * [music src="url" title="歌曲名" artist="艺术家"]
+ * [music src="url" cover="封面图url"]
+ *
+ * @param string $content HTML 内容
+ * @return string 处理后的 HTML 内容
+ */
+function shufei_process_music_shortcode($content)
+{
+    if ($content === null) {
+        $content = '';
+    }
+
+    // 处理 [music]url[/music] 格式
+    // Markdown 可能已将 URL 转为 <a href="url">url</a>，需要从中提取纯 URL
+    $content = preg_replace_callback(
+        '/\[music\](.*?)\[\/music\]/is',
+        function ($matches) {
+            $raw = trim($matches[1]);
+            if (empty($raw)) return '';
+            // 从 <a> 标签中提取 href
+            $url = $raw;
+            if (preg_match('/<a[^>]*href=["\']([^"\']+)["\'][^>]*>/i', $raw, $m)) {
+                $url = trim($m[1]);
+            }
+            if (empty($url)) return '';
+            return '<div class="post-music-wrap"><div class="post-music-player"><div class="music-player-inner"><div class="music-disc"><div class="music-disc-inner"></div></div><div class="music-info"><div class="music-title">音乐播放器</div><div class="music-artist">未知艺术家</div></div><audio class="music-audio" controls preload="metadata"><source src="' . htmlspecialchars($url) . '" type="audio/mpeg">您的浏览器不支持音频播放</audio></div></div></div>';
+        },
+        $content
+    );
+
+    // 处理 [music src="url" ...] 格式
+    $content = preg_replace_callback(
+        '/\[music\s+([^]]*)\]/is',
+        function ($matches) {
+            $attrs = $matches[1];
+            $src = '';
+            $title = '音乐播放器';
+            $artist = '未知艺术家';
+            $cover = '';
+
+            if (preg_match('/src=["\']([^"\']*)["\']/i', $attrs, $m)) {
+                $src = trim($m[1]);
+            }
+            if (preg_match('/title=["\']([^"\']*)["\']/i', $attrs, $m)) {
+                $title = trim($m[1]);
+            }
+            if (preg_match('/artist=["\']([^"\']*)["\']/i', $attrs, $m)) {
+                $artist = trim($m[1]);
+            }
+            if (preg_match('/cover=["\']([^"\']*)["\']/i', $attrs, $m)) {
+                $cover = trim($m[1]);
+            }
+
+            if (empty($src)) return '';
+
+            $coverHtml = '';
+            if (!empty($cover)) {
+                $coverHtml = '<div class="music-cover" style="background-image:url(' . htmlspecialchars($cover) . ')"></div>';
+            }
+
+            return '<div class="post-music-wrap"><div class="post-music-player"><div class="music-player-inner">' . $coverHtml . '<div class="music-disc"><div class="music-disc-inner"></div></div><div class="music-info"><div class="music-title">' . htmlspecialchars($title) . '</div><div class="music-artist">' . htmlspecialchars($artist) . '</div></div><audio class="music-audio" controls preload="metadata"><source src="' . htmlspecialchars($src) . '" type="audio/mpeg">您的浏览器不支持音频播放</audio></div></div></div>';
+        },
+        $content
+    );
+
+    return $content;
 }

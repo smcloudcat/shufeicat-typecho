@@ -38,7 +38,7 @@
                     ?>
                         <li class="category-nav-item <?php if($this->is('category', $categories->slug)): ?>active<?php endif; ?>">
                             <a href="<?php $categories->permalink(); ?>">
-                                <i class="fa fa-folder-open-o"></i>
+                                <i class="fa <?php echo shufei_get_category_icon($categories->slug); ?>"></i>
                                 <span><?php $categories->name(); ?></span>
                             </a>
                         </li>
@@ -70,6 +70,78 @@
                 </ul>
             </div>
         </section>
+
+        <!-- 留言板入口 -->
+        <?php
+        $guestbookEnabled = !empty($this->options->guestbookEnabled) && $this->options->guestbookEnabled === 'on';
+        $guestbookUrl = $guestbookEnabled ? shufei_get_guestbook_url() : '';
+        if ($guestbookEnabled && !empty($guestbookUrl)):
+        ?>
+        <section class="widget guestbook-widget collapsible-widget">
+            <h3 class="widget-title collapsible-toggle"><i class="fa fa-envelope-o"></i><?php _e('留言板'); ?><i class="fa fa-chevron-down collapsible-arrow"></i></h3>
+            <div class="collapsible-content">
+                <ul class="widget-list">
+                    <li>
+                        <a href="<?php echo htmlspecialchars($guestbookUrl); ?>">
+                            <i class="fa fa-commenting-o"></i>
+                            <span><?php _e('给我留言'); ?></span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </section>
+        <?php endif; ?>
+
+        <!-- GitHub 项目入口 -->
+        <?php
+        $githubUsername = !empty($this->options->githubUsername) ? trim($this->options->githubUsername) : '';
+        if (!empty($githubUsername)):
+            // 查找使用 github 模板的页面
+            $db = \Typecho\Db::get();
+            $githubPage = $db->fetchRow($db->select('cid', 'slug')->from('table.contents')
+                ->where('template = ?', 'github.php')
+                ->where('status = ?', 'publish')
+                ->limit(1));
+            if (!empty($githubPage)):
+                $githubPageUrl = $this->options->index . '/' . $githubPage['slug'] . '.html';
+        ?>
+        <section class="widget github-widget collapsible-widget">
+            <h3 class="widget-title collapsible-toggle"><i class="fa fa-github"></i><?php _e('GitHub'); ?><i class="fa fa-chevron-down collapsible-arrow"></i></h3>
+            <div class="collapsible-content">
+                <ul class="widget-list">
+                    <li>
+                        <a href="<?php echo htmlspecialchars($githubPageUrl); ?>">
+                            <i class="fa fa-code-fork"></i>
+                            <span><?php _e('我的项目'); ?></span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </section>
+        <?php endif; ?>
+        <?php endif; ?>
+
+        <!-- 自定义导航 -->
+        <?php
+        $customNavItems = shufei_get_custom_nav_items();
+        if (!empty($customNavItems)):
+        ?>
+        <section class="widget custom-nav-widget collapsible-widget">
+            <h3 class="widget-title collapsible-toggle"><i class="fa fa-compass"></i><?php _e('快捷导航'); ?><i class="fa fa-chevron-down collapsible-arrow"></i></h3>
+            <div class="collapsible-content">
+                <ul class="widget-list custom-nav-list">
+                    <?php foreach ($customNavItems as $item): ?>
+                    <li>
+                        <a href="<?php echo htmlspecialchars($item['url']); ?>" target="_blank" rel="noopener noreferrer">
+                            <i class="fa <?php echo htmlspecialchars($item['icon']); ?>"></i>
+                            <span><?php echo htmlspecialchars($item['name']); ?></span>
+                        </a>
+                    </li>
+                    <?php endforeach; ?>
+                </ul>
+            </div>
+        </section>
+        <?php endif; ?>
 
         <!-- 友链 -->
         <?php if (!empty($this->options->sidebarBlock) && in_array('ShowLinks', $this->options->sidebarBlock) && !empty($this->options->links)): ?>

@@ -323,6 +323,19 @@
                     initAjaxComment();
                     initTurnstile();
                     initCaptcha();
+                    // 重新渲染评论区中的扩展内容
+                    if (typeof window.initMermaid === 'function') {
+                        window.initMermaid();
+                    }
+                    if (typeof window.initECharts === 'function') {
+                        window.initECharts();
+                    }
+                    if (typeof window.initKaTeX === 'function') {
+                        window.initKaTeX();
+                    }
+                    if (typeof window.initKaomojiPanel === 'function') {
+                        window.initKaomojiPanel();
+                    }
                     var targetEl = document.querySelector(commentAnchor);
                     if (targetEl) {
                         targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -511,6 +524,22 @@
 
             if (typeof window.initMarkdownExt === 'function') {
                 window.initMarkdownExt();
+            }
+
+            if (typeof window.initArticleAlert === 'function') {
+                window.initArticleAlert();
+            }
+
+            if (typeof window.initKaomojiPanel === 'function') {
+                window.initKaomojiPanel();
+            }
+
+            if (typeof window.initVideoPlayer === 'function') {
+                window.initVideoPlayer();
+            }
+
+            if (typeof window.initMusicPlayer === 'function') {
+                window.initMusicPlayer();
             }
         }, 50);
     };

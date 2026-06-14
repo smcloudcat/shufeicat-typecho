@@ -4,7 +4,7 @@
  *
  * @package ShuFeiCat
  * @author YunCat
- * @version 1.4.0-rc.6
+ * @version 1.4.0-rc.7
  * @link https://lwcat.cn
  */
 
@@ -106,6 +106,11 @@ $this->need('header.php');
                 $rawText = preg_replace('/\[([^\]]*)\]\(.*?\)/', '$1', $rawText);
                 $rawText = preg_replace('/^#{1,6}\s+/m', '', $rawText);
                 $rawText = preg_replace('/^[>\-\*\+]\s*/m', '', $rawText);
+                // 去掉数学公式语法，避免摘要中输出公式占位符或原始公式代码
+                $rawText = preg_replace('/\$\$[\s\S]+?\$\$/', '', $rawText);
+                $rawText = preg_replace('/\\\\\[[\s\S]+?\\\\\]/', '', $rawText);
+                $rawText = preg_replace('/(?<!\$)\$(?!\$)[^\$\n]+?(?<!\$)\$(?!\$)/', '', $rawText);
+                $rawText = preg_replace('/\\\\\([\s\S]+?\\\\\)/', '', $rawText);
                 $content = strip_tags($rawText);
                 $content = preg_replace('/\s+/', ' ', trim($content));
                 if (mb_strlen($content, 'UTF-8') > 80) {
