@@ -3286,6 +3286,17 @@ pre[class*="language-"].line-numbers > code {
         font-size: 20px;
     }
 
+    /* 手机端文章标题背景图：取消固定宽高比，自适应内容高度 */
+    .post-single.has-thumbnail .post-header {
+        aspect-ratio: auto;
+        min-height: 140px;
+        padding: 15px;
+    }
+
+    .post-single.has-thumbnail .post-title {
+        font-size: 18px;
+    }
+
     .post-meta {
         flex-direction: row;
         flex-wrap: wrap;
@@ -3356,6 +3367,16 @@ pre[class*="language-"].line-numbers > code {
 
     .post-title {
         font-size: 18px;
+    }
+
+    /* 小屏手机端文章标题背景图：进一步缩小最小高度 */
+    .post-single.has-thumbnail .post-header {
+        min-height: 120px;
+        padding: 12px;
+    }
+
+    .post-single.has-thumbnail .post-title {
+        font-size: 16px;
     }
 
     .read-more {
