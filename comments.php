@@ -47,8 +47,7 @@ function threadedComments($comments, $options) {
             <div class="comment-content" itemprop="commentText">
                 <?php
                 $commentOptions = \Typecho\Widget::widget('Widget_Options');
-                $commentMarkdownEnabled = !empty($commentOptions->commentMarkdownEnabled) && $commentOptions->commentMarkdownEnabled === 'on';
-                if ($commentMarkdownEnabled) {
+                if ($commentOptions->commentsMarkdown) {
                     $commentText = $comments->text;
                     if ($commentText !== null) {
                         echo shufei_parse_comment_markdown($commentText);

@@ -1036,16 +1036,6 @@ function themeConfig($form)
     $markdownExtEnabled->setAttribute('class', 'typecho-option cat-group-enhance');
     $form->addInput($markdownExtEnabled);
 
-    $commentMarkdownEnabled = new \Typecho\Widget\Helper\Form\Element\Radio(
-        'commentMarkdownEnabled',
-        array('off' => _t('关闭'), 'on' => _t('开启')),
-        'off',
-        _t('评论区 Markdown 支持'),
-        _t('介绍：开启后，评论内容将支持 Markdown 语法解析<br>支持与文章相同的 Markdown 扩展语法，包括高亮文本、任务列表等')
-    );
-    $commentMarkdownEnabled->setAttribute('class', 'typecho-option cat-group-enhance');
-    $form->addInput($commentMarkdownEnabled);
-
     $commentKaomojiEnabled = new \Typecho\Widget\Helper\Form\Element\Radio(
         'commentKaomojiEnabled',
         array('off' => _t('关闭'), 'on' => _t('开启')),
