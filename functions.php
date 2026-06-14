@@ -1137,6 +1137,11 @@ function shufei_get_random_thumbnail()
  */
 function themeFields($layout)
 {
+    // 修复自定义字段提示词与输入框重叠的问题
+    echo '<style>' .
+        '.typecho-post-option .description { clear: both; display: block; margin-top: 6px; }' .
+        '</style>';
+
     $thumbnail = new \Typecho\Widget\Helper\Form\Element\Text('thumbnail', NULL, NULL, _t('文章缩略图'), _t('留空则自动获取文章图片或随机图片'));
     $layout->addItem($thumbnail);
     $excerpt = new \Typecho\Widget\Helper\Form\Element\Text('excerpt', NULL, NULL, _t('文章简介'), _t('留空则自动截取文章内容'));
