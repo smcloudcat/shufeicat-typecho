@@ -1654,6 +1654,22 @@ img {
     margin-bottom: 15px;
 }
 
+.post-content ul,
+.post-content ol {
+    margin: 10px 0;
+    padding-left: 2em;
+}
+
+.post-content li {
+    margin-bottom: 6px;
+    line-height: 1.8;
+}
+
+.post-content li > ul,
+.post-content li > ol {
+    margin: 4px 0;
+}
+
 .post-content img {
     border-radius: 6px;
     margin: 15px 0;
