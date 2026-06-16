@@ -365,6 +365,181 @@ function themeConfig($form)
     '</script>';
     echo $dataJs;
 
+    // GitHub 项目选择器
+    $githubReposHtml = '<div class="typecho-option cat-group-nav-github-selector" style="display:none">' .
+        '<div class="cat-data-section">' .
+            '<div class="cat-data-title">GitHub 项目选择</div>' .
+            '<div class="cat-data-desc">填写 GitHub 用户名并保存设置后，点击下方按钮获取项目列表，勾选需要在前台展示的项目。<br>如果不勾选任何项目，则默认展示全部公开项目。</div>' .
+            '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">' .
+                '<button type="button" class="cat-data-btn cat-data-btn-primary" id="cat-github-fetch-btn">' .
+                    '<i class="fa fa-github" style="margin-right:6px"></i>获取项目列表' .
+                '</button>' .
+                '<button type="button" class="cat-data-btn cat-data-btn-warning" id="cat-github-toggle-btn" style="display:none;">' .
+                    '<i class="fa fa-exchange" style="margin-right:6px"></i>一键反选' .
+                '</button>' .
+            '</div>' .
+            '<span id="cat-github-fetch-status" style="margin-left:12px;font-size:13px;color:#999;"></span>' .
+            '<div id="cat-github-repos-container" style="margin-top:15px;max-height:400px;overflow-y:auto;"></div>' .
+        '</div>' .
+    '</div>';
+    echo $githubReposHtml;
+
+    echo <<<GITHUBJS
+<script>
+(function() {
+    window.addEventListener("load", function() {
+        var selectorEl = document.querySelector(".cat-group-nav-github-selector");
+        if (selectorEl) {
+            selectorEl.style.display = "";
+            var navPane = document.getElementById("cat-nav");
+            if (navPane) navPane.appendChild(selectorEl);
+        }
+
+        var fetchBtn = document.getElementById("cat-github-fetch-btn");
+        var fetchStatus = document.getElementById("cat-github-fetch-status");
+        var reposContainer = document.getElementById("cat-github-repos-container");
+        var selectedReposInput = document.querySelector("textarea[name=githubSelectedRepos]");
+        var toggleBtn = document.getElementById("cat-github-toggle-btn");
+
+        function getSelectedRepos() {
+            if (!selectedReposInput || !selectedReposInput.value.trim()) return [];
+            try { return JSON.parse(selectedReposInput.value); } catch(e) { return []; }
+        }
+
+        function updateSelectedRepos() {
+            if (!reposContainer) return;
+            var checked = reposContainer.querySelectorAll("input[data-repo-name]:checked");
+            var selected = [];
+            checked.forEach(function(cb) { selected.push(cb.getAttribute("data-repo-name")); });
+            if (selectedReposInput) selectedReposInput.value = selected.length > 0 ? JSON.stringify(selected) : "";
+        }
+
+        function renderRepos(repos) {
+            if (!reposContainer) return;
+            var selected = getSelectedRepos();
+            if (repos.length === 0) {
+                reposContainer.innerHTML = '<div style="padding:20px;text-align:center;color:#999;">暂无公开项目</div>';
+                return;
+            }
+            var html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;">';
+            repos.forEach(function(repo) {
+                var isChecked = selected.length === 0 || selected.indexOf(repo.name) !== -1;
+                html += '<label style="display:flex;align-items:flex-start;gap:8px;padding:10px 12px;background:#fafafa;border:1px solid #eee;border-radius:6px;cursor:pointer;transition:all .2s;font-size:13px;" onmouseover="this.style.borderColor=\'#467B96\'" onmouseout="this.style.borderColor=\'#eee\'">';
+                html += '<input type="checkbox" data-repo-name="' + repo.name + '" ' + (isChecked ? "checked" : "") + ' style="margin-top:2px;accent-color:#467B96;">';
+                html += '<div style="flex:1;min-width:0;">';
+                html += '<div style="font-weight:600;color:#333;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + repo.name + '</div>';
+                html += '<div style="color:#999;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (repo.description || '暂无描述') + '</div>';
+                html += '<div style="margin-top:4px;display:flex;gap:12px;color:#aaa;font-size:11px;">';
+                if (repo.language) {
+                    html += '<span><i class="fa fa-circle" style="font-size:8px;color:#467B96;"></i> ' + repo.language + '</span>';
+                }
+                html += '<span><i class="fa fa-star"></i> ' + repo.stars + '</span>';
+                html += '</div></div></label>';
+            });
+            html += '</div>';
+            reposContainer.innerHTML = html;
+
+            reposContainer.querySelectorAll("input[data-repo-name]").forEach(function(cb) {
+                cb.addEventListener("change", updateSelectedRepos);
+            });
+
+            if (toggleBtn) toggleBtn.style.display = "";
+        }
+
+        if (toggleBtn) {
+            toggleBtn.addEventListener("click", function() {
+                if (!reposContainer) return;
+                reposContainer.querySelectorAll("input[data-repo-name]").forEach(function(cb) {
+                    cb.checked = !cb.checked;
+                });
+                updateSelectedRepos();
+            });
+        }
+
+        if (fetchBtn) {
+            fetchBtn.addEventListener("click", function() {
+                var usernameInput = document.querySelector("input[name=githubUsername]");
+                var username = usernameInput ? usernameInput.value.trim() : "";
+                if (!username) {
+                    fetchStatus.textContent = "请先填写 GitHub 用户名并保存设置";
+                    fetchStatus.style.color = "#e74c3c";
+                    return;
+                }
+                fetchStatus.textContent = "正在获取项目列表...";
+                fetchStatus.style.color = "#999";
+                fetchBtn.disabled = true;
+
+                var page = 1;
+                var allRepos = [];
+
+                function fetchPage() {
+                    var xhr = new XMLHttpRequest();
+                    xhr.open("GET", "https://api.github.com/users/" + encodeURIComponent(username) + "/repos?sort=stars&per_page=100&page=" + page, true);
+                    xhr.setRequestHeader("Accept", "application/vnd.github.v3+json");
+                    xhr.onload = function() {
+                        if (xhr.status === 200) {
+                            try {
+                                var data = JSON.parse(xhr.responseText);
+                                if (!Array.isArray(data) || data.length === 0) {
+                                    renderRepos(allRepos);
+                                    fetchStatus.textContent = "共获取到 " + allRepos.length + " 个项目";
+                                    fetchStatus.style.color = "#389e0d";
+                                    fetchBtn.disabled = false;
+                                    return;
+                                }
+                                data.forEach(function(r) {
+                                    allRepos.push({
+                                        name: r.name || "",
+                                        description: r.description || "",
+                                        language: r.language || "",
+                                        stars: r.stargazers_count || 0,
+                                        forks: r.forks_count || 0
+                                    });
+                                });
+                                if (data.length < 100) {
+                                    renderRepos(allRepos);
+                                    fetchStatus.textContent = "共获取到 " + allRepos.length + " 个项目";
+                                    fetchStatus.style.color = "#389e0d";
+                                    fetchBtn.disabled = false;
+                                } else {
+                                    page++;
+                                    fetchPage();
+                                }
+                            } catch(e) {
+                                fetchStatus.textContent = "解析数据失败";
+                                fetchStatus.style.color = "#e74c3c";
+                                fetchBtn.disabled = false;
+                            }
+                        } else if (xhr.status === 403) {
+                            fetchStatus.textContent = "GitHub API 请求频率受限，请稍后再试";
+                            fetchStatus.style.color = "#e74c3c";
+                            fetchBtn.disabled = false;
+                        } else if (xhr.status === 404) {
+                            fetchStatus.textContent = "用户名不存在，请检查后重试";
+                            fetchStatus.style.color = "#e74c3c";
+                            fetchBtn.disabled = false;
+                        } else {
+                            fetchStatus.textContent = "请求失败 (HTTP " + xhr.status + ")";
+                            fetchStatus.style.color = "#e74c3c";
+                            fetchBtn.disabled = false;
+                        }
+                    };
+                    xhr.onerror = function() {
+                        fetchStatus.textContent = "网络请求失败，请检查网络连接";
+                        fetchStatus.style.color = "#e74c3c";
+                        fetchBtn.disabled = false;
+                    };
+                    xhr.send();
+                }
+
+                fetchPage();
+            });
+        }
+    });
+})();
+</script>
+GITHUBJS;
+
     $currentVersion = shufei_get_theme_version();
     $updateResult = shufei_check_theme_update();
     if ($updateResult && isset($updateResult['code']) && $updateResult['code'] == 1) {
@@ -1092,7 +1267,7 @@ function themeConfig($form)
         null,
         null,
         _t('GitHub 用户名'),
-        _t('介绍：填写 GitHub 用户名，将自动获取该用户的前 20 个公开项目并展示<br>留空则不显示 GitHub 项目页面入口')
+        _t('介绍：填写 GitHub 用户名，保存后可在下方获取项目列表并选择展示的项目<br>留空则不显示 GitHub 项目页面入口')
     );
     $githubUsername->setAttribute('class', 'typecho-option cat-group-nav');
     $form->addInput($githubUsername);
@@ -1106,6 +1281,16 @@ function themeConfig($form)
     );
     $githubCacheTime->setAttribute('class', 'typecho-option cat-group-nav');
     $form->addInput($githubCacheTime);
+
+    $githubSelectedRepos = new \Typecho\Widget\Helper\Form\Element\Textarea(
+        'githubSelectedRepos',
+        null,
+        null,
+        _t('展示的 GitHub 项目'),
+        _t('介绍：点击下方"获取项目列表"按钮加载项目，勾选需要展示的项目<br>如果不选择任何项目，则展示全部公开项目')
+    );
+    $githubSelectedRepos->setAttribute('class', 'typecho-option cat-group-nav');
+    $form->addInput($githubSelectedRepos);
 }
 
 /**
@@ -2782,6 +2967,16 @@ function shufei_get_github_repos()
         return array();
     }
 
+    // 获取选定的项目列表
+    $selectedRepos = array();
+    $selectedReposRaw = isset($options->githubSelectedRepos) ? trim($options->githubSelectedRepos) : '';
+    if (!empty($selectedReposRaw)) {
+        $decoded = @json_decode($selectedReposRaw, true);
+        if (is_array($decoded)) {
+            $selectedRepos = $decoded;
+        }
+    }
+
     $cacheTime = isset($options->githubCacheTime) ? intval($options->githubCacheTime) : 3600;
     $cacheFile = dirname(__FILE__) . '/cache/github_repos.json';
 
@@ -2789,54 +2984,80 @@ function shufei_get_github_repos()
     if (file_exists($cacheFile)) {
         $cache = @json_decode(file_get_contents($cacheFile), true);
         if ($cache && isset($cache['timestamp']) && (time() - $cache['timestamp']) < $cacheTime) {
-            return $cache['repos'];
-        }
-    }
-
-    // 请求 GitHub API
-    $apiUrl = 'https://api.github.com/users/' . urlencode($username) . '/repos?sort=stars&per_page=20';
-
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $apiUrl);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
-    curl_setopt($ch, CURLOPT_USERAGENT, 'ShuFeiCat-Typecho-Theme');
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-
-    $repos = array();
-
-    if ($httpCode == 200 && $response) {
-        $data = json_decode($response, true);
-        if (is_array($data)) {
-            foreach ($data as $repo) {
-                $repos[] = array(
-                    'name' => isset($repo['name']) ? $repo['name'] : '',
-                    'full_name' => isset($repo['full_name']) ? $repo['full_name'] : '',
-                    'description' => isset($repo['description']) ? $repo['description'] : '',
-                    'url' => isset($repo['html_url']) ? $repo['html_url'] : '',
-                    'stars' => isset($repo['stargazers_count']) ? $repo['stargazers_count'] : 0,
-                    'forks' => isset($repo['forks_count']) ? $repo['forks_count'] : 0,
-                    'language' => isset($repo['language']) ? $repo['language'] : '',
-                    'updated_at' => isset($repo['updated_at']) ? $repo['updated_at'] : ''
-                );
+            $repos = $cache['repos'];
+            // 按选定项目过滤
+            if (!empty($selectedRepos)) {
+                $repos = array_filter($repos, function($repo) use ($selectedRepos) {
+                    return in_array($repo['name'], $selectedRepos);
+                });
+                $repos = array_values($repos);
             }
+            return $repos;
         }
     }
 
-    // 写入缓存
+    // 请求 GitHub API - 获取全部项目
+    $allRepos = array();
+    $page = 1;
+    $maxPages = 5; // 最多获取5页，每页100个
+
+    while ($page <= $maxPages) {
+        $apiUrl = 'https://api.github.com/users/' . urlencode($username) . '/repos?sort=stars&per_page=100&page=' . $page;
+
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $apiUrl);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        curl_setopt($ch, CURLOPT_USERAGENT, 'ShuFeiCat-Typecho-Theme');
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($httpCode == 200 && $response) {
+            $data = json_decode($response, true);
+            if (is_array($data) && count($data) > 0) {
+                foreach ($data as $repo) {
+                    $allRepos[] = array(
+                        'name' => isset($repo['name']) ? $repo['name'] : '',
+                        'full_name' => isset($repo['full_name']) ? $repo['full_name'] : '',
+                        'description' => isset($repo['description']) ? $repo['description'] : '',
+                        'url' => isset($repo['html_url']) ? $repo['html_url'] : '',
+                        'stars' => isset($repo['stargazers_count']) ? $repo['stargazers_count'] : 0,
+                        'forks' => isset($repo['forks_count']) ? $repo['forks_count'] : 0,
+                        'language' => isset($repo['language']) ? $repo['language'] : '',
+                        'updated_at' => isset($repo['updated_at']) ? $repo['updated_at'] : ''
+                    );
+                }
+                if (count($data) < 100) break;
+                $page++;
+            } else {
+                break;
+            }
+        } else {
+            break;
+        }
+    }
+
+    // 写入缓存（保存全部项目）
     $cacheDir = dirname($cacheFile);
     if (!is_dir($cacheDir)) {
         @mkdir($cacheDir, 0755, true);
     }
     @file_put_contents($cacheFile, json_encode(array(
         'timestamp' => time(),
-        'repos' => $repos
+        'repos' => $allRepos
     )));
 
-    return $repos;
+    // 按选定项目过滤
+    if (!empty($selectedRepos)) {
+        $allRepos = array_filter($allRepos, function($repo) use ($selectedRepos) {
+            return in_array($repo['name'], $selectedRepos);
+        });
+        $allRepos = array_values($allRepos);
+    }
+
+    return $allRepos;
 }
 
 /**
