@@ -453,6 +453,10 @@
         if (typeof window.destroyECharts === 'function') {
             window.destroyECharts();
         }
+        // 清理文章目录滚动监听
+        if (typeof window.destroyTableOfContents === 'function') {
+            window.destroyTableOfContents();
+        }
         window.reinitPageFunctions();
     });
     
@@ -524,6 +528,10 @@
 
             if (typeof window.initMarkdownExt === 'function') {
                 window.initMarkdownExt();
+            }
+
+            if (typeof window.initTableOfContents === 'function') {
+                window.initTableOfContents();
             }
 
             if (typeof window.initArticleAlert === 'function') {

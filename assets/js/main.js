@@ -741,6 +741,102 @@ window.initKaTeX = function(retryCount) {
 };
 
 /**
+ * 文章目录（Table of Contents）功能
+ * 自动提取文章中的 h2/h3 标题，生成目录导航
+ * 支持滚动高亮当前目录项，点击平滑滚动定位
+ */
+window.initTableOfContents = function() {
+    var tocWidget = document.getElementById('toc-widget');
+    var tocNav = document.getElementById('toc-nav');
+    if (!tocWidget || !tocNav) return;
+
+    var postContent = document.querySelector('.post-content');
+    if (!postContent) {
+        tocWidget.style.display = 'none';
+        return;
+    }
+
+    var headings = postContent.querySelectorAll('h2, h3');
+    if (headings.length === 0) {
+        tocWidget.style.display = 'none';
+        return;
+    }
+
+    // 为标题添加 id（如果没有的话）
+    var headingList = [];
+    var idCounter = 0;
+    headings.forEach(function(heading) {
+        if (!heading.id) {
+            heading.id = 'toc-heading-' + (++idCounter);
+        }
+        headingList.push(heading);
+    });
+
+    // 构建目录 HTML
+    var html = '<ul class="toc-list">';
+    headingList.forEach(function(heading, index) {
+        var level = heading.tagName.toLowerCase() === 'h2' ? 2 : 3;
+        var indent = level === 3 ? ' toc-item-h3' : '';
+        html += '<li class="toc-item' + indent + '">';
+        html += '<a class="toc-link" href="#' + heading.id + '" data-target="' + heading.id + '">';
+        html += heading.textContent.trim();
+        html += '</a></li>';
+    });
+    html += '</ul>';
+
+    tocNav.innerHTML = html;
+    tocWidget.style.display = '';
+
+    // 点击目录项平滑滚动
+    tocNav.addEventListener('click', function(e) {
+        var link = e.target.closest('.toc-link');
+        if (!link) return;
+        e.preventDefault();
+        var targetId = link.getAttribute('data-target');
+        var target = document.getElementById(targetId);
+        if (target) {
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    });
+
+    // 滚动高亮当前目录项
+    var tocLinks = tocNav.querySelectorAll('.toc-link');
+    var scrollHandler = throttle(function() {
+        var scrollTop = window.scrollY;
+        var currentId = '';
+        headingList.forEach(function(heading) {
+            if (heading.offsetTop - 80 <= scrollTop) {
+                currentId = heading.id;
+            }
+        });
+        tocLinks.forEach(function(link) {
+            if (link.getAttribute('data-target') === currentId) {
+                link.classList.add('toc-active');
+            } else {
+                link.classList.remove('toc-active');
+            }
+        });
+    }, 100);
+
+    window.addEventListener('scroll', scrollHandler);
+    // 初始触发一次
+    scrollHandler();
+
+    // 保存清理函数，PJAX 切换时移除滚动监听
+    window._tocScrollHandler = scrollHandler;
+};
+
+/**
+ * 清理文章目录滚动监听（PJAX 切换前调用）
+ */
+window.destroyTableOfContents = function() {
+    if (window._tocScrollHandler) {
+        window.removeEventListener('scroll', window._tocScrollHandler);
+        window._tocScrollHandler = null;
+    }
+};
+
+/**
  * Markdown 扩展功能初始化
  * 处理任务列表交互、折叠区块、提示框等前端增强
  */
@@ -982,6 +1078,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 初始化 Markdown 扩展功能
     setTimeout(window.initMarkdownExt, 500);
+
+    // 初始化文章目录
+    setTimeout(window.initTableOfContents, 520);
 
     // 初始化文章提示弹窗关闭功能
     window.initArticleAlert();
