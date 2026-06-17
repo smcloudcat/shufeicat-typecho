@@ -748,17 +748,28 @@ window.initKaTeX = function(retryCount) {
 window.initTableOfContents = function() {
     var tocWidget = document.getElementById('toc-widget');
     var tocNav = document.getElementById('toc-nav');
-    if (!tocWidget || !tocNav) return;
+    var mobileTocNav = document.getElementById('mobile-toc-nav');
+    var mobileTocBtn = document.getElementById('mobile-toc-btn');
+    if (!tocWidget || !tocNav) {
+        // 非文章页：清理手机端目录状态
+        if (mobileTocNav) mobileTocNav.innerHTML = '';
+        if (mobileTocBtn) mobileTocBtn.classList.remove('has-toc');
+        return;
+    }
 
     var postContent = document.querySelector('.post-content');
     if (!postContent) {
         tocWidget.style.display = 'none';
+        if (mobileTocNav) mobileTocNav.innerHTML = '';
+        if (mobileTocBtn) mobileTocBtn.classList.remove('has-toc');
         return;
     }
 
     var headings = postContent.querySelectorAll('h2, h3');
     if (headings.length === 0) {
         tocWidget.style.display = 'none';
+        if (mobileTocNav) mobileTocNav.innerHTML = '';
+        if (mobileTocBtn) mobileTocBtn.classList.remove('has-toc');
         return;
     }
 
@@ -785,9 +796,11 @@ window.initTableOfContents = function() {
     html += '</ul>';
 
     tocNav.innerHTML = html;
+    if (mobileTocNav) mobileTocNav.innerHTML = html;
     tocWidget.style.display = '';
+    if (mobileTocBtn) mobileTocBtn.classList.add('has-toc');
 
-    // 点击目录项平滑滚动
+    // 点击目录项平滑滚动（桌面端）
     tocNav.addEventListener('click', function(e) {
         var link = e.target.closest('.toc-link');
         if (!link) return;
@@ -799,8 +812,10 @@ window.initTableOfContents = function() {
         }
     });
 
-    // 滚动高亮当前目录项
-    var tocLinks = tocNav.querySelectorAll('.toc-link');
+    // 手机端目录项点击通过 document 事件委托处理（见 initMobileToc IIFE），避免 PJAX 重复绑定
+
+    // 滚动高亮当前目录项（同时更新桌面端和手机端）
+    var tocLinks = document.querySelectorAll('#toc-nav .toc-link, #mobile-toc-nav .toc-link');
     var scrollHandler = throttle(function() {
         var scrollTop = window.scrollY;
         var currentId = '';
@@ -833,6 +848,10 @@ window.destroyTableOfContents = function() {
     if (window._tocScrollHandler) {
         window.removeEventListener('scroll', window._tocScrollHandler);
         window._tocScrollHandler = null;
+    }
+    // PJAX 切换前关闭手机端目录侧边栏
+    if (typeof window.closeMobileToc === 'function') {
+        window.closeMobileToc();
     }
 };
 
@@ -1188,6 +1207,75 @@ window.initMusicPlayer = function() {
     });
 };
 
+/**
+ * 手机端文章目录侧边栏开关功能
+ * 使用 document 级别事件委托，兼容 PJAX
+ */
+(function() {
+    function openMobileToc() {
+        var sidebar = document.getElementById('mobile-toc-sidebar');
+        var shade = document.getElementById('mobile-toc-shade');
+        if (sidebar) sidebar.classList.add('open');
+        if (shade) shade.classList.add('active');
+    }
+
+    window.closeMobileToc = function() {
+        var sidebar = document.getElementById('mobile-toc-sidebar');
+        var shade = document.getElementById('mobile-toc-shade');
+        if (sidebar) sidebar.classList.remove('open');
+        if (shade) shade.classList.remove('active');
+    };
+
+    window.openMobileToc = openMobileToc;
+
+    if (!window._mobileTocDocBound) {
+        window._mobileTocDocBound = true;
+
+        document.addEventListener('click', function(e) {
+            // 点击触发按钮打开
+            if (e.target.closest('#mobile-toc-btn')) {
+                e.preventDefault();
+                openMobileToc();
+                return;
+            }
+            // 点击关闭按钮关闭
+            if (e.target.closest('#mobile-toc-close')) {
+                e.preventDefault();
+                window.closeMobileToc();
+                return;
+            }
+            // 点击遮罩层关闭
+            if (e.target.closest('#mobile-toc-shade')) {
+                e.preventDefault();
+                window.closeMobileToc();
+                return;
+            }
+            // 点击手机端目录项：平滑滚动并关闭侧边栏
+            var mobileTocLink = e.target.closest('#mobile-toc-nav .toc-link');
+            if (mobileTocLink) {
+                e.preventDefault();
+                var targetId = mobileTocLink.getAttribute('data-target');
+                var target = document.getElementById(targetId);
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+                window.closeMobileToc();
+                return;
+            }
+        });
+
+        // ESC 键关闭
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                var sidebar = document.getElementById('mobile-toc-sidebar');
+                if (sidebar && sidebar.classList.contains('open')) {
+                    window.closeMobileToc();
+                }
+            }
+        });
+    }
+})();
+
 document.addEventListener('DOMContentLoaded', function() {
     // 初始化夜间模式（优先执行，避免页面闪烁）
     window.initDarkMode();
@@ -1197,6 +1285,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 返回顶部功能
     const backToTop = document.getElementById('back-to-top');
+    const mobileTocBtn = document.getElementById('mobile-toc-btn');
     if (backToTop) {
         backToTop.addEventListener('click', function() {
             window.scrollTo({
@@ -1205,12 +1294,14 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
         
-        // 滚动显示/隐藏（节流）
+        // 滚动显示/隐藏（节流）— 同时控制返回顶部和手机端目录按钮
         window.addEventListener('scroll', throttle(function() {
             if (window.scrollY > 300) {
                 backToTop.classList.add('show');
+                if (mobileTocBtn) mobileTocBtn.classList.add('show');
             } else {
                 backToTop.classList.remove('show');
+                if (mobileTocBtn) mobileTocBtn.classList.remove('show');
             }
         }, 150));
     }

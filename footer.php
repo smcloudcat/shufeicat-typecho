@@ -56,6 +56,25 @@
     <i class="fa fa-angle-up"></i>
 </div>
 
+<!-- 手机端文章目录触发按钮（仅文章页且拥有目录时显示） -->
+<div id="mobile-toc-btn" title="<?php _e('文章目录'); ?>">
+    <i class="fa fa-list-ul"></i>
+</div>
+
+<!-- 手机端文章目录侧边栏（从右侧划出） -->
+<div id="mobile-toc-sidebar">
+    <div class="mobile-toc-header">
+        <h3><i class="fa fa-list"></i> <?php _e('文章目录'); ?></h3>
+        <button id="mobile-toc-close" title="<?php _e('关闭'); ?>">
+            <i class="fa fa-times"></i>
+        </button>
+    </div>
+    <nav class="mobile-toc-nav" id="mobile-toc-nav"></nav>
+</div>
+
+<!-- 手机端文章目录遮罩层 -->
+<div id="mobile-toc-shade"></div>
+
 <?php $this->footer(); ?>
 
 <?php
