@@ -84,7 +84,9 @@ $jsUrls = [
     'mermaid' => $themeUrl . 'assets/vendor/mermaid/mermaid.min.js',
     'echarts' => $themeUrl . 'assets/vendor/echarts/echarts.min.js',
     'katex' => $themeUrl . 'assets/vendor/katex/katex.min.js',
-    'katexAutoRender' => $themeUrl . 'assets/vendor/katex/auto-render.min.js'
+    'katexAutoRender' => $themeUrl . 'assets/vendor/katex/auto-render.min.js',
+    'emojiList' => $themeUrl . 'assets/vendor/jquery-emoji/js/emoji.list.js',
+    'emoji' => $themeUrl . 'assets/vendor/jquery-emoji/js/jquery.emoji.min.js'
 ];
 
 // 根据配置调整资源路径
@@ -113,6 +115,8 @@ if ($resourceMode === 'cdn') {
     $jsUrls['echarts'] = $customCdn . '/assets/vendor/echarts/echarts.min.js';
     $jsUrls['katex'] = $customCdn . '/assets/vendor/katex/katex.min.js';
     $jsUrls['katexAutoRender'] = $customCdn . '/assets/vendor/katex/auto-render.min.js';
+    $jsUrls['emojiList'] = $customCdn . '/assets/vendor/jquery-emoji/js/emoji.list.js';
+    $jsUrls['emoji'] = $customCdn . '/assets/vendor/jquery-emoji/js/jquery.emoji.min.js';
 }
 // local 模式使用默认的 themeUrl 路径
 ?>

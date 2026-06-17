@@ -6021,12 +6021,12 @@ pre[class*="language-"].line-numbers > code {
     color: #8b949e;
 }
 
-/* ===== 颜文字面板 ===== */
-.kaomoji-panel {
+/* ===== 表情面板 ===== */
+.emoji-panel {
     margin-top: 8px;
 }
 
-.kaomoji-toggle {
+.emoji-toggle {
     display: inline-flex;
     align-items: center;
     gap: 4px;
@@ -6041,39 +6041,98 @@ pre[class*="language-"].line-numbers > code {
     user-select: none;
 }
 
-.kaomoji-toggle:hover {
+.emoji-toggle:hover {
     background: #e8e8e8;
     color: #333;
 }
 
-.kaomoji-list {
-    margin-top: 8px;
+/* 自定义表情面板 */
+.sf-emoji-container {
+    position: absolute;
+    z-index: 9999;
     background: #fff;
     border: 1px solid #e5e5e5;
     border-radius: 8px;
-    padding: 12px;
-    max-height: 220px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    width: 400px;
+    max-width: 90vw;
+    display: none;
+}
+
+.sf-emoji-loading {
+    padding: 30px;
+    text-align: center;
+    color: #999;
+    font-size: 14px;
+}
+
+.sf-emoji-tabs {
+    border-bottom: 1px solid #eee;
+}
+
+.sf-emoji-tabs ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.sf-emoji-tabs li {
+    padding: 8px 14px;
+    cursor: pointer;
+    font-size: 13px;
+    color: #666;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    user-select: none;
+}
+
+.sf-emoji-tabs li:hover {
+    color: #333;
+}
+
+.sf-emoji-tabs li.active {
+    color: var(--primary-color, #FF6B6B);
+    border-bottom-color: var(--primary-color, #FF6B6B);
+}
+
+.sf-emoji-content {
+    padding: 8px;
+    max-height: 260px;
     overflow-y: auto;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
 }
 
-.kaomoji-category {
-    margin-bottom: 10px;
+.sf-emoji-tab {
+    line-height: 0;
 }
 
-.kaomoji-category:last-child {
-    margin-bottom: 0;
+.sf-emoji-item {
+    width: 28px;
+    height: 28px;
+    margin: 2px;
+    cursor: pointer;
+    vertical-align: middle;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    transition: all 0.15s;
 }
 
-.kaomoji-category-title {
-    display: block;
+.sf-emoji-item:hover {
+    border-color: var(--primary-color, #FF6B6B);
+    background: #f8f8f8;
+    transform: scale(1.1);
+}
+
+.sf-kaomoji-label {
+    width: 100%;
     font-size: 12px;
     color: #999;
-    margin-bottom: 6px;
-    font-weight: 600;
+    padding: 6px 4px 2px;
+    line-height: normal;
 }
 
-.kaomoji-item {
+.sf-kaomoji-item {
     display: inline-block;
     padding: 4px 8px;
     margin: 2px;
@@ -6081,48 +6140,84 @@ pre[class*="language-"].line-numbers > code {
     border: 1px solid #eee;
     border-radius: 4px;
     cursor: pointer;
-    font-size: 13px;
+    font-size: 14px;
     transition: all 0.15s;
     user-select: none;
+    line-height: normal;
 }
 
-.kaomoji-item:hover {
+.sf-kaomoji-item:hover {
     background: var(--primary-color, #FF6B6B);
     color: #fff;
     border-color: var(--primary-color, #FF6B6B);
     transform: scale(1.05);
 }
 
-[data-theme="dark"] .kaomoji-toggle {
+/* 评论中的表情图片样式 */
+.comment-content .wp-smiley {
+    height: 22px !important;
+    width: auto !important;
+    max-height: none !important;
+    vertical-align: text-bottom;
+    -webkit-box-shadow: none !important;
+    box-shadow: none !important;
+    border: none !important;
+    display: inline;
+    margin: 0 1px;
+}
+
+/* 暗色模式 */
+[data-theme="dark"] .emoji-toggle {
     background: #2a2a3a;
     border-color: #3a3a4a;
     color: #aaa;
 }
 
-[data-theme="dark"] .kaomoji-toggle:hover {
+[data-theme="dark"] .emoji-toggle:hover {
     background: #3a3a4a;
     color: #ddd;
 }
 
-[data-theme="dark"] .kaomoji-list {
+[data-theme="dark"] .sf-emoji-container {
     background: #1e1e2e;
     border-color: #3a3a4a;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
 }
 
-[data-theme="dark"] .kaomoji-category-title {
-    color: #777;
+[data-theme="dark"] .sf-emoji-tabs {
+    border-bottom-color: #3a3a4a;
 }
 
-[data-theme="dark"] .kaomoji-item {
+[data-theme="dark"] .sf-emoji-tabs li {
+    color: #aaa;
+}
+
+[data-theme="dark"] .sf-emoji-tabs li:hover {
+    color: #ddd;
+}
+
+[data-theme="dark"] .sf-emoji-tabs li.active {
+    color: var(--primary-color, #FF6B6B);
+}
+
+[data-theme="dark"] .sf-emoji-item:hover {
+    background: #2a2a3a;
+}
+
+[data-theme="dark"] .sf-kaomoji-item {
     background: #2a2a3a;
     border-color: #3a3a4a;
     color: #ccc;
 }
 
-[data-theme="dark"] .kaomoji-item:hover {
+[data-theme="dark"] .sf-kaomoji-item:hover {
     background: var(--primary-color, #FF6B6B);
     color: #fff;
     border-color: var(--primary-color, #FF6B6B);
+}
+
+[data-theme="dark"] .sf-kaomoji-label {
+    color: #777;
 }
 
 /* ===== 视频播放器 ===== */

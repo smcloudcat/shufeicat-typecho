@@ -333,8 +333,8 @@
                     if (typeof window.initKaTeX === 'function') {
                         window.initKaTeX();
                     }
-                    if (typeof window.initKaomojiPanel === 'function') {
-                        window.initKaomojiPanel();
+                    if (typeof window.initEmojiPanel === 'function') {
+                        window.initEmojiPanel();
                     }
                     var targetEl = document.querySelector(commentAnchor);
                     if (targetEl) {
@@ -538,8 +538,8 @@
                 window.initArticleAlert();
             }
 
-            if (typeof window.initKaomojiPanel === 'function') {
-                window.initKaomojiPanel();
+            if (typeof window.initEmojiPanel === 'function') {
+                window.initEmojiPanel();
             }
 
             if (typeof window.initVideoPlayer === 'function') {

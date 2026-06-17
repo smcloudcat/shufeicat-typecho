@@ -897,47 +897,213 @@ window.initArticleAlert = function() {
 };
 
 /**
- * 颜文字面板功能
+ * 统一表情面板功能（纯自定义实现，不依赖 jQuery-emoji 插件）
+ * 包含：颜文字、阿鲁、QQ、微博、贴吧表情
+ * 懒加载：点击表情按钮时才加载 emoji.list.js
  */
-window.initKaomojiPanel = function() {
-    var toggle = document.getElementById('kaomoji-toggle');
-    var list = document.getElementById('kaomoji-list');
-    if (!toggle || !list) return;
+window.initEmojiPanel = function() {
+    var emojiToggle = document.getElementById('emoji-toggle');
+    var textarea = document.getElementById('textarea');
+    if (!emojiToggle || !textarea) return;
 
-    // 切换面板显示
-    toggle.addEventListener('click', function(e) {
-        e.preventDefault();
+    // 清理 PJAX 切换前残留的旧面板
+    var oldPanel = document.getElementById('sf-emoji-container');
+    if (oldPanel) oldPanel.remove();
+
+    // 避免重复绑定（PJAX 切换后 emojiToggle 是新元素，不会触发此判断）
+    if (emojiToggle._emojiBound) return;
+    emojiToggle._emojiBound = true;
+
+    var panel = null;
+
+    // 点击表情按钮
+    emojiToggle.addEventListener('click', function(e) {
         e.stopPropagation();
-        if (list.style.display === 'none') {
-            list.style.display = 'block';
+        if (!panel) {
+            // 首次点击，创建面板
+            panel = document.createElement('div');
+            panel.className = 'sf-emoji-container';
+            panel.id = 'sf-emoji-container';
+            panel.innerHTML = '<div class="sf-emoji-loading">加载中...</div>';
+            document.body.appendChild(panel);
+            _showPanel();
+
+            // 懒加载 emoji.list.js
+            _loadEmojiList(function() {
+                _buildPanelContent();
+                _showPanel();
+            });
         } else {
-            list.style.display = 'none';
+            // 切换显示/隐藏
+            if (panel.style.display === 'block') {
+                panel.style.display = 'none';
+            } else {
+                _showPanel();
+            }
         }
     });
+
+    function _showPanel() {
+        if (!panel) return;
+        var rect = emojiToggle.getBoundingClientRect();
+        panel.style.display = 'block';
+        panel.style.top = (window.scrollY + rect.bottom + 4) + 'px';
+        panel.style.left = (window.scrollX + rect.left) + 'px';
+    }
 
     // 点击外部关闭面板
     document.addEventListener('click', function(e) {
-        var panel = document.getElementById('kaomoji-panel');
-        if (panel && !panel.contains(e.target)) {
-            list.style.display = 'none';
+        if (panel && panel.style.display === 'block' && !panel.contains(e.target) && e.target !== emojiToggle) {
+            panel.style.display = 'none';
         }
     });
 
-    // 点击颜文字插入到评论框
-    var items = list.querySelectorAll('.kaomoji-item');
-    var textarea = document.getElementById('textarea');
-    items.forEach(function(item) {
-        item.addEventListener('click', function() {
-            if (!textarea) return;
-            var kaomoji = this.getAttribute('data-kaomoji') || this.textContent;
-            var start = textarea.selectionStart;
-            var end = textarea.selectionEnd;
-            var text = textarea.value;
-            textarea.value = text.substring(0, start) + kaomoji + text.substring(end);
-            textarea.selectionStart = textarea.selectionEnd = start + kaomoji.length;
-            textarea.focus();
+    // 动态加载 emoji.list.js
+    function _loadEmojiList(callback) {
+        if (typeof emojiLists !== 'undefined') {
+            callback();
+            return;
+        }
+        var script = document.createElement('script');
+        script.src = (window.themeUrl || '') + 'assets/vendor/jquery-emoji/js/emoji.list.js';
+        script.onload = callback;
+        script.onerror = function() {
+            if (panel) panel.innerHTML = '<div class="sf-emoji-loading">表情数据加载失败</div>';
+        };
+        document.head.appendChild(script);
+    }
+
+    // 构建面板内容
+    function _buildPanelContent() {
+        var themeUrl = window.themeUrl || '';
+        var basePath = themeUrl + 'assets/vendor/jquery-emoji/images/emoji/';
+
+        var tabs = [
+            { id: 'kaomoji', name: '颜文字' },
+            { id: 'aru', name: '阿鲁' },
+            { id: 'qq', name: 'QQ' },
+            { id: 'weibo', name: '微博' },
+            { id: 'tieba', name: '贴吧' }
+        ];
+
+        var html = '<div class="sf-emoji-tabs"><ul>';
+        for (var i = 0; i < tabs.length; i++) {
+            html += '<li data-tab="' + tabs[i].id + '"' + (i === 0 ? ' class="active"' : '') + '>' + tabs[i].name + '</li>';
+        }
+        html += '</ul></div><div class="sf-emoji-content">';
+
+        // 颜文字
+        html += '<div class="sf-emoji-tab" data-tab="kaomoji">';
+        if (typeof kaomojiLists !== 'undefined') {
+            for (var category in kaomojiLists) {
+                html += '<div class="sf-kaomoji-label">' + category + '</div>';
+                var items = kaomojiLists[category];
+                for (var j = 0; j < items.length; j++) {
+                    var k = items[j].replace(/"/g, '&quot;');
+                    html += '<span class="sf-kaomoji-item" data-insert="' + k + '">' + items[j] + '</span>';
+                }
+            }
+        }
+        html += '</div>';
+
+        // 阿鲁
+        html += '<div class="sf-emoji-tab" data-tab="aru" style="display:none;">';
+        if (typeof emojiLists !== 'undefined') {
+            for (var ai = 0; ai < emojiLists.length; ai++) {
+                if (emojiLists[ai].name !== '阿鲁') continue;
+                var aruCfg = emojiLists[ai];
+                var aruPath = basePath + aruCfg.path;
+                for (var n = 1; n <= aruCfg.maxNum; n++) {
+                    if (aruCfg.excludeNums && aruCfg.excludeNums.indexOf(n) >= 0) continue;
+                    html += '<img class="sf-emoji-item" src="' + aruPath + n + aruCfg.file + '" data-insert="[aru_' + n + ']" alt="aru' + n + '" loading="lazy" />';
+                }
+                break;
+            }
+        }
+        html += '</div>';
+
+        // QQ
+        html += '<div class="sf-emoji-tab" data-tab="qq" style="display:none;">';
+        if (typeof emojiLists !== 'undefined') {
+            for (var qi = 0; qi < emojiLists.length; qi++) {
+                if (emojiLists[qi].name !== 'QQ') continue;
+                var qqCfg = emojiLists[qi];
+                var qqPath = basePath + qqCfg.path;
+                for (var qqKey in qqCfg.emoji) {
+                    var qqFile = qqCfg.emoji[qqKey];
+                    html += '<img class="sf-emoji-item" src="' + qqPath + encodeURIComponent(qqFile) + qqCfg.file + '" data-insert="[qq:' + qqKey + ']" alt="' + qqKey + '" title="' + qqKey + '" loading="lazy" />';
+                }
+                break;
+            }
+        }
+        html += '</div>';
+
+        // 微博
+        html += '<div class="sf-emoji-tab" data-tab="weibo" style="display:none;">';
+        if (typeof emojiLists !== 'undefined') {
+            for (var wi = 0; wi < emojiLists.length; wi++) {
+                if (emojiLists[wi].name !== '微博') continue;
+                var wbCfg = emojiLists[wi];
+                var wbPath = basePath + wbCfg.path;
+                for (var wbKey in wbCfg.emoji) {
+                    var wbFile = wbCfg.emoji[wbKey];
+                    html += '<img class="sf-emoji-item" src="' + wbPath + encodeURIComponent(wbFile) + wbCfg.file + '" data-insert="[wb:' + wbKey + ']" alt="' + wbKey + '" title="' + wbKey + '" loading="lazy" />';
+                }
+                break;
+            }
+        }
+        html += '</div>';
+
+        // 贴吧
+        html += '<div class="sf-emoji-tab" data-tab="tieba" style="display:none;">';
+        if (typeof emojiLists !== 'undefined') {
+            for (var ti = 0; ti < emojiLists.length; ti++) {
+                if (emojiLists[ti].name !== '贴吧') continue;
+                var tbCfg = emojiLists[ti];
+                var tbPath = basePath + tbCfg.path;
+                for (var tbKey in tbCfg.emoji) {
+                    var tbFile = tbCfg.emoji[tbKey];
+                    html += '<img class="sf-emoji-item" src="' + tbPath + encodeURIComponent(tbFile) + tbCfg.file + '" data-insert="[tb:' + tbKey + ']" alt="' + tbKey + '" title="' + tbKey + '" loading="lazy" />';
+                }
+                break;
+            }
+        }
+        html += '</div>';
+
+        html += '</div>';
+        panel.innerHTML = html;
+
+        // 绑定标签切换
+        var tabLis = panel.querySelectorAll('.sf-emoji-tabs li');
+        tabLis.forEach(function(li) {
+            li.addEventListener('click', function(e) {
+                e.stopPropagation();
+                var tab = this.getAttribute('data-tab');
+                tabLis.forEach(function(l) { l.classList.remove('active'); });
+                this.classList.add('active');
+                panel.querySelectorAll('.sf-emoji-tab').forEach(function(c) {
+                    c.style.display = (c.getAttribute('data-tab') === tab) ? 'block' : 'none';
+                });
+            });
         });
-    });
+
+        // 绑定表情/颜文字点击
+        panel.addEventListener('click', function(e) {
+            var target = e.target;
+            if (target.classList.contains('sf-emoji-item') || target.classList.contains('sf-kaomoji-item')) {
+                e.stopPropagation();
+                var text = target.getAttribute('data-insert');
+                if (text) {
+                    var start = textarea.selectionStart;
+                    var end = textarea.selectionEnd;
+                    textarea.value = textarea.value.substring(0, start) + text + textarea.value.substring(end);
+                    textarea.selectionStart = textarea.selectionEnd = start + text.length;
+                    textarea.focus();
+                }
+                panel.style.display = 'none';
+            }
+        });
+    }
 };
 
 /**
@@ -1085,8 +1251,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // 初始化文章提示弹窗关闭功能
     window.initArticleAlert();
 
-    // 初始化颜文字面板
-    window.initKaomojiPanel();
+    // 初始化统一表情面板（包含颜文字）
+    setTimeout(window.initEmojiPanel, 600);
 
     // 初始化视频播放器增强
     window.initVideoPlayer();
