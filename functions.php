@@ -3069,8 +3069,14 @@ function shufei_parse_emoji_code($html, $options = null)
 {
     if (empty($html)) return $html;
 
-    $themeUrl = rtrim($options->themeUrl, '/') . '/';
-    $basePath = $themeUrl . 'assets/vendor/jquery-emoji/images/emoji/';
+    // 支持 CDN/custom 模式
+    $resourceMode = !empty($options->resourceMode) ? $options->resourceMode : 'local';
+    $customCdn = !empty($options->customCdn) ? rtrim($options->customCdn, '/') : '';
+    $emojiAssetBase = rtrim($options->themeUrl, '/') . '/assets/vendor/jquery-emoji';
+    if ($resourceMode === 'custom' && $customCdn) {
+        $emojiAssetBase = $customCdn . '/assets/vendor/jquery-emoji';
+    }
+    $basePath = $emojiAssetBase . '/images/emoji/';
 
     // 阿鲁表情: [aru_1] ~ [aru_164]
     $html = preg_replace_callback('/\[aru_(\d+)\]/', function($m) use ($basePath) {

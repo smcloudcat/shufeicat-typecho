@@ -210,6 +210,15 @@
     
     <script>
     window.themeUrl = '<?php echo rtrim($this->options->themeUrl, '/') . '/'; ?>';
+    <?php
+    $resourceMode = !empty($this->options->resourceMode) ? $this->options->resourceMode : 'local';
+    $customCdn = !empty($this->options->customCdn) ? rtrim($this->options->customCdn, '/') : '';
+    $emojiAssetBase = rtrim($this->options->themeUrl, '/') . '/assets/vendor/jquery-emoji';
+    if ($resourceMode === 'custom' && $customCdn) {
+        $emojiAssetBase = $customCdn . '/assets/vendor/jquery-emoji';
+    }
+    ?>
+    window.emojiAssetBase = '<?php echo $emojiAssetBase; ?>';
     </script>
     
     <?php

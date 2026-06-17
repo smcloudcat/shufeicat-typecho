@@ -984,7 +984,7 @@ window.initEmojiPanel = function() {
             return;
         }
         var script = document.createElement('script');
-        script.src = (window.themeUrl || '') + 'assets/vendor/jquery-emoji/js/emoji.list.js';
+        script.src = (window.emojiAssetBase || (window.themeUrl || '') + 'assets/vendor/jquery-emoji') + '/js/emoji.list.js';
         script.onload = callback;
         script.onerror = function() {
             if (panel) panel.innerHTML = '<div class="sf-emoji-loading">表情数据加载失败</div>';
@@ -994,8 +994,7 @@ window.initEmojiPanel = function() {
 
     // 构建面板内容
     function _buildPanelContent() {
-        var themeUrl = window.themeUrl || '';
-        var basePath = themeUrl + 'assets/vendor/jquery-emoji/images/emoji/';
+        var basePath = (window.emojiAssetBase || (window.themeUrl || '') + 'assets/vendor/jquery-emoji') + '/images/emoji/';
 
         var tabs = [
             { id: 'kaomoji', name: '颜文字' },
