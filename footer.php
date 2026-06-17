@@ -102,9 +102,9 @@ if ($resourceMode === 'cdn') {
 } elseif ($resourceMode === 'custom' && $customCdn) {
     // 使用自建CDN
     $jsUrls['jquery'] = $customCdn . '/assets/vendor/jquery/jquery.min.js';
-    $jsUrls['main'] = $customCdn . '/assets/js/main.js?v=' . $version;
-    $jsUrls['ajax'] = $customCdn . '/assets/js/ajax.js?v=' . $version;
-    $jsUrls['pjax'] = $customCdn . '/assets/js/pjax.js?v=' . $version;
+    $jsUrls['main'] = $customCdn . '/assets/js/main.js?v=' . ($mainJsMtime ?: shufei_get_theme_version());
+    $jsUrls['ajax'] = $customCdn . '/assets/js/ajax.js?v=' . ($ajaxJsMtime ?: shufei_get_theme_version());
+    $jsUrls['pjax'] = $customCdn . '/assets/js/pjax.js?v=' . ($pjaxJsMtime ?: shufei_get_theme_version());
     $jsUrls['pjax_lib'] = $customCdn . '/assets/vendor/pjax/pjax.min.js';
     $jsUrls['prism'] = $customCdn . '/assets/vendor/prismjs/prism.js';
     $jsUrls['prismAutoloader'] = $customCdn . '/assets/vendor/prismjs/plugins/autoloader/prism-autoloader.min.js';
