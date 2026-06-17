@@ -6108,9 +6108,9 @@ pre[class*="language-"].line-numbers > code {
 }
 
 .sf-emoji-item {
-    width: 28px;
-    height: 28px;
-    margin: 2px;
+    width: 40px;
+    height: 40px;
+    margin: 3px;
     cursor: pointer;
     vertical-align: middle;
     border: 1px solid transparent;
@@ -6121,7 +6121,7 @@ pre[class*="language-"].line-numbers > code {
 .sf-emoji-item:hover {
     border-color: var(--primary-color, #FF6B6B);
     background: #f8f8f8;
-    transform: scale(1.1);
+    transform: scale(1.15);
 }
 
 .sf-kaomoji-label {
@@ -6134,13 +6134,13 @@ pre[class*="language-"].line-numbers > code {
 
 .sf-kaomoji-item {
     display: inline-block;
-    padding: 4px 8px;
-    margin: 2px;
+    padding: 6px 10px;
+    margin: 3px;
     background: #f8f8f8;
     border: 1px solid #eee;
     border-radius: 4px;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 16px;
     transition: all 0.15s;
     user-select: none;
     line-height: normal;
