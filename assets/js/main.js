@@ -1033,7 +1033,7 @@ window.initEmojiPanel = function() {
                 var aruPath = basePath + aruCfg.path;
                 for (var n = 1; n <= aruCfg.maxNum; n++) {
                     if (aruCfg.excludeNums && aruCfg.excludeNums.indexOf(n) >= 0) continue;
-                    html += '<img class="sf-emoji-item" src="' + aruPath + n + aruCfg.file + '" data-insert="[aru_' + n + ']" alt="aru' + n + '" loading="lazy" />';
+                    html += '<img class="sf-emoji-item" data-src="' + aruPath + n + aruCfg.file + '" data-insert="[aru_' + n + ']" alt="aru' + n + '" />';
                 }
                 break;
             }
@@ -1049,7 +1049,7 @@ window.initEmojiPanel = function() {
                 var qqPath = basePath + qqCfg.path;
                 for (var qqKey in qqCfg.emoji) {
                     var qqFile = qqCfg.emoji[qqKey];
-                    html += '<img class="sf-emoji-item" src="' + qqPath + encodeURIComponent(qqFile) + qqCfg.file + '" data-insert="[qq:' + qqKey + ']" alt="' + qqKey + '" title="' + qqKey + '" loading="lazy" />';
+                    html += '<img class="sf-emoji-item" data-src="' + qqPath + encodeURIComponent(qqFile) + qqCfg.file + '" data-insert="[qq:' + qqKey + ']" alt="' + qqKey + '" title="' + qqKey + '" />';
                 }
                 break;
             }
@@ -1065,7 +1065,7 @@ window.initEmojiPanel = function() {
                 var wbPath = basePath + wbCfg.path;
                 for (var wbKey in wbCfg.emoji) {
                     var wbFile = wbCfg.emoji[wbKey];
-                    html += '<img class="sf-emoji-item" src="' + wbPath + encodeURIComponent(wbFile) + wbCfg.file + '" data-insert="[wb:' + wbKey + ']" alt="' + wbKey + '" title="' + wbKey + '" loading="lazy" />';
+                    html += '<img class="sf-emoji-item" data-src="' + wbPath + encodeURIComponent(wbFile) + wbCfg.file + '" data-insert="[wb:' + wbKey + ']" alt="' + wbKey + '" title="' + wbKey + '" />';
                 }
                 break;
             }
@@ -1081,7 +1081,7 @@ window.initEmojiPanel = function() {
                 var tbPath = basePath + tbCfg.path;
                 for (var tbKey in tbCfg.emoji) {
                     var tbFile = tbCfg.emoji[tbKey];
-                    html += '<img class="sf-emoji-item" src="' + tbPath + encodeURIComponent(tbFile) + tbCfg.file + '" data-insert="[tb:' + tbKey + ']" alt="' + tbKey + '" title="' + tbKey + '" loading="lazy" />';
+                    html += '<img class="sf-emoji-item" data-src="' + tbPath + encodeURIComponent(tbFile) + tbCfg.file + '" data-insert="[tb:' + tbKey + ']" alt="' + tbKey + '" title="' + tbKey + '" />';
                 }
                 break;
             }
@@ -1090,6 +1090,9 @@ window.initEmojiPanel = function() {
 
         html += '</div>';
         panel.innerHTML = html;
+
+        // 批量加载表情图片，每次5个
+        _startBatchLoad(panel);
 
         // 绑定标签切换
         var tabLis = panel.querySelectorAll('.sf-emoji-tabs li');
@@ -1102,6 +1105,8 @@ window.initEmojiPanel = function() {
                 panel.querySelectorAll('.sf-emoji-tab').forEach(function(c) {
                     c.style.display = (c.getAttribute('data-tab') === tab) ? 'block' : 'none';
                 });
+                // 切换标签时优先加载当前标签的图片
+                _startBatchLoad(panel, tab);
             });
         });
 
@@ -1123,6 +1128,65 @@ window.initEmojiPanel = function() {
         });
     }
 };
+
+/**
+ * 批量加载表情图片，每次加载5个，完成后再加载下一批
+ * @param {Element} container 面板容器
+ * @param {string} priorityTab 优先加载的标签ID
+ */
+function _startBatchLoad(container, priorityTab) {
+    var batchSize = 5;
+
+    // 收集所有未加载的图片，优先加载指定标签的
+    var allImgs = Array.prototype.slice.call(container.querySelectorAll('img[data-src]'));
+    if (allImgs.length === 0) return;
+
+    var pending;
+    if (priorityTab) {
+        // 将优先标签的图片排到前面
+        pending = [];
+        var rest = [];
+        allImgs.forEach(function(img) {
+            var tabDiv = img.closest('.sf-emoji-tab');
+            if (tabDiv && tabDiv.getAttribute('data-tab') === priorityTab) {
+                pending.push(img);
+            } else {
+                rest.push(img);
+            }
+        });
+        pending = pending.concat(rest);
+    } else {
+        pending = allImgs;
+    }
+
+    var index = 0;
+
+    function loadNextBatch() {
+        if (index >= pending.length) return;
+
+        var batch = pending.slice(index, index + batchSize);
+        index += batchSize;
+
+        var loadedCount = 0;
+        batch.forEach(function(img) {
+            function onDone() {
+                loadedCount++;
+                img.onload = null;
+                img.onerror = null;
+                if (loadedCount >= batch.length) {
+                    // 下一批稍微延迟，避免阻塞UI
+                    setTimeout(loadNextBatch, 50);
+                }
+            }
+            img.onload = onDone;
+            img.onerror = onDone;
+            img.src = img.getAttribute('data-src');
+            img.removeAttribute('data-src');
+        });
+    }
+
+    loadNextBatch();
+}
 
 /**
  * 视频播放器增强功能
