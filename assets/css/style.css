@@ -1726,6 +1726,12 @@ img {
     padding-left: 2em;
 }
 
+/* 覆盖上方规则：文章卡片中的元信息列表（作者、日期等）需与摘要文本左侧对齐 */
+.post-content .post-meta-inline {
+    margin: 0;
+    padding-left: 0;
+}
+
 .post-content li {
     margin-bottom: 6px;
     line-height: 1.8;
