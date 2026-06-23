@@ -151,7 +151,8 @@
         'fontawesome' => $themeUrl . 'assets/vendor/font-awesome/css/font-awesome.min.css',
         'prism' => $themeUrl . 'assets/vendor/prismjs/themes/prism-tomorrow.min.css',
         'lightbox' => $themeUrl . 'assets/vendor/lightbox2/css/lightbox.min.css',
-        'katex' => $themeUrl . 'assets/vendor/katex/katex.min.css'
+        'katex' => $themeUrl . 'assets/vendor/katex/katex.min.css',
+        'emoji' => $themeUrl . 'assets/vendor/jquery-emoji/css/jquery.emoji.css'
     ];
     
     // 根据配置调整资源路径
@@ -170,6 +171,7 @@
         $cssUrls['prism'] = $customCdn . '/assets/vendor/prismjs/themes/prism-tomorrow.min.css';
         $cssUrls['lightbox'] = $customCdn . '/assets/vendor/lightbox2/css/lightbox.min.css';
         $cssUrls['katex'] = $customCdn . '/assets/vendor/katex/katex.min.css';
+        $cssUrls['emoji'] = $customCdn . '/assets/vendor/jquery-emoji/css/jquery.emoji.css';
     }
     // local 模式使用默认的 themeUrl 路径
     
@@ -200,7 +202,7 @@
     <?php if (!empty($this->options->katexEnabled) && $this->options->katexEnabled === 'on'): ?>
     <link href="<?php echo $cssUrls['katex']; ?>" rel="stylesheet" />
     <?php endif; ?>
-    
+
     <?php if (shufei_is_turnstile_enabled() && !empty(shufei_get_turnstile_site_key())): ?>
     <!-- Cloudflare Turnstile -->
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
@@ -208,6 +210,15 @@
     
     <script>
     window.themeUrl = '<?php echo rtrim($this->options->themeUrl, '/') . '/'; ?>';
+    <?php
+    $resourceMode = !empty($this->options->resourceMode) ? $this->options->resourceMode : 'local';
+    $customCdn = !empty($this->options->customCdn) ? rtrim($this->options->customCdn, '/') : '';
+    $emojiAssetBase = rtrim($this->options->themeUrl, '/') . '/assets/vendor/jquery-emoji';
+    if ($resourceMode === 'custom' && $customCdn) {
+        $emojiAssetBase = $customCdn . '/assets/vendor/jquery-emoji';
+    }
+    ?>
+    window.emojiAssetBase = '<?php echo $emojiAssetBase; ?>';
     </script>
     
     <?php

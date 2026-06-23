@@ -741,6 +741,121 @@ window.initKaTeX = function(retryCount) {
 };
 
 /**
+ * 文章目录（Table of Contents）功能
+ * 自动提取文章中的 h2/h3 标题，生成目录导航
+ * 支持滚动高亮当前目录项，点击平滑滚动定位
+ */
+window.initTableOfContents = function() {
+    var tocWidget = document.getElementById('toc-widget');
+    var tocNav = document.getElementById('toc-nav');
+    var mobileTocNav = document.getElementById('mobile-toc-nav');
+    var mobileTocBtn = document.getElementById('mobile-toc-btn');
+    if (!tocWidget || !tocNav) {
+        // 非文章页：清理手机端目录状态
+        if (mobileTocNav) mobileTocNav.innerHTML = '';
+        if (mobileTocBtn) mobileTocBtn.classList.remove('has-toc');
+        return;
+    }
+
+    var postContent = document.querySelector('.post-content');
+    if (!postContent) {
+        tocWidget.style.display = 'none';
+        if (mobileTocNav) mobileTocNav.innerHTML = '';
+        if (mobileTocBtn) mobileTocBtn.classList.remove('has-toc');
+        return;
+    }
+
+    var headings = postContent.querySelectorAll('h2, h3');
+    if (headings.length === 0) {
+        tocWidget.style.display = 'none';
+        if (mobileTocNav) mobileTocNav.innerHTML = '';
+        if (mobileTocBtn) mobileTocBtn.classList.remove('has-toc');
+        return;
+    }
+
+    // 为标题添加 id（如果没有的话）
+    var headingList = [];
+    var idCounter = 0;
+    headings.forEach(function(heading) {
+        if (!heading.id) {
+            heading.id = 'toc-heading-' + (++idCounter);
+        }
+        headingList.push(heading);
+    });
+
+    // 构建目录 HTML
+    var html = '<ul class="toc-list">';
+    headingList.forEach(function(heading, index) {
+        var level = heading.tagName.toLowerCase() === 'h2' ? 2 : 3;
+        var indent = level === 3 ? ' toc-item-h3' : '';
+        html += '<li class="toc-item' + indent + '">';
+        html += '<a class="toc-link" href="#' + heading.id + '" data-target="' + heading.id + '">';
+        html += heading.textContent.trim();
+        html += '</a></li>';
+    });
+    html += '</ul>';
+
+    tocNav.innerHTML = html;
+    if (mobileTocNav) mobileTocNav.innerHTML = html;
+    tocWidget.style.display = '';
+    if (mobileTocBtn) mobileTocBtn.classList.add('has-toc');
+
+    // 点击目录项平滑滚动（桌面端）
+    tocNav.addEventListener('click', function(e) {
+        var link = e.target.closest('.toc-link');
+        if (!link) return;
+        e.preventDefault();
+        var targetId = link.getAttribute('data-target');
+        var target = document.getElementById(targetId);
+        if (target) {
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    });
+
+    // 手机端目录项点击通过 document 事件委托处理（见 initMobileToc IIFE），避免 PJAX 重复绑定
+
+    // 滚动高亮当前目录项（同时更新桌面端和手机端）
+    var tocLinks = document.querySelectorAll('#toc-nav .toc-link, #mobile-toc-nav .toc-link');
+    var scrollHandler = throttle(function() {
+        var scrollTop = window.scrollY;
+        var currentId = '';
+        headingList.forEach(function(heading) {
+            if (heading.offsetTop - 80 <= scrollTop) {
+                currentId = heading.id;
+            }
+        });
+        tocLinks.forEach(function(link) {
+            if (link.getAttribute('data-target') === currentId) {
+                link.classList.add('toc-active');
+            } else {
+                link.classList.remove('toc-active');
+            }
+        });
+    }, 100);
+
+    window.addEventListener('scroll', scrollHandler);
+    // 初始触发一次
+    scrollHandler();
+
+    // 保存清理函数，PJAX 切换时移除滚动监听
+    window._tocScrollHandler = scrollHandler;
+};
+
+/**
+ * 清理文章目录滚动监听（PJAX 切换前调用）
+ */
+window.destroyTableOfContents = function() {
+    if (window._tocScrollHandler) {
+        window.removeEventListener('scroll', window._tocScrollHandler);
+        window._tocScrollHandler = null;
+    }
+    // PJAX 切换前关闭手机端目录侧边栏
+    if (typeof window.closeMobileToc === 'function') {
+        window.closeMobileToc();
+    }
+};
+
+/**
  * Markdown 扩展功能初始化
  * 处理任务列表交互、折叠区块、提示框等前端增强
  */
@@ -801,48 +916,277 @@ window.initArticleAlert = function() {
 };
 
 /**
- * 颜文字面板功能
+ * 统一表情面板功能（纯自定义实现，不依赖 jQuery-emoji 插件）
+ * 包含：颜文字、阿鲁、QQ、微博、贴吧表情
+ * 懒加载：点击表情按钮时才加载 emoji.list.js
  */
-window.initKaomojiPanel = function() {
-    var toggle = document.getElementById('kaomoji-toggle');
-    var list = document.getElementById('kaomoji-list');
-    if (!toggle || !list) return;
+window.initEmojiPanel = function() {
+    var emojiToggle = document.getElementById('emoji-toggle');
+    var textarea = document.getElementById('textarea');
+    if (!emojiToggle || !textarea) return;
 
-    // 切换面板显示
-    toggle.addEventListener('click', function(e) {
-        e.preventDefault();
+    // 清理 PJAX 切换前残留的旧面板
+    var oldPanel = document.getElementById('sf-emoji-container');
+    if (oldPanel) oldPanel.remove();
+
+    // 避免重复绑定（PJAX 切换后 emojiToggle 是新元素，不会触发此判断）
+    if (emojiToggle._emojiBound) return;
+    emojiToggle._emojiBound = true;
+
+    var panel = null;
+
+    // 点击表情按钮
+    emojiToggle.addEventListener('click', function(e) {
         e.stopPropagation();
-        if (list.style.display === 'none') {
-            list.style.display = 'block';
+        if (!panel) {
+            // 首次点击，创建面板
+            panel = document.createElement('div');
+            panel.className = 'sf-emoji-container';
+            panel.id = 'sf-emoji-container';
+            panel.innerHTML = '<div class="sf-emoji-loading">加载中...</div>';
+            document.body.appendChild(panel);
+            _showPanel();
+
+            // 懒加载 emoji.list.js
+            _loadEmojiList(function() {
+                _buildPanelContent();
+                _showPanel();
+            });
         } else {
-            list.style.display = 'none';
+            // 切换显示/隐藏
+            if (panel.style.display === 'block') {
+                panel.style.display = 'none';
+            } else {
+                _showPanel();
+            }
         }
     });
+
+    function _showPanel() {
+        if (!panel) return;
+        var rect = emojiToggle.getBoundingClientRect();
+        panel.style.display = 'block';
+        panel.style.top = (window.scrollY + rect.bottom + 4) + 'px';
+        panel.style.left = (window.scrollX + rect.left) + 'px';
+    }
 
     // 点击外部关闭面板
     document.addEventListener('click', function(e) {
-        var panel = document.getElementById('kaomoji-panel');
-        if (panel && !panel.contains(e.target)) {
-            list.style.display = 'none';
+        if (panel && panel.style.display === 'block' && !panel.contains(e.target) && e.target !== emojiToggle) {
+            panel.style.display = 'none';
         }
     });
 
-    // 点击颜文字插入到评论框
-    var items = list.querySelectorAll('.kaomoji-item');
-    var textarea = document.getElementById('textarea');
-    items.forEach(function(item) {
-        item.addEventListener('click', function() {
-            if (!textarea) return;
-            var kaomoji = this.getAttribute('data-kaomoji') || this.textContent;
-            var start = textarea.selectionStart;
-            var end = textarea.selectionEnd;
-            var text = textarea.value;
-            textarea.value = text.substring(0, start) + kaomoji + text.substring(end);
-            textarea.selectionStart = textarea.selectionEnd = start + kaomoji.length;
-            textarea.focus();
+    // 动态加载 emoji.list.js
+    function _loadEmojiList(callback) {
+        if (typeof emojiLists !== 'undefined') {
+            callback();
+            return;
+        }
+        var script = document.createElement('script');
+        script.src = (window.emojiAssetBase || (window.themeUrl || '') + 'assets/vendor/jquery-emoji') + '/js/emoji.list.js';
+        script.onload = callback;
+        script.onerror = function() {
+            if (panel) panel.innerHTML = '<div class="sf-emoji-loading">表情数据加载失败</div>';
+        };
+        document.head.appendChild(script);
+    }
+
+    // 构建面板内容
+    function _buildPanelContent() {
+        var basePath = (window.emojiAssetBase || (window.themeUrl || '') + 'assets/vendor/jquery-emoji') + '/images/emoji/';
+
+        var tabs = [
+            { id: 'kaomoji', name: '颜文字' },
+            { id: 'aru', name: '阿鲁' },
+            { id: 'qq', name: 'QQ' },
+            { id: 'weibo', name: '微博' },
+            { id: 'tieba', name: '贴吧' }
+        ];
+
+        var html = '<div class="sf-emoji-tabs"><ul>';
+        for (var i = 0; i < tabs.length; i++) {
+            html += '<li data-tab="' + tabs[i].id + '"' + (i === 0 ? ' class="active"' : '') + '>' + tabs[i].name + '</li>';
+        }
+        html += '</ul></div><div class="sf-emoji-content">';
+
+        // 颜文字
+        html += '<div class="sf-emoji-tab" data-tab="kaomoji">';
+        if (typeof kaomojiLists !== 'undefined') {
+            for (var category in kaomojiLists) {
+                html += '<div class="sf-kaomoji-label">' + category + '</div>';
+                var items = kaomojiLists[category];
+                for (var j = 0; j < items.length; j++) {
+                    var k = items[j].replace(/"/g, '&quot;');
+                    html += '<span class="sf-kaomoji-item" data-insert="' + k + '">' + items[j] + '</span>';
+                }
+            }
+        }
+        html += '</div>';
+
+        // 阿鲁
+        html += '<div class="sf-emoji-tab" data-tab="aru" style="display:none;">';
+        if (typeof emojiLists !== 'undefined') {
+            for (var ai = 0; ai < emojiLists.length; ai++) {
+                if (emojiLists[ai].name !== '阿鲁') continue;
+                var aruCfg = emojiLists[ai];
+                var aruPath = basePath + aruCfg.path;
+                for (var n = 1; n <= aruCfg.maxNum; n++) {
+                    if (aruCfg.excludeNums && aruCfg.excludeNums.indexOf(n) >= 0) continue;
+                    html += '<img class="sf-emoji-item" data-src="' + aruPath + n + aruCfg.file + '" data-insert="[aru_' + n + ']" alt="aru' + n + '" />';
+                }
+                break;
+            }
+        }
+        html += '</div>';
+
+        // QQ
+        html += '<div class="sf-emoji-tab" data-tab="qq" style="display:none;">';
+        if (typeof emojiLists !== 'undefined') {
+            for (var qi = 0; qi < emojiLists.length; qi++) {
+                if (emojiLists[qi].name !== 'QQ') continue;
+                var qqCfg = emojiLists[qi];
+                var qqPath = basePath + qqCfg.path;
+                for (var qqKey in qqCfg.emoji) {
+                    var qqFile = qqCfg.emoji[qqKey];
+                    html += '<img class="sf-emoji-item" data-src="' + qqPath + encodeURIComponent(qqFile) + qqCfg.file + '" data-insert="[qq:' + qqKey + ']" alt="' + qqKey + '" title="' + qqKey + '" />';
+                }
+                break;
+            }
+        }
+        html += '</div>';
+
+        // 微博
+        html += '<div class="sf-emoji-tab" data-tab="weibo" style="display:none;">';
+        if (typeof emojiLists !== 'undefined') {
+            for (var wi = 0; wi < emojiLists.length; wi++) {
+                if (emojiLists[wi].name !== '微博') continue;
+                var wbCfg = emojiLists[wi];
+                var wbPath = basePath + wbCfg.path;
+                for (var wbKey in wbCfg.emoji) {
+                    var wbFile = wbCfg.emoji[wbKey];
+                    html += '<img class="sf-emoji-item" data-src="' + wbPath + encodeURIComponent(wbFile) + wbCfg.file + '" data-insert="[wb:' + wbKey + ']" alt="' + wbKey + '" title="' + wbKey + '" />';
+                }
+                break;
+            }
+        }
+        html += '</div>';
+
+        // 贴吧
+        html += '<div class="sf-emoji-tab" data-tab="tieba" style="display:none;">';
+        if (typeof emojiLists !== 'undefined') {
+            for (var ti = 0; ti < emojiLists.length; ti++) {
+                if (emojiLists[ti].name !== '贴吧') continue;
+                var tbCfg = emojiLists[ti];
+                var tbPath = basePath + tbCfg.path;
+                for (var tbKey in tbCfg.emoji) {
+                    var tbFile = tbCfg.emoji[tbKey];
+                    html += '<img class="sf-emoji-item" data-src="' + tbPath + encodeURIComponent(tbFile) + tbCfg.file + '" data-insert="[tb:' + tbKey + ']" alt="' + tbKey + '" title="' + tbKey + '" />';
+                }
+                break;
+            }
+        }
+        html += '</div>';
+
+        html += '</div>';
+        panel.innerHTML = html;
+
+        // 批量加载表情图片，每次5个
+        _startBatchLoad(panel);
+
+        // 绑定标签切换
+        var tabLis = panel.querySelectorAll('.sf-emoji-tabs li');
+        tabLis.forEach(function(li) {
+            li.addEventListener('click', function(e) {
+                e.stopPropagation();
+                var tab = this.getAttribute('data-tab');
+                tabLis.forEach(function(l) { l.classList.remove('active'); });
+                this.classList.add('active');
+                panel.querySelectorAll('.sf-emoji-tab').forEach(function(c) {
+                    c.style.display = (c.getAttribute('data-tab') === tab) ? 'block' : 'none';
+                });
+                // 切换标签时优先加载当前标签的图片
+                _startBatchLoad(panel, tab);
+            });
         });
-    });
+
+        // 绑定表情/颜文字点击
+        panel.addEventListener('click', function(e) {
+            var target = e.target;
+            if (target.classList.contains('sf-emoji-item') || target.classList.contains('sf-kaomoji-item')) {
+                e.stopPropagation();
+                var text = target.getAttribute('data-insert');
+                if (text) {
+                    var start = textarea.selectionStart;
+                    var end = textarea.selectionEnd;
+                    textarea.value = textarea.value.substring(0, start) + text + textarea.value.substring(end);
+                    textarea.selectionStart = textarea.selectionEnd = start + text.length;
+                    textarea.focus();
+                }
+                panel.style.display = 'none';
+            }
+        });
+    }
 };
+
+/**
+ * 批量加载表情图片，每次加载5个，完成后再加载下一批
+ * @param {Element} container 面板容器
+ * @param {string} priorityTab 优先加载的标签ID
+ */
+function _startBatchLoad(container, priorityTab) {
+    var batchSize = 5;
+
+    // 收集所有未加载的图片，优先加载指定标签的
+    var allImgs = Array.prototype.slice.call(container.querySelectorAll('img[data-src]'));
+    if (allImgs.length === 0) return;
+
+    var pending;
+    if (priorityTab) {
+        // 将优先标签的图片排到前面
+        pending = [];
+        var rest = [];
+        allImgs.forEach(function(img) {
+            var tabDiv = img.closest('.sf-emoji-tab');
+            if (tabDiv && tabDiv.getAttribute('data-tab') === priorityTab) {
+                pending.push(img);
+            } else {
+                rest.push(img);
+            }
+        });
+        pending = pending.concat(rest);
+    } else {
+        pending = allImgs;
+    }
+
+    var index = 0;
+
+    function loadNextBatch() {
+        if (index >= pending.length) return;
+
+        var batch = pending.slice(index, index + batchSize);
+        index += batchSize;
+
+        var loadedCount = 0;
+        batch.forEach(function(img) {
+            function onDone() {
+                loadedCount++;
+                img.onload = null;
+                img.onerror = null;
+                if (loadedCount >= batch.length) {
+                    // 下一批稍微延迟，避免阻塞UI
+                    setTimeout(loadNextBatch, 50);
+                }
+            }
+            img.onload = onDone;
+            img.onerror = onDone;
+            img.src = img.getAttribute('data-src');
+            img.removeAttribute('data-src');
+        });
+    }
+
+    loadNextBatch();
+}
 
 /**
  * 视频播放器增强功能
@@ -926,6 +1270,75 @@ window.initMusicPlayer = function() {
     });
 };
 
+/**
+ * 手机端文章目录侧边栏开关功能
+ * 使用 document 级别事件委托，兼容 PJAX
+ */
+(function() {
+    function openMobileToc() {
+        var sidebar = document.getElementById('mobile-toc-sidebar');
+        var shade = document.getElementById('mobile-toc-shade');
+        if (sidebar) sidebar.classList.add('open');
+        if (shade) shade.classList.add('active');
+    }
+
+    window.closeMobileToc = function() {
+        var sidebar = document.getElementById('mobile-toc-sidebar');
+        var shade = document.getElementById('mobile-toc-shade');
+        if (sidebar) sidebar.classList.remove('open');
+        if (shade) shade.classList.remove('active');
+    };
+
+    window.openMobileToc = openMobileToc;
+
+    if (!window._mobileTocDocBound) {
+        window._mobileTocDocBound = true;
+
+        document.addEventListener('click', function(e) {
+            // 点击触发按钮打开
+            if (e.target.closest('#mobile-toc-btn')) {
+                e.preventDefault();
+                openMobileToc();
+                return;
+            }
+            // 点击关闭按钮关闭
+            if (e.target.closest('#mobile-toc-close')) {
+                e.preventDefault();
+                window.closeMobileToc();
+                return;
+            }
+            // 点击遮罩层关闭
+            if (e.target.closest('#mobile-toc-shade')) {
+                e.preventDefault();
+                window.closeMobileToc();
+                return;
+            }
+            // 点击手机端目录项：平滑滚动并关闭侧边栏
+            var mobileTocLink = e.target.closest('#mobile-toc-nav .toc-link');
+            if (mobileTocLink) {
+                e.preventDefault();
+                var targetId = mobileTocLink.getAttribute('data-target');
+                var target = document.getElementById(targetId);
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+                window.closeMobileToc();
+                return;
+            }
+        });
+
+        // ESC 键关闭
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                var sidebar = document.getElementById('mobile-toc-sidebar');
+                if (sidebar && sidebar.classList.contains('open')) {
+                    window.closeMobileToc();
+                }
+            }
+        });
+    }
+})();
+
 document.addEventListener('DOMContentLoaded', function() {
     // 初始化夜间模式（优先执行，避免页面闪烁）
     window.initDarkMode();
@@ -935,6 +1348,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 返回顶部功能
     const backToTop = document.getElementById('back-to-top');
+    const mobileTocBtn = document.getElementById('mobile-toc-btn');
     if (backToTop) {
         backToTop.addEventListener('click', function() {
             window.scrollTo({
@@ -943,12 +1357,14 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
         
-        // 滚动显示/隐藏（节流）
+        // 滚动显示/隐藏（节流）— 同时控制返回顶部和手机端目录按钮
         window.addEventListener('scroll', throttle(function() {
             if (window.scrollY > 300) {
                 backToTop.classList.add('show');
+                if (mobileTocBtn) mobileTocBtn.classList.add('show');
             } else {
                 backToTop.classList.remove('show');
+                if (mobileTocBtn) mobileTocBtn.classList.remove('show');
             }
         }, 150));
     }
@@ -983,11 +1399,14 @@ document.addEventListener('DOMContentLoaded', function() {
     // 初始化 Markdown 扩展功能
     setTimeout(window.initMarkdownExt, 500);
 
+    // 初始化文章目录
+    setTimeout(window.initTableOfContents, 520);
+
     // 初始化文章提示弹窗关闭功能
     window.initArticleAlert();
 
-    // 初始化颜文字面板
-    window.initKaomojiPanel();
+    // 初始化统一表情面板（包含颜文字）
+    setTimeout(window.initEmojiPanel, 600);
 
     // 初始化视频播放器增强
     window.initVideoPlayer();

@@ -333,8 +333,8 @@
                     if (typeof window.initKaTeX === 'function') {
                         window.initKaTeX();
                     }
-                    if (typeof window.initKaomojiPanel === 'function') {
-                        window.initKaomojiPanel();
+                    if (typeof window.initEmojiPanel === 'function') {
+                        window.initEmojiPanel();
                     }
                     var targetEl = document.querySelector(commentAnchor);
                     if (targetEl) {
@@ -453,6 +453,10 @@
         if (typeof window.destroyECharts === 'function') {
             window.destroyECharts();
         }
+        // 清理文章目录滚动监听
+        if (typeof window.destroyTableOfContents === 'function') {
+            window.destroyTableOfContents();
+        }
         window.reinitPageFunctions();
     });
     
@@ -526,12 +530,16 @@
                 window.initMarkdownExt();
             }
 
+            if (typeof window.initTableOfContents === 'function') {
+                window.initTableOfContents();
+            }
+
             if (typeof window.initArticleAlert === 'function') {
                 window.initArticleAlert();
             }
 
-            if (typeof window.initKaomojiPanel === 'function') {
-                window.initKaomojiPanel();
+            if (typeof window.initEmojiPanel === 'function') {
+                window.initEmojiPanel();
             }
 
             if (typeof window.initVideoPlayer === 'function') {

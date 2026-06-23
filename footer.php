@@ -56,6 +56,25 @@
     <i class="fa fa-angle-up"></i>
 </div>
 
+<!-- 手机端文章目录触发按钮（仅文章页且拥有目录时显示） -->
+<div id="mobile-toc-btn" title="<?php _e('文章目录'); ?>">
+    <i class="fa fa-list-ul"></i>
+</div>
+
+<!-- 手机端文章目录侧边栏（从右侧划出） -->
+<div id="mobile-toc-sidebar">
+    <div class="mobile-toc-header">
+        <h3><i class="fa fa-list"></i> <?php _e('文章目录'); ?></h3>
+        <button id="mobile-toc-close" title="<?php _e('关闭'); ?>">
+            <i class="fa fa-times"></i>
+        </button>
+    </div>
+    <nav class="mobile-toc-nav" id="mobile-toc-nav"></nav>
+</div>
+
+<!-- 手机端文章目录遮罩层 -->
+<div id="mobile-toc-shade"></div>
+
 <?php $this->footer(); ?>
 
 <?php
@@ -84,7 +103,9 @@ $jsUrls = [
     'mermaid' => $themeUrl . 'assets/vendor/mermaid/mermaid.min.js',
     'echarts' => $themeUrl . 'assets/vendor/echarts/echarts.min.js',
     'katex' => $themeUrl . 'assets/vendor/katex/katex.min.js',
-    'katexAutoRender' => $themeUrl . 'assets/vendor/katex/auto-render.min.js'
+    'katexAutoRender' => $themeUrl . 'assets/vendor/katex/auto-render.min.js',
+    'emojiList' => $themeUrl . 'assets/vendor/jquery-emoji/js/emoji.list.js',
+    'emoji' => $themeUrl . 'assets/vendor/jquery-emoji/js/jquery.emoji.min.js'
 ];
 
 // 根据配置调整资源路径
@@ -102,9 +123,9 @@ if ($resourceMode === 'cdn') {
 } elseif ($resourceMode === 'custom' && $customCdn) {
     // 使用自建CDN
     $jsUrls['jquery'] = $customCdn . '/assets/vendor/jquery/jquery.min.js';
-    $jsUrls['main'] = $customCdn . '/assets/js/main.js?v=' . $version;
-    $jsUrls['ajax'] = $customCdn . '/assets/js/ajax.js?v=' . $version;
-    $jsUrls['pjax'] = $customCdn . '/assets/js/pjax.js?v=' . $version;
+    $jsUrls['main'] = $customCdn . '/assets/js/main.js?v=' . ($mainJsMtime ?: shufei_get_theme_version());
+    $jsUrls['ajax'] = $customCdn . '/assets/js/ajax.js?v=' . ($ajaxJsMtime ?: shufei_get_theme_version());
+    $jsUrls['pjax'] = $customCdn . '/assets/js/pjax.js?v=' . ($pjaxJsMtime ?: shufei_get_theme_version());
     $jsUrls['pjax_lib'] = $customCdn . '/assets/vendor/pjax/pjax.min.js';
     $jsUrls['prism'] = $customCdn . '/assets/vendor/prismjs/prism.js';
     $jsUrls['prismAutoloader'] = $customCdn . '/assets/vendor/prismjs/plugins/autoloader/prism-autoloader.min.js';
@@ -113,6 +134,8 @@ if ($resourceMode === 'cdn') {
     $jsUrls['echarts'] = $customCdn . '/assets/vendor/echarts/echarts.min.js';
     $jsUrls['katex'] = $customCdn . '/assets/vendor/katex/katex.min.js';
     $jsUrls['katexAutoRender'] = $customCdn . '/assets/vendor/katex/auto-render.min.js';
+    $jsUrls['emojiList'] = $customCdn . '/assets/vendor/jquery-emoji/js/emoji.list.js';
+    $jsUrls['emoji'] = $customCdn . '/assets/vendor/jquery-emoji/js/jquery.emoji.min.js';
 }
 // local 模式使用默认的 themeUrl 路径
 ?>

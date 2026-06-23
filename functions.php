@@ -14,7 +14,7 @@ if (!defined('__TYPECHO_ROOT_DIR__')) exit;
  */
 function shufei_check_theme_update()
 {
-    $currentVersion = '1.4.0-rc.7';
+    $currentVersion = '1.4.0-rc.8';
     $cacheKey = 'shufei_update_check';
     $cacheTime = 3600; // 缓存1小时
 
@@ -75,7 +75,7 @@ function shufei_check_theme_update()
  */
 function shufei_get_theme_version()
 {
-    return '1.4.0-rc.7';
+    return '1.4.0-rc.8';
 }
 
 /**
@@ -364,6 +364,181 @@ function themeConfig($form)
     '})();' .
     '</script>';
     echo $dataJs;
+
+    // GitHub 项目选择器
+    $githubReposHtml = '<div class="typecho-option cat-group-nav-github-selector" style="display:none">' .
+        '<div class="cat-data-section">' .
+            '<div class="cat-data-title">GitHub 项目选择</div>' .
+            '<div class="cat-data-desc">填写 GitHub 用户名并保存设置后，点击下方按钮获取项目列表，勾选需要在前台展示的项目。<br>如果不勾选任何项目，则默认展示全部公开项目。</div>' .
+            '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">' .
+                '<button type="button" class="cat-data-btn cat-data-btn-primary" id="cat-github-fetch-btn">' .
+                    '<i class="fa fa-github" style="margin-right:6px"></i>获取项目列表' .
+                '</button>' .
+                '<button type="button" class="cat-data-btn cat-data-btn-warning" id="cat-github-toggle-btn" style="display:none;">' .
+                    '<i class="fa fa-exchange" style="margin-right:6px"></i>一键反选' .
+                '</button>' .
+            '</div>' .
+            '<span id="cat-github-fetch-status" style="margin-left:12px;font-size:13px;color:#999;"></span>' .
+            '<div id="cat-github-repos-container" style="margin-top:15px;max-height:400px;overflow-y:auto;"></div>' .
+        '</div>' .
+    '</div>';
+    echo $githubReposHtml;
+
+    echo <<<GITHUBJS
+<script>
+(function() {
+    window.addEventListener("load", function() {
+        var selectorEl = document.querySelector(".cat-group-nav-github-selector");
+        if (selectorEl) {
+            selectorEl.style.display = "";
+            var navPane = document.getElementById("cat-nav");
+            if (navPane) navPane.appendChild(selectorEl);
+        }
+
+        var fetchBtn = document.getElementById("cat-github-fetch-btn");
+        var fetchStatus = document.getElementById("cat-github-fetch-status");
+        var reposContainer = document.getElementById("cat-github-repos-container");
+        var selectedReposInput = document.querySelector("textarea[name=githubSelectedRepos]");
+        var toggleBtn = document.getElementById("cat-github-toggle-btn");
+
+        function getSelectedRepos() {
+            if (!selectedReposInput || !selectedReposInput.value.trim()) return [];
+            try { return JSON.parse(selectedReposInput.value); } catch(e) { return []; }
+        }
+
+        function updateSelectedRepos() {
+            if (!reposContainer) return;
+            var checked = reposContainer.querySelectorAll("input[data-repo-name]:checked");
+            var selected = [];
+            checked.forEach(function(cb) { selected.push(cb.getAttribute("data-repo-name")); });
+            if (selectedReposInput) selectedReposInput.value = selected.length > 0 ? JSON.stringify(selected) : "";
+        }
+
+        function renderRepos(repos) {
+            if (!reposContainer) return;
+            var selected = getSelectedRepos();
+            if (repos.length === 0) {
+                reposContainer.innerHTML = '<div style="padding:20px;text-align:center;color:#999;">暂无公开项目</div>';
+                return;
+            }
+            var html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;">';
+            repos.forEach(function(repo) {
+                var isChecked = selected.length === 0 || selected.indexOf(repo.name) !== -1;
+                html += '<label style="display:flex;align-items:flex-start;gap:8px;padding:10px 12px;background:#fafafa;border:1px solid #eee;border-radius:6px;cursor:pointer;transition:all .2s;font-size:13px;" onmouseover="this.style.borderColor=\'#467B96\'" onmouseout="this.style.borderColor=\'#eee\'">';
+                html += '<input type="checkbox" data-repo-name="' + repo.name + '" ' + (isChecked ? "checked" : "") + ' style="margin-top:2px;accent-color:#467B96;">';
+                html += '<div style="flex:1;min-width:0;">';
+                html += '<div style="font-weight:600;color:#333;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + repo.name + '</div>';
+                html += '<div style="color:#999;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (repo.description || '暂无描述') + '</div>';
+                html += '<div style="margin-top:4px;display:flex;gap:12px;color:#aaa;font-size:11px;">';
+                if (repo.language) {
+                    html += '<span><i class="fa fa-circle" style="font-size:8px;color:#467B96;"></i> ' + repo.language + '</span>';
+                }
+                html += '<span><i class="fa fa-star"></i> ' + repo.stars + '</span>';
+                html += '</div></div></label>';
+            });
+            html += '</div>';
+            reposContainer.innerHTML = html;
+
+            reposContainer.querySelectorAll("input[data-repo-name]").forEach(function(cb) {
+                cb.addEventListener("change", updateSelectedRepos);
+            });
+
+            if (toggleBtn) toggleBtn.style.display = "";
+        }
+
+        if (toggleBtn) {
+            toggleBtn.addEventListener("click", function() {
+                if (!reposContainer) return;
+                reposContainer.querySelectorAll("input[data-repo-name]").forEach(function(cb) {
+                    cb.checked = !cb.checked;
+                });
+                updateSelectedRepos();
+            });
+        }
+
+        if (fetchBtn) {
+            fetchBtn.addEventListener("click", function() {
+                var usernameInput = document.querySelector("input[name=githubUsername]");
+                var username = usernameInput ? usernameInput.value.trim() : "";
+                if (!username) {
+                    fetchStatus.textContent = "请先填写 GitHub 用户名并保存设置";
+                    fetchStatus.style.color = "#e74c3c";
+                    return;
+                }
+                fetchStatus.textContent = "正在获取项目列表...";
+                fetchStatus.style.color = "#999";
+                fetchBtn.disabled = true;
+
+                var page = 1;
+                var allRepos = [];
+
+                function fetchPage() {
+                    var xhr = new XMLHttpRequest();
+                    xhr.open("GET", "https://api.github.com/users/" + encodeURIComponent(username) + "/repos?sort=stars&per_page=100&page=" + page, true);
+                    xhr.setRequestHeader("Accept", "application/vnd.github.v3+json");
+                    xhr.onload = function() {
+                        if (xhr.status === 200) {
+                            try {
+                                var data = JSON.parse(xhr.responseText);
+                                if (!Array.isArray(data) || data.length === 0) {
+                                    renderRepos(allRepos);
+                                    fetchStatus.textContent = "共获取到 " + allRepos.length + " 个项目";
+                                    fetchStatus.style.color = "#389e0d";
+                                    fetchBtn.disabled = false;
+                                    return;
+                                }
+                                data.forEach(function(r) {
+                                    allRepos.push({
+                                        name: r.name || "",
+                                        description: r.description || "",
+                                        language: r.language || "",
+                                        stars: r.stargazers_count || 0,
+                                        forks: r.forks_count || 0
+                                    });
+                                });
+                                if (data.length < 100) {
+                                    renderRepos(allRepos);
+                                    fetchStatus.textContent = "共获取到 " + allRepos.length + " 个项目";
+                                    fetchStatus.style.color = "#389e0d";
+                                    fetchBtn.disabled = false;
+                                } else {
+                                    page++;
+                                    fetchPage();
+                                }
+                            } catch(e) {
+                                fetchStatus.textContent = "解析数据失败";
+                                fetchStatus.style.color = "#e74c3c";
+                                fetchBtn.disabled = false;
+                            }
+                        } else if (xhr.status === 403) {
+                            fetchStatus.textContent = "GitHub API 请求频率受限，请稍后再试";
+                            fetchStatus.style.color = "#e74c3c";
+                            fetchBtn.disabled = false;
+                        } else if (xhr.status === 404) {
+                            fetchStatus.textContent = "用户名不存在，请检查后重试";
+                            fetchStatus.style.color = "#e74c3c";
+                            fetchBtn.disabled = false;
+                        } else {
+                            fetchStatus.textContent = "请求失败 (HTTP " + xhr.status + ")";
+                            fetchStatus.style.color = "#e74c3c";
+                            fetchBtn.disabled = false;
+                        }
+                    };
+                    xhr.onerror = function() {
+                        fetchStatus.textContent = "网络请求失败，请检查网络连接";
+                        fetchStatus.style.color = "#e74c3c";
+                        fetchBtn.disabled = false;
+                    };
+                    xhr.send();
+                }
+
+                fetchPage();
+            });
+        }
+    });
+})();
+</script>
+GITHUBJS;
 
     $currentVersion = shufei_get_theme_version();
     $updateResult = shufei_check_theme_update();
@@ -1036,16 +1211,6 @@ function themeConfig($form)
     $markdownExtEnabled->setAttribute('class', 'typecho-option cat-group-enhance');
     $form->addInput($markdownExtEnabled);
 
-    $commentKaomojiEnabled = new \Typecho\Widget\Helper\Form\Element\Radio(
-        'commentKaomojiEnabled',
-        array('off' => _t('关闭'), 'on' => _t('开启')),
-        'off',
-        _t('评论快捷颜文字'),
-        _t('介绍：开启后，在评论框下方显示颜文字选择面板，支持快捷插入常用颜文字')
-    );
-    $commentKaomojiEnabled->setAttribute('class', 'typecho-option cat-group-enhance');
-    $form->addInput($commentKaomojiEnabled);
-
     // ===== 导航增强配置 =====
     $customNavItems = new \Typecho\Widget\Helper\Form\Element\Textarea(
         'customNavItems',
@@ -1092,7 +1257,7 @@ function themeConfig($form)
         null,
         null,
         _t('GitHub 用户名'),
-        _t('介绍：填写 GitHub 用户名，将自动获取该用户的前 20 个公开项目并展示<br>留空则不显示 GitHub 项目页面入口')
+        _t('介绍：填写 GitHub 用户名，保存后可在下方获取项目列表并选择展示的项目<br>留空则不显示 GitHub 项目页面入口')
     );
     $githubUsername->setAttribute('class', 'typecho-option cat-group-nav');
     $form->addInput($githubUsername);
@@ -1106,6 +1271,16 @@ function themeConfig($form)
     );
     $githubCacheTime->setAttribute('class', 'typecho-option cat-group-nav');
     $form->addInput($githubCacheTime);
+
+    $githubSelectedRepos = new \Typecho\Widget\Helper\Form\Element\Textarea(
+        'githubSelectedRepos',
+        null,
+        null,
+        _t('展示的 GitHub 项目'),
+        _t('介绍：点击下方"获取项目列表"按钮加载项目，勾选需要展示的项目<br>如果不选择任何项目，则展示全部公开项目')
+    );
+    $githubSelectedRepos->setAttribute('class', 'typecho-option cat-group-nav');
+    $form->addInput($githubSelectedRepos);
 }
 
 /**
@@ -2782,6 +2957,16 @@ function shufei_get_github_repos()
         return array();
     }
 
+    // 获取选定的项目列表
+    $selectedRepos = array();
+    $selectedReposRaw = isset($options->githubSelectedRepos) ? trim($options->githubSelectedRepos) : '';
+    if (!empty($selectedReposRaw)) {
+        $decoded = @json_decode($selectedReposRaw, true);
+        if (is_array($decoded)) {
+            $selectedRepos = $decoded;
+        }
+    }
+
     $cacheTime = isset($options->githubCacheTime) ? intval($options->githubCacheTime) : 3600;
     $cacheFile = dirname(__FILE__) . '/cache/github_repos.json';
 
@@ -2789,59 +2974,193 @@ function shufei_get_github_repos()
     if (file_exists($cacheFile)) {
         $cache = @json_decode(file_get_contents($cacheFile), true);
         if ($cache && isset($cache['timestamp']) && (time() - $cache['timestamp']) < $cacheTime) {
-            return $cache['repos'];
-        }
-    }
-
-    // 请求 GitHub API
-    $apiUrl = 'https://api.github.com/users/' . urlencode($username) . '/repos?sort=stars&per_page=20';
-
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $apiUrl);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
-    curl_setopt($ch, CURLOPT_USERAGENT, 'ShuFeiCat-Typecho-Theme');
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-
-    $repos = array();
-
-    if ($httpCode == 200 && $response) {
-        $data = json_decode($response, true);
-        if (is_array($data)) {
-            foreach ($data as $repo) {
-                $repos[] = array(
-                    'name' => isset($repo['name']) ? $repo['name'] : '',
-                    'full_name' => isset($repo['full_name']) ? $repo['full_name'] : '',
-                    'description' => isset($repo['description']) ? $repo['description'] : '',
-                    'url' => isset($repo['html_url']) ? $repo['html_url'] : '',
-                    'stars' => isset($repo['stargazers_count']) ? $repo['stargazers_count'] : 0,
-                    'forks' => isset($repo['forks_count']) ? $repo['forks_count'] : 0,
-                    'language' => isset($repo['language']) ? $repo['language'] : '',
-                    'updated_at' => isset($repo['updated_at']) ? $repo['updated_at'] : ''
-                );
+            $repos = $cache['repos'];
+            // 按选定项目过滤
+            if (!empty($selectedRepos)) {
+                $repos = array_filter($repos, function($repo) use ($selectedRepos) {
+                    return in_array($repo['name'], $selectedRepos);
+                });
+                $repos = array_values($repos);
             }
+            return $repos;
         }
     }
 
-    // 写入缓存
+    // 请求 GitHub API - 获取全部项目
+    $allRepos = array();
+    $page = 1;
+    $maxPages = 5; // 最多获取5页，每页100个
+
+    while ($page <= $maxPages) {
+        $apiUrl = 'https://api.github.com/users/' . urlencode($username) . '/repos?sort=stars&per_page=100&page=' . $page;
+
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $apiUrl);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        curl_setopt($ch, CURLOPT_USERAGENT, 'ShuFeiCat-Typecho-Theme');
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($httpCode == 200 && $response) {
+            $data = json_decode($response, true);
+            if (is_array($data) && count($data) > 0) {
+                foreach ($data as $repo) {
+                    $allRepos[] = array(
+                        'name' => isset($repo['name']) ? $repo['name'] : '',
+                        'full_name' => isset($repo['full_name']) ? $repo['full_name'] : '',
+                        'description' => isset($repo['description']) ? $repo['description'] : '',
+                        'url' => isset($repo['html_url']) ? $repo['html_url'] : '',
+                        'stars' => isset($repo['stargazers_count']) ? $repo['stargazers_count'] : 0,
+                        'forks' => isset($repo['forks_count']) ? $repo['forks_count'] : 0,
+                        'language' => isset($repo['language']) ? $repo['language'] : '',
+                        'updated_at' => isset($repo['updated_at']) ? $repo['updated_at'] : ''
+                    );
+                }
+                if (count($data) < 100) break;
+                $page++;
+            } else {
+                break;
+            }
+        } else {
+            break;
+        }
+    }
+
+    // 写入缓存（保存全部项目）
     $cacheDir = dirname($cacheFile);
     if (!is_dir($cacheDir)) {
         @mkdir($cacheDir, 0755, true);
     }
     @file_put_contents($cacheFile, json_encode(array(
         'timestamp' => time(),
-        'repos' => $repos
+        'repos' => $allRepos
     )));
 
-    return $repos;
+    // 按选定项目过滤
+    if (!empty($selectedRepos)) {
+        $allRepos = array_filter($allRepos, function($repo) use ($selectedRepos) {
+            return in_array($repo['name'], $selectedRepos);
+        });
+        $allRepos = array_values($allRepos);
+    }
+
+    return $allRepos;
 }
 
 /**
  * 解析评论内容中的 Markdown 语法
  * 支持与文章相同的扩展语法
+ *
+ * @param string $text 评论原始文本
+ * @return string 解析后的 HTML
+ */
+/**
+ * 解析评论内容中的表情代码为图片
+ * 支持阿鲁、QQ、微博、贴吧表情
+ *
+ * @param string $html HTML 内容
+ * @param object $options 主题选项
+ * @return string 处理后的 HTML 内容
+ */
+function shufei_parse_emoji_code($html, $options = null)
+{
+    if (empty($html)) return $html;
+
+    // 支持 CDN/custom 模式
+    $resourceMode = !empty($options->resourceMode) ? $options->resourceMode : 'local';
+    $customCdn = !empty($options->customCdn) ? rtrim($options->customCdn, '/') : '';
+    $emojiAssetBase = rtrim($options->themeUrl, '/') . '/assets/vendor/jquery-emoji';
+    if ($resourceMode === 'custom' && $customCdn) {
+        $emojiAssetBase = $customCdn . '/assets/vendor/jquery-emoji';
+    }
+    $basePath = $emojiAssetBase . '/images/emoji/';
+
+    // 阿鲁表情: [aru_1] ~ [aru_164]
+    $html = preg_replace_callback('/\[aru_(\d+)\]/', function($m) use ($basePath) {
+        return '<img class="wp-smiley" src="' . $basePath . 'aru/' . $m[1] . '.png" alt="[aru_' . $m[1] . ']" />';
+    }, $html);
+
+    // QQ表情: [qq:微笑] [qq:撇嘴] 等（新格式，避免Markdown冲突）
+    $qqEmojiMap = array(
+        '微笑','撇嘴','色','发呆','得意','流泪','害羞','闭嘴','睡','大哭',
+        '尴尬','呲牙','发怒','调皮','惊讶','难过','酷','冷汗','抓狂','吐',
+        '偷笑','可爱','白眼','傲慢','饥饿','困','惊恐','流汗','憨笑','大兵',
+        '奋斗','咒骂','疑问','嘘','晕','折磨','衰','骷髅','敲打','再见',
+        '擦汗','抠鼻','鼓掌','嗅大了','坏笑','左哼哼','右哼哼','哈欠','鄙视','委屈',
+        '可怜','阴险','亲亲','吓','快哭了','菜刀','西瓜','啤酒','篮球','乒乓',
+        '咖啡','饭','猪头','玫瑰','凋谢','心','心碎','蛋糕','闪电','炸弹',
+        '刀','足球','瓢虫','便便','夜晚','太阳','礼物','拥抱','强','弱',
+        '握手','胜利','抱拳','勾引','拳头','差劲','爱你','NO','OK','爱情',
+        '飞吻','发财','帅','雨伞','高铁左车头','车厢','高铁右车头','纸巾','右太极','左太极',
+        '献吻','街舞','激动','挥动','跳绳','回头','磕头','转圈','怄火','发抖',
+        '跳跳','爆筋','沙发','钱','蜡烛','枪','灯','香蕉','吻','下雨',
+        '闹钟','囍','棒棒糖','面条','车','邮件','风车','药丸','奶瓶','灯笼',
+        '青蛙','戒指','K歌','熊猫','喝彩','购物','多云','鞭炮','飞机','气球'
+    );
+    $qqPattern = '/\[qq:(' . implode('|', array_map('preg_quote', $qqEmojiMap)) . ')\]/';
+    $html = preg_replace_callback($qqPattern, function($m) use ($basePath) {
+        return '<img class="wp-smiley" src="' . $basePath . 'qq/' . urlencode($m[1]) . '.gif" alt="[qq:' . $m[1] . ']" />';
+    }, $html);
+
+    // 微博表情: [wb:doge] [wb:aini] 等（新格式，key为显示名，value为文件名）
+    $wbEmojiMap = array(
+        'doge' => 'doge', 'miao' => 'miao',
+        'dog1' => 'dog1', 'dog2' => 'dog2', 'dog3' => 'dog3', 'dog4' => 'dog4',
+        'dog5' => 'dog5', 'dog6' => 'dog6', 'dog7' => 'dog7', 'dog8' => 'dog8',
+        'dog9' => 'dog9', 'dog10' => 'dog10', 'dog11' => 'dog11', 'dog12' => 'dog12',
+        'dog13' => 'dog13', 'dog14' => 'dog14', 'dog15' => 'dog15',
+        '二哈' => 'erha', '爱你' => 'aini', '奥特曼' => 'aoteman',
+        '拜拜' => 'baibai', '悲伤' => 'beishang', '鄙视' => 'bishi',
+        '闭嘴' => 'bizui', '馋嘴' => 'chanzui', '吃惊' => 'chijing',
+        '打哈气' => 'dahaqi', '打脸' => 'dalian', '顶' => 'ding',
+        '肥皂' => 'feizao', '感冒' => 'ganmao', '鼓掌' => 'guzhang',
+        '哈哈' => 'haha', '害羞' => 'haixiu', '呵呵' => 'hehe',
+        '黑线' => 'heixian', '哼' => 'heng', '花心' => 'huaxin',
+        '挤眼' => 'jiyan', '可爱' => 'keai', '可怜' => 'kelian',
+        '哭' => 'ku', '困' => 'kun', '懒得理你' => 'landelini',
+        '累' => 'lei', '男孩儿' => 'nanhaier', '怒' => 'nu',
+        '怒骂' => 'numa', '女孩儿' => 'nvhaier', '钱' => 'qian',
+        '亲亲' => 'qinqin', '傻眼' => 'shayan', '生病' => 'shengbing',
+        '神兽' => 'shenshou', '失望' => 'shiwang', '衰' => 'shuai',
+        '睡觉' => 'shuijiao', '思考' => 'sikao', '太开心' => 'taikaixin',
+        '偷笑' => 'touxiao', '吐' => 'tu', '兔子' => 'tuzi',
+        '挖鼻屎' => 'wabishi', '委屈' => 'weiqu', '笑哭' => 'xiaoku',
+        '熊猫' => 'xiongmao', '嘻嘻' => 'xixi', '嘘' => 'xu',
+        '阴险' => 'yinxian', '疑问' => 'yiwen', '右哼哼' => 'youhengheng',
+        '晕' => 'yun', '抓狂' => 'zhuakuang', '猪头' => 'zhutou',
+        '最右' => 'zuiyou', '左哼哼' => 'zuohengheng', '给力' => 'geili',
+        '互粉' => 'hufen', '囧' => 'jiong', '萌' => 'meng',
+        '神马' => 'shenma', 'v5' => 'v5', '囍' => 'xi', '织' => 'zhi'
+    );
+    $wbKeys = array_keys($wbEmojiMap);
+    $wbPattern = '/\[wb:(' . implode('|', array_map('preg_quote', $wbKeys)) . ')\]/';
+    $html = preg_replace_callback($wbPattern, function($m) use ($basePath, $wbEmojiMap) {
+        $filename = $wbEmojiMap[$m[1]];
+        return '<img class="wp-smiley" src="' . $basePath . 'weibo/' . $filename . '.png" alt="[wb:' . $m[1] . ']" />';
+    }, $html);
+
+    // 贴吧表情: [tb:呵呵] [tb:哈哈] 等（新格式，避免Markdown #号冲突）
+    $tiebaEmojiMap = array(
+        '呵呵','哈哈','吐舌','太开心','笑眼','花心','小乖','乖','捂嘴笑','滑稽',
+        '你懂的','不高兴','怒','汗','黑线','泪','真棒','喷','惊哭','阴险',
+        '鄙视','酷','啊','狂汗','what','疑问','酸爽','呀咩爹','委屈','惊讶',
+        '睡觉','笑尿','挖鼻','吐','犀利','小红脸','懒得理','勉强','爱心','心碎',
+        '玫瑰','礼物','彩虹','太阳','星星月亮','钱币','茶杯','蛋糕','大拇指','胜利',
+        'haha','OK','沙发','手纸','香蕉','便便','药丸','红领巾','蜡烛','音乐','灯泡'
+    );
+    $tiebaPattern = '/\[tb:(' . implode('|', array_map('preg_quote', $tiebaEmojiMap)) . ')\]/';
+    $html = preg_replace_callback($tiebaPattern, function($m) use ($basePath) {
+        return '<img class="wp-smiley" src="' . $basePath . 'tieba/' . urlencode($m[1]) . '.png" alt="[tb:' . $m[1] . ']" />';
+    }, $html);
+
+    return $html;
+}
+
+/**
+ * 解析评论 Markdown 内容
  *
  * @param string $text 评论原始文本
  * @return string 解析后的 HTML
@@ -2871,6 +3190,9 @@ function shufei_parse_comment_markdown($text)
 
     // 应用 Markdown 扩展（高亮、提示框、Mermaid、ECharts、视频、音乐等）
     $html = shufei_apply_markdown_ext($html);
+
+    // 解析评论中的表情代码为图片
+    $html = shufei_parse_emoji_code($html, $options);
 
     return $html;
 }

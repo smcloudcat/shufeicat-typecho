@@ -2,6 +2,14 @@
 
 <!-- 右侧边栏 -->
 <div class="right-sidebar" id="secondary" role="complementary">
+    <!-- 文章目录（仅文章页显示，由JS动态填充） -->
+    <?php if ($this->is('post')): ?>
+    <section class="widget toc-widget" id="toc-widget" style="display:none;">
+        <h3 class="widget-title"><i class="fa fa-list"></i><?php _e('文章目录'); ?></h3>
+        <nav class="toc-nav" id="toc-nav"></nav>
+    </section>
+    <?php endif; ?>
+
     <!-- 最新文章 -->
     <?php if (!empty($this->options->sidebarBlock) && in_array('ShowRecentPosts', $this->options->sidebarBlock)): ?>
     <section class="widget">

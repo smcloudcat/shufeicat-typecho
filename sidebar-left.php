@@ -77,18 +77,10 @@
         $guestbookUrl = $guestbookEnabled ? shufei_get_guestbook_url() : '';
         if ($guestbookEnabled && !empty($guestbookUrl)):
         ?>
-        <section class="widget guestbook-widget collapsible-widget">
-            <h3 class="widget-title collapsible-toggle"><i class="fa fa-envelope-o"></i><?php _e('留言板'); ?><i class="fa fa-chevron-down collapsible-arrow"></i></h3>
-            <div class="collapsible-content">
-                <ul class="widget-list">
-                    <li>
-                        <a href="<?php echo htmlspecialchars($guestbookUrl); ?>">
-                            <i class="fa fa-commenting-o"></i>
-                            <span><?php _e('给我留言'); ?></span>
-                        </a>
-                    </li>
-                </ul>
-            </div>
+        <section class="widget guestbook-widget">
+            <a href="<?php echo htmlspecialchars($guestbookUrl); ?>" class="widget-title sidebar-direct-link">
+                <i class="fa fa-envelope-o"></i><?php _e('留言板'); ?>
+            </a>
         </section>
         <?php endif; ?>
 
@@ -105,18 +97,10 @@
             if (!empty($githubPage)):
                 $githubPageUrl = $this->options->index . '/' . $githubPage['slug'] . '.html';
         ?>
-        <section class="widget github-widget collapsible-widget">
-            <h3 class="widget-title collapsible-toggle"><i class="fa fa-github"></i><?php _e('GitHub'); ?><i class="fa fa-chevron-down collapsible-arrow"></i></h3>
-            <div class="collapsible-content">
-                <ul class="widget-list">
-                    <li>
-                        <a href="<?php echo htmlspecialchars($githubPageUrl); ?>">
-                            <i class="fa fa-code-fork"></i>
-                            <span><?php _e('我的项目'); ?></span>
-                        </a>
-                    </li>
-                </ul>
-            </div>
+        <section class="widget github-widget">
+            <a href="<?php echo htmlspecialchars($githubPageUrl); ?>" class="widget-title sidebar-direct-link">
+                <i class="fa fa-github"></i><?php _e('GitHub'); ?>
+            </a>
         </section>
         <?php endif; ?>
         <?php endif; ?>
