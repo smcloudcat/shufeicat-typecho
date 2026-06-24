@@ -3526,3 +3526,653 @@ function shufei_process_music_shortcode($content)
 
     return $content;
 }
+
+/**
+ * ===== 文章编辑器快捷插入功能 =====
+ * 在后台文章/页面 Markdown 编辑器工具栏中添加快捷按钮
+ * 支持所有增强 Markdown 语法：高亮、公式、任务列表、提示框、折叠、图片、视频、音乐、Mermaid、ECharts
+ * 利用 Typecho 的 admin/write-post.php 和 admin/write-page.php 的 bottom 钩子
+ */
+
+// 注册后台编辑器钩子（文章 + 页面）
+\Typecho\Plugin::factory('admin/write-post.php')->bottom = 'shufei_quick_insert_js';
+\Typecho\Plugin::factory('admin/write-page.php')->bottom = 'shufei_quick_insert_js';
+
+/**
+ * 输出快捷插入功能所需的 CSS 和 JavaScript
+ * 将快捷按钮注入到 Markdown 编辑器工具栏（#wmd-button-bar），位于"撰写/预览"标签左侧
+ *
+ * @param mixed $post 文章/页面对象（由钩子传入，此处未使用）
+ */
+function shufei_quick_insert_js($post)
+{
+    $options = \Typecho\Widget::widget('Widget_Options');
+    if (empty($options->markdown)) {
+        return;
+    }
+    ?>
+<style>
+/* ===== 工具栏自动换行 ===== */
+.wmd-button-row {
+    height: auto !important;
+    min-height: 26px;
+    padding-bottom: 4px !important;
+    white-space: normal;
+}
+.wmd-button-row li {
+    white-space: nowrap;
+}
+
+/* ===== 所有按钮统一样式（原 sprite 按钮也用文字替代）===== */
+.wmd-button-row li span {
+    width: auto !important;
+    height: 20px;
+    line-height: 20px;
+    padding: 0 5px;
+    font-size: 12px;
+    color: #666;
+    background: none !important;
+    display: block;
+    white-space: nowrap;
+}
+.wmd-button-row li:hover {
+    background-color: #E9E9E6;
+}
+.wmd-button-row li:hover span {
+    color: #467B96;
+}
+
+/* 分隔符 */
+.wmd-button-row li.shufei-qi-sep {
+    display: inline-block;
+    width: 1px;
+    height: 16px;
+    margin: 0 4px;
+    padding: 0;
+    background: #d0d0d0;
+    vertical-align: middle;
+    cursor: default;
+}
+.wmd-button-row li.shufei-qi-sep:hover {
+    background: #d0d0d0;
+}
+
+/* ===== 预览区样式（与前台一致）===== */
+#wmd-preview {
+    line-height: 1.8;
+    color: #333;
+    font-size: 15px;
+}
+#wmd-preview h1, #wmd-preview h2, #wmd-preview h3,
+#wmd-preview h4, #wmd-preview h5, #wmd-preview h6 {
+    margin: 1.2em 0 0.6em;
+    font-weight: bold;
+    line-height: 1.3;
+}
+#wmd-preview h1 { font-size: 1.8em; border-bottom: 1px solid #eee; padding-bottom: .3em; }
+#wmd-preview h2 { font-size: 1.5em; border-bottom: 1px solid #eee; padding-bottom: .3em; }
+#wmd-preview h3 { font-size: 1.3em; }
+#wmd-preview h4 { font-size: 1.1em; }
+#wmd-preview h5 { font-size: 1em; }
+#wmd-preview h6 { font-size: .9em; color: #999; }
+#wmd-preview p { margin: 0.8em 0; }
+#wmd-preview a { color: #467B96; text-decoration: none; }
+#wmd-preview a:hover { text-decoration: underline; }
+#wmd-preview blockquote {
+    margin: 1em 0;
+    padding: 10px 16px;
+    border-left: 4px solid #467B96;
+    background: #f7f7f9;
+    color: #666;
+}
+#wmd-preview blockquote p { margin: 0.4em 0; }
+#wmd-preview code {
+    padding: 2px 6px;
+    background: #f0f0f0;
+    border-radius: 3px;
+    font-size: 0.9em;
+    color: #c7254e;
+}
+#wmd-preview pre {
+    margin: 1em 0;
+    padding: 14px 18px;
+    background: #2d2d2d;
+    border-radius: 5px;
+    overflow-x: auto;
+}
+#wmd-preview pre code {
+    padding: 0;
+    background: none;
+    color: #ccc;
+    font-size: 13px;
+}
+#wmd-preview ul, #wmd-preview ol { margin: 0.8em 0; padding-left: 2em; }
+#wmd-preview li { margin: 0.3em 0; }
+#wmd-preview img { max-width: 100%; height: auto; border-radius: 4px; }
+#wmd-preview table {
+    margin: 1em 0;
+    border-collapse: collapse;
+    width: 100%;
+}
+#wmd-preview th, #wmd-preview td {
+    border: 1px solid #ddd;
+    padding: 8px 12px;
+}
+#wmd-preview th { background: #f5f5f5; font-weight: bold; }
+#wmd-preview hr { border: none; border-top: 1px solid #eee; margin: 1.5em 0; }
+
+/* ===== 全屏模式适配 ===== */
+.fullscreen .wmd-button-row {
+    padding-bottom: 0 !important;
+}
+.fullscreen #wmd-preview {
+    display: block !important;
+}
+/* 全屏模式下隐藏高级选项按钮（避免从 .submit 与 #wmd-preview 间隙露出） */
+.fullscreen #advance-panel {
+    display: none !important;
+}
+
+/* 模态对话框 */
+.shufei-modal-mask {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 99999;
+    display: none;
+}
+.shufei-modal-mask.active { display: block; }
+.shufei-modal {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    background: #fff;
+    border-radius: 6px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.18);
+    z-index: 100000;
+    min-width: 380px;
+    max-width: 90vw;
+    display: none;
+}
+.shufei-modal.active { display: block; }
+.shufei-modal-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid #eee;
+    font-weight: bold;
+    color: #467B96;
+    font-size: 14px;
+}
+.shufei-modal-body { padding: 16px; }
+.shufei-modal-body .field { margin-bottom: 12px; }
+.shufei-modal-body .field:last-child { margin-bottom: 0; }
+.shufei-modal-body label {
+    display: block;
+    font-size: 12px;
+    color: #666;
+    margin-bottom: 4px;
+}
+.shufei-modal-body input[type="text"],
+.shufei-modal-body select {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    font-size: 13px;
+    box-sizing: border-box;
+}
+.shufei-modal-body input[type="text"]:focus,
+.shufei-modal-body select:focus {
+    border-color: #467B96;
+    outline: none;
+}
+.shufei-modal-body .field-row {
+    display: flex;
+    gap: 10px;
+}
+.shufei-modal-body .field-row .field { flex: 1; }
+.shufei-modal-footer {
+    padding: 12px 16px;
+    border-top: 1px solid #eee;
+    text-align: right;
+}
+.shufei-modal-footer .btn { margin-left: 8px; }
+.shufei-modal-footer .btn-primary {
+    background: #467B96;
+    color: #fff;
+    border: 1px solid #467B96;
+}
+.shufei-modal-footer .btn-cancel {
+    background: #f5f5f5;
+    color: #666;
+    border: 1px solid #ddd;
+}
+</style>
+<script>
+(function ($) {
+    $(document).ready(function () {
+        var textarea = $('#text');
+        if (textarea.length === 0) return;
+
+        // 在光标位置插入文本，并触发预览刷新
+        function insertAtCursor(text) {
+            var sel = textarea.getSelection();
+            var offset = (sel ? sel.start : 0) + text.length;
+            textarea.replaceSelection(text);
+            textarea.setSelection(offset, offset);
+            textarea.trigger('input');
+            textarea.focus();
+        }
+
+        // 在选中文本两侧包裹标记（如 ==高亮==），无选中时插入占位
+        function wrapSelection(before, after, placeholder) {
+            var sel = textarea.getSelection();
+            var text = sel && sel.text ? sel.text : (placeholder || '');
+            var replacement = before + text + (after || before);
+            var start = sel ? sel.start : 0;
+            textarea.replaceSelection(replacement);
+            // 选中插入的文本部分（不含包裹标记）
+            textarea.setSelection(start + before.length, start + before.length + text.length);
+            textarea.trigger('input');
+            textarea.focus();
+        }
+
+        // 创建并显示模态对话框
+        function showModal(title, fields, callback) {
+            $('#shufei-modal-mask, #shufei-modal').remove();
+
+            var mask = $('<div class="shufei-modal-mask" id="shufei-modal-mask"></div>');
+            var modal = $('<div class="shufei-modal" id="shufei-modal"></div>');
+            var header = $('<div class="shufei-modal-header"></div>').text(title);
+            var body = $('<div class="shufei-modal-body"></div>');
+            var footer = $('<div class="shufei-modal-footer"></div>');
+            var btnOk = $('<button type="button" class="btn btn-xs btn-primary">确定</button>');
+            var btnCancel = $('<button type="button" class="btn btn-xs btn-cancel">取消</button>');
+
+            var inputs = {};
+            var currentRow = null;
+
+            fields.forEach(function (f) {
+                if (f.half && !currentRow) {
+                    currentRow = $('<div class="field-row"></div>');
+                    body.append(currentRow);
+                } else if (!f.half) {
+                    currentRow = null;
+                }
+
+                var fieldWrap = $('<div class="field"></div>');
+                var label = $('<label></label>').attr('for', 'shufei-field-' + f.name).text(f.label);
+
+                var input;
+                if (f.type === 'select') {
+                    input = $('<select></select>').attr('id', 'shufei-field-' + f.name);
+                    (f.options || []).forEach(function (opt) {
+                        var val = typeof opt === 'object' ? opt.value : opt;
+                        var text = typeof opt === 'object' ? opt.text : opt;
+                        var option = $('<option></option>').attr('value', val).text(text);
+                        if (val === f.value) option.attr('selected', 'selected');
+                        input.append(option);
+                    });
+                } else {
+                    input = $('<input type="text" />')
+                        .attr('id', 'shufei-field-' + f.name)
+                        .attr('placeholder', f.placeholder || '');
+                    if (f.value) input.val(f.value);
+                }
+
+                fieldWrap.append(label).append(input);
+                inputs[f.name] = input;
+
+                if (currentRow) {
+                    currentRow.append(fieldWrap);
+                    if (currentRow.children().length >= 2) currentRow = null;
+                } else {
+                    body.append(fieldWrap);
+                }
+            });
+
+            footer.append(btnCancel).append(btnOk);
+            modal.append(header).append(body).append(footer);
+            $('body').append(mask).append(modal);
+            mask.addClass('active');
+            modal.addClass('active');
+
+            var firstInput = body.find('input, select').first();
+            if (firstInput.length) firstInput.focus();
+
+            function closeModal() {
+                mask.removeClass('active').remove();
+                modal.removeClass('active').remove();
+            }
+
+            btnOk.on('click', function () {
+                var values = {};
+                var hasValue = false;
+                for (var name in inputs) {
+                    values[name] = $.trim(inputs[name].val());
+                    if (values[name]) hasValue = true;
+                }
+                if (hasValue) callback(values);
+                closeModal();
+                textarea.focus();
+            });
+
+            btnCancel.on('click', function () { closeModal(); textarea.focus(); });
+            mask.on('click', function () { closeModal(); textarea.focus(); });
+
+            modal.on('keydown', function (e) {
+                if (e.keyCode === 13) { e.preventDefault(); btnOk.trigger('click'); }
+                else if (e.keyCode === 27) { e.preventDefault(); btnCancel.trigger('click'); }
+            });
+        }
+
+        // ===== 直接插入类（无需弹窗）=====
+
+        // 高亮文本：==高亮内容==
+        function insertHighlight() {
+            wrapSelection('==', '==', '高亮内容');
+        }
+
+        // 回复可见：[reply]内容[/reply]
+        function insertReply() {
+            wrapSelection('[reply]', '[/reply]', '此处内容需要回复后才可查看');
+        }
+
+        // 行内代码：`code`（包裹选中文本）
+        function insertCode() {
+            wrapSelection('`', '`', 'code');
+        }
+
+        // 代码块：```\ncode\n```
+        function insertCodeBlock() {
+            insertAtCursor('\n```\ncode\n```\n');
+        }
+
+        // 数学公式：$$\n公式\n$$
+        function insertMath() {
+            insertAtCursor('\n$$\nE = mc^2\n$$\n');
+        }
+
+        // 任务列表：- [ ] 任务项
+        function insertTask() {
+            insertAtCursor('\n- [ ] 任务项\n- [ ] 任务项\n- [x] 已完成项\n');
+        }
+
+        // 提示框：> [!tip] 标题
+        function insertTip() {
+            insertAtCursor('\n> [!tip] 提示标题\n> 提示内容写在这里\n> 可以换行继续写\n');
+        }
+
+        // 折叠区块：> [details:标题]
+        function insertDetails() {
+            insertAtCursor('\n> [details:点击展开查看]\n> 折叠的内容写在这里\n> 可以换行继续写\n');
+        }
+
+        // Mermaid 流程图
+        function insertMermaid() {
+            insertAtCursor('\n```mermaid\ngraph TD\n    A[开始] --> B[步骤一]\n    B --> C[步骤二]\n    C --> D[结束]\n```\n');
+        }
+
+        // ECharts 图表
+        function insertEcharts() {
+            insertAtCursor('\n```echarts\n{\n  "xAxis": { "type": "category", "data": ["A", "B", "C"] },\n  "yAxis": { "type": "value" },\n  "series": [{ "data": [120, 200, 150], "type": "bar" }]\n}\n```\n');
+        }
+
+        // ===== 弹窗插入类 =====
+
+        // 图片插入：![描述|宽x高#对齐](url)
+        function insertImage() {
+            showModal('插入图片', [
+                { name: 'url', label: '图片地址 *', placeholder: 'https://example.com/image.jpg' },
+                { name: 'alt', label: '图片描述', placeholder: '图片说明文字（可选，会显示为标题）' },
+                { name: 'width', label: '宽度', placeholder: '如 300 或 50%', half: true },
+                { name: 'height', label: '高度', placeholder: '如 200（可选）', half: true },
+                {
+                    name: 'align', label: '对齐方式', type: 'select', value: '',
+                    options: [
+                        { value: '', text: '默认' },
+                        { value: 'center', text: '居中' },
+                        { value: 'left', text: '左对齐' },
+                        { value: 'right', text: '右对齐' }
+                    ]
+                }
+            ], function (v) {
+                if (!v.url) return;
+                var altParts = [];
+                if (v.alt) altParts.push(v.alt);
+                var sizeStr = '';
+                if (v.width && v.height) sizeStr = v.width + 'x' + v.height;
+                else if (v.width) sizeStr = v.width;
+                if (sizeStr) altParts.push(sizeStr);
+                var altText = altParts.join('|');
+                if (v.align) altText += '#' + v.align;
+                insertAtCursor('\n![' + altText + '](' + v.url + ')\n');
+            });
+        }
+
+        // 视频插入：[video src="url" poster="..." autoplay="true"]
+        function insertVideo() {
+            showModal('插入视频', [
+                { name: 'src', label: '视频地址 *', placeholder: 'https://example.com/video.mp4' },
+                { name: 'poster', label: '封面图地址', placeholder: 'https://example.com/poster.jpg（可选）' },
+                {
+                    name: 'autoplay', label: '自动播放', type: 'select', value: 'false',
+                    options: [
+                        { value: 'false', text: '否' },
+                        { value: 'true', text: '是' }
+                    ]
+                }
+            ], function (v) {
+                if (!v.src) return;
+                var attrs = 'src="' + v.src + '"';
+                if (v.poster) attrs += ' poster="' + v.poster + '"';
+                if (v.autoplay === 'true') attrs += ' autoplay="true"';
+                insertAtCursor('\n[video ' + attrs + ']\n');
+            });
+        }
+
+        // 音乐插入：[music src="url" title="..." artist="..." cover="..."]
+        function insertMusic() {
+            showModal('插入音乐', [
+                { name: 'src', label: '音乐地址 *', placeholder: 'https://example.com/song.mp3' },
+                { name: 'title', label: '歌曲名', placeholder: '如：晴天（可选）', half: true },
+                { name: 'artist', label: '艺术家', placeholder: '如：周杰伦（可选）', half: true },
+                { name: 'cover', label: '封面图地址', placeholder: 'https://example.com/cover.jpg（可选）' }
+            ], function (v) {
+                if (!v.src) return;
+                var attrs = 'src="' + v.src + '"';
+                if (v.title) attrs += ' title="' + v.title + '"';
+                if (v.artist) attrs += ' artist="' + v.artist + '"';
+                if (v.cover) attrs += ' cover="' + v.cover + '"';
+                insertAtCursor('\n[music ' + attrs + ']\n');
+            });
+        }
+
+        // ===== 重建工具栏：原按钮文字化 + 新按钮 + 统一排序 =====
+
+        // 原编辑器按钮 ID → 文字标签
+        var origLabels = {
+            'wmd-bold-button': '加粗',
+            'wmd-italic-button': '斜体',
+            'wmd-link-button': '链接',
+            'wmd-quote-button': '引用',
+            'wmd-olist-button': '有序列表',
+            'wmd-ulist-button': '无序列表',
+            'wmd-heading-button': '标题',
+            'wmd-hr-button': '分割线',
+            'wmd-more-button': '摘要',
+            'wmd-undo-button': '撤销',
+            'wmd-redo-button': '重做',
+            'wmd-fullscreen-button': '全屏',
+            'wmd-exit-fullscreen-button': '退出全屏',
+            'wmd-help-button': '帮助'
+        };
+
+        // 将原 sprite 按钮的文字标签写入 span，移除背景图
+        function textifyOrig(li, label) {
+            var span = li.find('span');
+            if (span.length) {
+                span.css('background-image', 'none').width('auto').text(label);
+            }
+            return li;
+        }
+
+        // 重建整个工具栏，按功能分组排列
+        function rebuildToolbar() {
+            var buttonRow = $('.wmd-button-row');
+            if (buttonRow.length === 0) return false;
+            if (buttonRow.data('shufei-rebuilt')) return true;
+
+            // 收集并 detach 所有原按钮（保留事件绑定）
+            var origBtns = {};
+            buttonRow.find('li').each(function () {
+                var li = $(this);
+                var id = li.attr('id');
+                if (id) {
+                    origBtns[id] = li.detach();
+                } else {
+                    li.remove();
+                }
+            });
+
+            // 删除原图片和代码按钮（由新按钮替代）
+            delete origBtns['wmd-image-button'];
+            delete origBtns['wmd-code-button'];
+
+            // 辅助函数
+            function appendOrig(id) {
+                if (origBtns[id]) {
+                    buttonRow.append(textifyOrig(origBtns[id], origLabels[id] || ''));
+                }
+            }
+            function appendNew(action, label, title) {
+                buttonRow.append('<li class="shufei-qi-btn" data-action="' + action + '" title="' + title + '"><span>' + label + '</span></li>');
+            }
+            function appendSep() {
+                buttonRow.append('<li class="shufei-qi-sep"></li>');
+            }
+
+            // === 第1组：文字格式 ===
+            appendOrig('wmd-bold-button');       // 加粗
+            appendOrig('wmd-italic-button');      // 斜体
+            appendNew('highlight', '高亮', '高亮文本 ==高亮==');
+            appendNew('code', '代码', '行内代码 `code`');
+            appendSep();
+
+            // === 第2组：结构 ===
+            appendOrig('wmd-heading-button');     // 标题
+            appendOrig('wmd-quote-button');       // 引用
+            appendOrig('wmd-olist-button');       // 有序列表
+            appendOrig('wmd-ulist-button');       // 无序列表
+            appendNew('task', '任务', '任务列表 - [ ]');
+            appendOrig('wmd-hr-button');          // 分割线
+            appendSep();
+
+            // === 第3组：插入 ===
+            appendOrig('wmd-link-button');        // 链接
+            appendNew('image', '图片', '插入图片（支持大小/对齐）');
+            appendNew('video', '视频', '插入视频（支持封面）');
+            appendNew('music', '音乐', '插入音乐');
+            appendNew('codeblock', '代码块', '代码块 ```code```');
+            appendSep();
+
+            // === 第4组：高级 ===
+            appendNew('math', '公式', '数学公式 $$...$$');
+            appendNew('tip', '提示', '提示框 > [!tip]');
+            appendNew('details', '折叠', '折叠区块 > [details:]');
+            appendNew('reply', '回复可见', '回复可见 [reply]内容[/reply]');
+            appendNew('mermaid', '流程图', 'Mermaid 流程图/时序图/甘特图');
+            appendNew('echarts', '图表', 'ECharts 数据图表');
+            appendSep();
+
+            // === 第5组：工具 ===
+            appendOrig('wmd-more-button');        // 摘要
+            appendOrig('wmd-undo-button');        // 撤销
+            appendOrig('wmd-redo-button');        // 重做
+            appendOrig('wmd-fullscreen-button');  // 全屏
+            if (origBtns['wmd-exit-fullscreen-button']) {
+                appendOrig('wmd-exit-fullscreen-button'); // 退出全屏
+            }
+            appendOrig('wmd-help-button');        // 帮助
+
+            buttonRow.data('shufei-rebuilt', true);
+
+            return true;
+        }
+
+        // 尝试立即重建，若工具栏尚未创建则监听 DOM 变化
+        if (!rebuildToolbar()) {
+            var observer = new MutationObserver(function (mutations, obs) {
+                if (rebuildToolbar()) obs.disconnect();
+            });
+            observer.observe(document.body, { childList: true, subtree: true });
+            setTimeout(function () { observer.disconnect(); }, 30000);
+        }
+
+        // 全屏模式：动态调整 #text 和 #wmd-preview 的 top 位置，避免被工具栏遮挡
+        function adjustFullscreenLayout() {
+            var isFs = $('#text').css('position') === 'absolute';
+            if (isFs) {
+                var barHeight = $('#wmd-button-bar').outerHeight(true) || 53;
+                $('#text').css('top', barHeight + 'px');
+                $('#wmd-preview').css('top', barHeight + 'px');
+                // 让 .submit 覆盖到预览区顶部，避免工具栏换行后露出下方内容
+                $('.submit').css('height', barHeight + 'px');
+            } else {
+                $('#text').css('top', '');
+                $('#wmd-preview').css('top', '');
+                $('.submit').css('height', '');
+            }
+        }
+
+        // 全屏切换时处理 exit-fullscreen 按钮和布局调整
+        $(document).on('click', '#wmd-fullscreen-button, #wmd-exit-fullscreen-button', function () {
+            setTimeout(function () {
+                // 文字化 exit-fullscreen 按钮
+                var exitBtn = $('#wmd-exit-fullscreen-button');
+                if (exitBtn.length) {
+                    var span = exitBtn.find('span');
+                    if (span.length && !span.text()) {
+                        span.css('background-image', 'none').width('auto').text('退出全屏');
+                    }
+                }
+                // 全屏可能重建工具栏，重新文字化所有 sprite 按钮
+                $('.wmd-button-row li[id]').each(function () {
+                    var li = $(this);
+                    var id = li.attr('id');
+                    if (origLabels[id]) {
+                        var span = li.find('span');
+                        if (span.length && !span.text()) {
+                            span.css('background-image', 'none').width('auto').text(origLabels[id]);
+                        }
+                    }
+                });
+                // 调整内容区位置
+                adjustFullscreenLayout();
+            }, 100);
+        });
+
+        // 绑定按钮点击事件（事件委托，支持动态注入）
+        $(document).on('click', '.shufei-qi-btn', function (e) {
+            e.preventDefault();
+            var action = $(this).data('action');
+            switch (action) {
+                case 'highlight': insertHighlight(); break;
+                case 'reply': insertReply(); break;
+                case 'code': insertCode(); break;
+                case 'codeblock': insertCodeBlock(); break;
+                case 'math': insertMath(); break;
+                case 'task': insertTask(); break;
+                case 'tip': insertTip(); break;
+                case 'details': insertDetails(); break;
+                case 'mermaid': insertMermaid(); break;
+                case 'echarts': insertEcharts(); break;
+                case 'image': insertImage(); break;
+                case 'video': insertVideo(); break;
+                case 'music': insertMusic(); break;
+            }
+        });
+    });
+})(jQuery);
+</script>
+<?php
+}
