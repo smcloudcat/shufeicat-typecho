@@ -150,9 +150,9 @@ function threadedComments($comments, $options) {
                     <textarea rows="6" cols="50" name="text" id="textarea" class="textarea"
                               required placeholder="<?php _e('写下你的评论...'); ?>"><?php $this->remember('text'); ?></textarea>
                     <div class="emoji-panel" id="emoji-panel">
-                        <span class="emoji-toggle" id="emoji-toggle">
-                            <i class="fa fa-smile-o"></i> 表情
-                        </span>
+                        <button type="button" class="emoji-toggle" id="emoji-toggle" aria-label="<?php _e('表情面板'); ?>" aria-expanded="false">
+                            <i class="fa fa-smile-o" aria-hidden="true"></i> <?php _e('表情'); ?>
+                        </button>
                     </div>
                 </div>
 

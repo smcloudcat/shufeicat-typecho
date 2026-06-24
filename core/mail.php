@@ -21,7 +21,12 @@ class ShuFeiCat_Email
             $mail->isSMTP();
             $mail->SMTPAuth = true;
             $mail->CharSet = 'UTF-8';
-            $mail->SMTPSecure = $options->commentMailSMTPSecure ? $options->commentMailSMTPSecure : 'ssl';
+            // 兼容历史拼写错误 'tsl'，统一修正为 'tls'
+            $smtpSecure = $options->commentMailSMTPSecure ? $options->commentMailSMTPSecure : 'ssl';
+            if ($smtpSecure === 'tsl') {
+                $smtpSecure = 'tls';
+            }
+            $mail->SMTPSecure = $smtpSecure;
             $mail->Host = $options->commentMailHost;
             $mail->Port = $options->commentMailPort;
             $mail->FromName = $options->commentMailFromName;

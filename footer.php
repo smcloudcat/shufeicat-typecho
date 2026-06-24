@@ -142,41 +142,44 @@ if ($resourceMode === 'cdn') {
 
 <!-- jQuery 库 - Lightbox2 依赖，文章/页面加载，开启Pjax时全站加载 -->
 <?php if ($this->is('post') || $this->is('page') || (!empty($this->options->pjaxLoad) && $this->options->pjaxLoad === 'on')): ?>
-<script src="<?php echo $jsUrls['jquery']; ?>"></script>
+<script src="<?php echo $jsUrls['jquery']; ?>" defer></script>
 <?php endif; ?>
 
 <!-- Prism.js 代码高亮脚本 - 使用Autoloader自动加载依赖 -->
 <?php if (empty($this->options->codeHighlightEnabled) || $this->options->codeHighlightEnabled !== 'off'): ?>
-<script src="<?php echo $jsUrls['prism']; ?>"></script>
-<script src="<?php echo $jsUrls['prismAutoloader']; ?>"></script>
+<script src="<?php echo $jsUrls['prism']; ?>" defer></script>
+<script src="<?php echo $jsUrls['prismAutoloader']; ?>" defer></script>
 <?php if ($resourceMode !== 'cdn'): ?>
 <script>
+// 延迟设置 Prism autoloader 路径，确保 Prism 已加载
+window.addEventListener('DOMContentLoaded', function() {
     if (window.Prism && Prism.plugins && Prism.plugins.autoloader) {
         Prism.plugins.autoloader.languages_path = '<?php echo (strpos($jsUrls['prismAutoloader'], 'http') === 0) ? dirname($jsUrls['prismAutoloader']) . '/../../components/' : $themeUrl . 'assets/vendor/prismjs/components/'; ?>';
     }
+});
 </script>
 <?php endif; ?>
 <?php endif; ?>
 
 <!-- Lightbox2 图片灯箱脚本 - 文章/页面加载，开启Pjax时全站加载 -->
 <?php if ($this->is('post') || $this->is('page') || (!empty($this->options->pjaxLoad) && $this->options->pjaxLoad === 'on')): ?>
-<script src="<?php echo $jsUrls['lightbox']; ?>"></script>
+<script src="<?php echo $jsUrls['lightbox']; ?>" defer></script>
 <?php endif; ?>
 
 <!-- Mermaid 图表渲染脚本 -->
 <?php if (!empty($this->options->mermaidEnabled) && $this->options->mermaidEnabled === 'on'): ?>
-<script src="<?php echo $jsUrls['mermaid']; ?>"></script>
+<script src="<?php echo $jsUrls['mermaid']; ?>" async></script>
 <?php endif; ?>
 
 <!-- ECharts 图表渲染脚本 -->
 <?php if (!empty($this->options->echartsEnabled) && $this->options->echartsEnabled === 'on'): ?>
-<script src="<?php echo $jsUrls['echarts']; ?>"></script>
+<script src="<?php echo $jsUrls['echarts']; ?>" async></script>
 <?php endif; ?>
 
 <!-- KaTeX 数学公式渲染脚本 -->
 <?php if (!empty($this->options->katexEnabled) && $this->options->katexEnabled === 'on'): ?>
-<script src="<?php echo $jsUrls['katex']; ?>"></script>
-<script src="<?php echo $jsUrls['katexAutoRender']; ?>"></script>
+<script src="<?php echo $jsUrls['katex']; ?>" async></script>
+<script src="<?php echo $jsUrls['katexAutoRender']; ?>" async></script>
 <?php endif; ?>
 
 <!-- Pjax加载配置 -->
@@ -191,14 +194,14 @@ window.katexEnabled = <?php echo (!empty($this->options->katexEnabled) && $this-
 </script>
 
 <!-- 主题主脚本 -->
-<script src="<?php echo $jsUrls['main']; ?>"></script>
+<script src="<?php echo $jsUrls['main']; ?>" defer></script>
 
 <!-- Pjax库 - 仅开启Pjax时加载 -->
 <?php if (!empty($this->options->pjaxLoad) && $this->options->pjaxLoad === 'on'): ?>
-<script src="<?php echo $jsUrls['pjax_lib']; ?>"></script>
+<script src="<?php echo $jsUrls['pjax_lib']; ?>" defer></script>
 
 <!-- Pjax加载脚本 -->
-<script src="<?php echo $jsUrls['pjax']; ?>"></script>
+<script src="<?php echo $jsUrls['pjax']; ?>" defer></script>
 <?php endif; ?>
 
 </body>

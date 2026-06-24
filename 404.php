@@ -7,7 +7,7 @@
         <h2 class="post-title">404 - <?php _e('页面没找到'); ?></h2>
         <p><?php _e('你想查看的页面已被转移或删除了, 要不搜索看看: '); ?></p>
         <form method="post">
-            <p><input type="text" name="s" class="text" autofocus/></p>
+            <p><label for="s-404" class="sr-only"><?php _e('搜索关键词'); ?></label><input type="text" name="s" id="s-404" class="text" autofocus placeholder="<?php _e('输入关键词搜索'); ?>"/></p>
             <p>
                 <button type="submit" class="submit"><?php _e('搜索'); ?></button>
             </p>

@@ -503,6 +503,7 @@ window.initPostLike = function() {
 
         // 获取当前主题URL用于ajax请求
         var themeUrl = window.themeUrl || '';
+        var csrfToken = window.csrfToken || '';
 
         // 使用 XMLHttpRequest 替代 fetch 以兼容更多浏览器
         var xhr = new XMLHttpRequest();
@@ -539,7 +540,7 @@ window.initPostLike = function() {
             window.showToast('网络连接失败', 'error');
         };
 
-        xhr.send('cid=' + encodeURIComponent(cid));
+        xhr.send('cid=' + encodeURIComponent(cid) + '&_=' + encodeURIComponent(csrfToken));
     });
 };
 
@@ -554,6 +555,7 @@ window.initPostViews = function() {
     if (!cid) return;
 
     var themeUrl = window.themeUrl || '';
+    var csrfToken = window.csrfToken || '';
 
     // 使用延迟确保页面完全加载后再统计
     setTimeout(function() {
@@ -579,7 +581,7 @@ window.initPostViews = function() {
             // 浏览量统计网络失败静默处理
         };
 
-        xhr.send('cid=' + encodeURIComponent(cid));
+        xhr.send('cid=' + encodeURIComponent(cid) + '&_=' + encodeURIComponent(csrfToken));
     }, 1500);
 };
 
@@ -596,7 +598,7 @@ window.initMermaid = function(retryCount) {
         mermaid.initialize({
             startOnLoad: false,
             theme: document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default',
-            securityLevel: 'loose',
+            securityLevel: 'strict',
             fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
         });
         window._mermaidInitialized = true;

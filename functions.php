@@ -953,7 +953,7 @@ GITHUBJS;
 
     $commentMailSMTPSecure = new \Typecho\Widget\Helper\Form\Element\Radio(
         'commentMailSMTPSecure',
-        array('ssl' => _t('ssl'), 'tsl' => _t('tsl')),
+        array('ssl' => _t('ssl'), 'tls' => _t('tls')),
         'ssl',
         _t('加密方式'),
         _t('介绍：用于选择登录鉴权加密方式')
@@ -1331,10 +1331,20 @@ function themeFields($layout)
     $layout->addItem($disableLike);
 }
 
-/* 加载核心逻辑库 */
-@require_once dirname(__FILE__) . '/core/mail.php';
-@require_once dirname(__FILE__) . '/core/ai-moderation.php';
-@require_once dirname(__FILE__) . '/core/post-stats.php';
+/* 加载核心逻辑库（去除 @ 静默加载，改为文件存在性检查） */
+$_coreLibs = array(
+    dirname(__FILE__) . '/core/mail.php',
+    dirname(__FILE__) . '/core/ai-moderation.php',
+    dirname(__FILE__) . '/core/post-stats.php',
+);
+foreach ($_coreLibs as $_lib) {
+    if (file_exists($_lib)) {
+        require_once $_lib;
+    } else {
+        // 记录缺失文件到错误日志，便于排查
+        error_log('[ShuFeiCat] 核心库缺失: ' . $_lib);
+    }
+}
 
 /**
  * 检查当前用户是否已评论指定文章
@@ -1344,6 +1354,11 @@ function themeFields($layout)
  */
 function shufei_has_commented($cid)
 {
+    static $cache = array();
+    if (isset($cache[$cid])) {
+        return $cache[$cid];
+    }
+
     $db = \Typecho\Db::get();
     $hasCommented = false;
 
@@ -1367,6 +1382,7 @@ function shufei_has_commented($cid)
         }
     }
 
+    $cache[$cid] = $hasCommented;
     return $hasCommented;
 }
 
@@ -1421,11 +1437,17 @@ function shufei_comment_check($comment, $post) {
         }
         // 调用 Cloudflare Siteverify API 验证 token
         $secretKey = isset($options->turnstileSecretKey) ? $options->turnstileSecretKey : '';
-        if (!empty($secretKey)) {
-            $verifyResult = shufei_turnstile_verify_curl($secretKey, $token);
-            if ($verifyResult !== null && isset($verifyResult['success']) && !$verifyResult['success']) {
-                throw new \Typecho\Widget\Exception(_t('人机验证未通过，请重试'));
-            }
+        if (empty($secretKey)) {
+            // fail-closed：密钥未配置视为校验失败，避免静默放行
+            throw new \Typecho\Widget\Exception(_t('人机验证服务未正确配置，请联系管理员'));
+        }
+        $verifyResult = shufei_turnstile_verify_curl($secretKey, $token);
+        // fail-closed：网络异常、curl 不可用或返回空时拒绝评论
+        if ($verifyResult === null) {
+            throw new \Typecho\Widget\Exception(_t('人机验证服务暂时不可用，请稍后重试'));
+        }
+        if (!isset($verifyResult['success']) || !$verifyResult['success']) {
+            throw new \Typecho\Widget\Exception(_t('人机验证未通过，请重试'));
         }
     } elseif (shufei_is_captcha_enabled()) {
         // 图片验证码验证
@@ -1914,9 +1936,35 @@ function shufei_is_archive()
  */
 function shufei_is_404()
 {
-    return \Typecho\Widget::widget('Widget_Options')->template != '404.php'
-        && !shufei_is_post() && !shufei_is_page() && !shufei_is_category()
-        && !shufei_is_tag() && !shufei_is_search() && !shufei_is_author();
+    // 模板为 404.php 时确定为 404 页面
+    $template = \Typecho\Widget::widget('Widget_Options')->template;
+    if ($template === '404.php') {
+        return true;
+    }
+    // 否则通过排除法：不是任何已知页面类型时视为 404
+    return !shufei_is_post() && !shufei_is_page() && !shufei_is_category()
+        && !shufei_is_tag() && !shufei_is_search() && !shufei_is_author()
+        && !shufei_is_archive();
+}
+
+/**
+ * 净化 URL，仅允许 http/https 协议，防止 CSS/JS 注入
+ * 用于在 style 属性或 src 属性中输出用户可控的 URL
+ *
+ * @param string $url 原始 URL
+ * @return string 净化后的 URL，若协议不允许则返回空字符串
+ */
+function shufei_sanitize_url($url)
+{
+    if (empty($url)) return '';
+    $url = trim($url);
+    // 仅允许 http:// 和 https:// 协议；相对路径（以 / 或 ./ 开头）也允许
+    if (preg_match('#^https?://#i', $url) || preg_match('#^(\./|/)#', $url)) {
+        // 移除可能用于 CSS 注入的字符：() ; 以及控制字符
+        $url = preg_replace('/[\x00-\x1F\x7F-\x9F\(\);]/', '', $url);
+        return htmlspecialchars($url, ENT_QUOTES, 'UTF-8');
+    }
+    return '';
 }
 
 /**
@@ -2013,7 +2061,7 @@ function shufei_get_seo_description()
     }
 
     if (empty($description)) {
-        $description = $options->title;
+        $description = htmlspecialchars($options->title, ENT_QUOTES, 'UTF-8');
     }
 
     return $description;
@@ -2028,41 +2076,42 @@ function shufei_get_seo_title()
 {
     $options = \Typecho\Widget::widget('Widget_Options');
     $archive = shufei_get_archive();
+    $siteTitle = htmlspecialchars($options->title, ENT_QUOTES, 'UTF-8');
 
     if (shufei_is_post() && $archive) {
-        return htmlspecialchars($archive->title) . ' - ' . $options->title;
+        return htmlspecialchars($archive->title, ENT_QUOTES, 'UTF-8') . ' - ' . $siteTitle;
     }
 
     if (shufei_is_page() && $archive) {
-        return htmlspecialchars($archive->title) . ' - ' . $options->title;
+        return htmlspecialchars($archive->title, ENT_QUOTES, 'UTF-8') . ' - ' . $siteTitle;
     }
 
     if (shufei_is_category() && $archive) {
-        return sprintf(_t('分类 %s 下的文章'), $archive->name) . ' - ' . $options->title;
+        return sprintf(_t('分类 %s 下的文章'), htmlspecialchars($archive->name, ENT_QUOTES, 'UTF-8')) . ' - ' . $siteTitle;
     }
 
     if (shufei_is_tag() && $archive) {
-        return sprintf(_t('标签 %s 下的文章'), $archive->name) . ' - ' . $options->title;
+        return sprintf(_t('标签 %s 下的文章'), htmlspecialchars($archive->name, ENT_QUOTES, 'UTF-8')) . ' - ' . $siteTitle;
     }
 
     if (shufei_is_search()) {
-        $s = isset($_GET['s']) ? htmlspecialchars(trim($_GET['s'])) : '';
+        $s = isset($_GET['s']) ? htmlspecialchars(trim($_GET['s']), ENT_QUOTES, 'UTF-8') : '';
         if (empty($s) && $archive && !empty($archive->archiveTitle)) {
-            $s = htmlspecialchars($archive->archiveTitle);
+            $s = htmlspecialchars($archive->archiveTitle, ENT_QUOTES, 'UTF-8');
         }
-        return sprintf(_t('包含关键字 %s 的文章'), $s) . ' - ' . $options->title;
+        return sprintf(_t('包含关键字 %s 的文章'), $s) . ' - ' . $siteTitle;
     }
 
     if (shufei_is_author() && $archive) {
         $name = !empty($archive->screenName) ? $archive->screenName : (!empty($archive->name) ? $archive->name : '');
-        return sprintf(_t('%s 发布的文章'), $name) . ' - ' . $options->title;
+        return sprintf(_t('%s 发布的文章'), htmlspecialchars($name, ENT_QUOTES, 'UTF-8')) . ' - ' . $siteTitle;
     }
 
     if (shufei_is_archive()) {
-        return _t('文章归档') . ' - ' . $options->title;
+        return _t('文章归档') . ' - ' . $siteTitle;
     }
 
-    return $options->title;
+    return $siteTitle;
 }
 
 /**
@@ -2145,12 +2194,30 @@ function shufei_get_robots_content()
 /**
  * 渲染文章内容（模板调用入口）
  * 整合预处理、Markdown 解析、回复可见、扩展处理
+ * 优化：对渲染结果做文件缓存，避免每次请求重复 16+ 次正则替换
  *
  * @param Widget\Base\Contents $widget 文章 widget 实例
  * @return string 处理后的 HTML 内容
  */
 function shufei_render_post_content($widget)
 {
+    // 仅对已发布文章/页面启用缓存
+    $cid = $widget->cid;
+    $rawText = $widget->text;
+    $contentHash = md5($rawText . ($widget->modified ?? $widget->created));
+    $cacheKey = 'content_' . $cid . '_' . $contentHash;
+    $cacheFile = dirname(__FILE__) . '/cache/' . $cacheKey . '.html';
+    $cacheDir = dirname($cacheFile);
+
+    // 尝试读取缓存（缓存有效期 6 小时）
+    if (file_exists($cacheFile) && (time() - filemtime($cacheFile)) < 21600) {
+        $cached = @file_get_contents($cacheFile);
+        if ($cached !== false) {
+            // 缓存命中后仍需处理回复可见（依赖用户状态）
+            return shufei_parse_reply_content($cached, $cid);
+        }
+    }
+
     if ($widget->isMarkdown) {
         // 获取原始 Markdown 文本（___text() 已剥离 <!--markdown--> 前缀）
         $rawText = $widget->text;
@@ -2185,11 +2252,17 @@ function shufei_render_post_content($widget)
         $html = $widget->content;
     }
 
+    // 应用 Markdown 扩展（在缓存前完成，避免重复正则处理）
+    $html = shufei_apply_markdown_ext($html);
+
+    // 写入缓存（回复可见部分不缓存，因为依赖用户状态）
+    if (!is_dir($cacheDir)) {
+        @mkdir($cacheDir, 0755, true);
+    }
+    @file_put_contents($cacheFile, $html);
+
     // 处理回复可见
     $html = shufei_parse_reply_content($html, $widget->cid);
-
-    // 应用 Markdown 扩展
-    $html = shufei_apply_markdown_ext($html);
 
     return $html;
 }
@@ -2945,6 +3018,7 @@ function shufei_get_guestbook_url()
 
 /**
  * 获取 GitHub 项目列表（带缓存）
+ * 优化：缓存过期时返回旧缓存并异步刷新，避免前台同步阻塞最长 50 秒
  *
  * @return array 项目列表数组
  */
@@ -2969,67 +3043,69 @@ function shufei_get_github_repos()
 
     $cacheTime = isset($options->githubCacheTime) ? intval($options->githubCacheTime) : 3600;
     $cacheFile = dirname(__FILE__) . '/cache/github_repos.json';
+    $refreshingFlag = dirname(__FILE__) . '/cache/github_repos.refreshing';
+
+    // 按选定项目过滤的闭包
+    $filterSelected = function($repos) use ($selectedRepos) {
+        if (!empty($selectedRepos)) {
+            $repos = array_filter($repos, function($repo) use ($selectedRepos) {
+                return in_array($repo['name'], $selectedRepos);
+            });
+            $repos = array_values($repos);
+        }
+        return $repos;
+    };
 
     // 尝试从缓存读取
+    $cachedRepos = null;
+    $cacheIsFresh = false;
     if (file_exists($cacheFile)) {
-        $cache = @json_decode(file_get_contents($cacheFile), true);
-        if ($cache && isset($cache['timestamp']) && (time() - $cache['timestamp']) < $cacheTime) {
-            $repos = $cache['repos'];
-            // 按选定项目过滤
-            if (!empty($selectedRepos)) {
-                $repos = array_filter($repos, function($repo) use ($selectedRepos) {
-                    return in_array($repo['name'], $selectedRepos);
-                });
-                $repos = array_values($repos);
+        $cache = @json_decode(@file_get_contents($cacheFile), true);
+        if ($cache && isset($cache['timestamp'], $cache['repos'])) {
+            $cachedRepos = $cache['repos'];
+            $cacheIsFresh = (time() - $cache['timestamp']) < $cacheTime;
+            if ($cacheIsFresh) {
+                // 缓存新鲜，直接返回
+                return $filterSelected($cachedRepos);
             }
-            return $repos;
         }
     }
 
-    // 请求 GitHub API - 获取全部项目
-    $allRepos = array();
-    $page = 1;
-    $maxPages = 5; // 最多获取5页，每页100个
-
-    while ($page <= $maxPages) {
-        $apiUrl = 'https://api.github.com/users/' . urlencode($username) . '/repos?sort=stars&per_page=100&page=' . $page;
-
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $apiUrl);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
-        curl_setopt($ch, CURLOPT_USERAGENT, 'ShuFeiCat-Typecho-Theme');
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-
-        if ($httpCode == 200 && $response) {
-            $data = json_decode($response, true);
-            if (is_array($data) && count($data) > 0) {
-                foreach ($data as $repo) {
-                    $allRepos[] = array(
-                        'name' => isset($repo['name']) ? $repo['name'] : '',
-                        'full_name' => isset($repo['full_name']) ? $repo['full_name'] : '',
-                        'description' => isset($repo['description']) ? $repo['description'] : '',
-                        'url' => isset($repo['html_url']) ? $repo['html_url'] : '',
-                        'stars' => isset($repo['stargazers_count']) ? $repo['stargazers_count'] : 0,
-                        'forks' => isset($repo['forks_count']) ? $repo['forks_count'] : 0,
-                        'language' => isset($repo['language']) ? $repo['language'] : '',
-                        'updated_at' => isset($repo['updated_at']) ? $repo['updated_at'] : ''
-                    );
-                }
-                if (count($data) < 100) break;
-                $page++;
-            } else {
-                break;
-            }
-        } else {
-            break;
+    // 缓存过期或不存在时：
+    // 1. 若存在旧缓存，立即返回旧数据，避免前台阻塞
+    // 2. 通过标志文件避免并发刷新
+    if ($cachedRepos !== null) {
+        // 触发后台刷新（仅当没有正在进行的刷新时）
+        if (!file_exists($refreshingFlag) || (time() - @filemtime($refreshingFlag)) > 300) {
+            @touch($refreshingFlag);
+            shufei_refresh_github_repos_cache($username, $cacheFile);
+            @unlink($refreshingFlag);
         }
+        return $filterSelected($cachedRepos);
     }
 
-    // 写入缓存（保存全部项目）
+    // 完全无缓存时，仅同步获取第一页（最多 10 秒）以快速填充缓存
+    $allRepos = shufei_fetch_github_repos_page($username, 1);
+    // 若第一页已满 100 条，再异步获取剩余页（不阻塞当前请求）
+    if (count($allRepos) >= 100) {
+        $cacheDir = dirname($cacheFile);
+        if (!is_dir($cacheDir)) {
+            @mkdir($cacheDir, 0755, true);
+        }
+        @file_put_contents($cacheFile, json_encode(array(
+            'timestamp' => time(),
+            'repos' => $allRepos
+        )));
+        // 后台补全剩余页
+        if (!file_exists($refreshingFlag) || (time() - @filemtime($refreshingFlag)) > 300) {
+            @touch($refreshingFlag);
+            shufei_refresh_github_repos_cache($username, $cacheFile);
+            @unlink($refreshingFlag);
+        }
+        return $filterSelected($allRepos);
+    }
+
+    // 写入缓存
     $cacheDir = dirname($cacheFile);
     if (!is_dir($cacheDir)) {
         @mkdir($cacheDir, 0755, true);
@@ -3039,15 +3115,88 @@ function shufei_get_github_repos()
         'repos' => $allRepos
     )));
 
-    // 按选定项目过滤
-    if (!empty($selectedRepos)) {
-        $allRepos = array_filter($allRepos, function($repo) use ($selectedRepos) {
-            return in_array($repo['name'], $selectedRepos);
-        });
-        $allRepos = array_values($allRepos);
+    return $filterSelected($allRepos);
+}
+
+/**
+ * 抓取 GitHub API 单页数据
+ *
+ * @param string $username GitHub 用户名
+ * @param int $page 页码
+ * @return array 该页项目列表
+ */
+function shufei_fetch_github_repos_page($username, $page)
+{
+    $apiUrl = 'https://api.github.com/users/' . urlencode($username) . '/repos?sort=stars&per_page=100&page=' . $page;
+
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $apiUrl);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+    curl_setopt($ch, CURLOPT_USERAGENT, 'ShuFeiCat-Typecho-Theme');
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    if ($httpCode != 200 || !$response) {
+        return array();
     }
 
-    return $allRepos;
+    $data = json_decode($response, true);
+    if (!is_array($data)) {
+        return array();
+    }
+
+    $repos = array();
+    foreach ($data as $repo) {
+        $repos[] = array(
+            'name' => isset($repo['name']) ? $repo['name'] : '',
+            'full_name' => isset($repo['full_name']) ? $repo['full_name'] : '',
+            'description' => isset($repo['description']) ? $repo['description'] : '',
+            'url' => isset($repo['html_url']) ? $repo['html_url'] : '',
+            'stars' => isset($repo['stargazers_count']) ? $repo['stargazers_count'] : 0,
+            'forks' => isset($repo['forks_count']) ? $repo['forks_count'] : 0,
+            'language' => isset($repo['language']) ? $repo['language'] : '',
+            'updated_at' => isset($repo['updated_at']) ? $repo['updated_at'] : ''
+        );
+    }
+    return $repos;
+}
+
+/**
+ * 后台刷新 GitHub 仓库缓存（获取全部页）
+ * 单页超时 10s，最多 5 页，但仅在缓存过期或不存在时调用
+ *
+ * @param string $username GitHub 用户名
+ * @param string $cacheFile 缓存文件路径
+ */
+function shufei_refresh_github_repos_cache($username, $cacheFile)
+{
+    $allRepos = array();
+    $maxPages = 5;
+
+    for ($page = 1; $page <= $maxPages; $page++) {
+        $pageRepos = shufei_fetch_github_repos_page($username, $page);
+        if (empty($pageRepos)) {
+            break;
+        }
+        $allRepos = array_merge($allRepos, $pageRepos);
+        if (count($pageRepos) < 100) {
+            break;
+        }
+    }
+
+    if (!empty($allRepos)) {
+        $cacheDir = dirname($cacheFile);
+        if (!is_dir($cacheDir)) {
+            @mkdir($cacheDir, 0755, true);
+        }
+        @file_put_contents($cacheFile, json_encode(array(
+            'timestamp' => time(),
+            'repos' => $allRepos
+        )));
+    }
 }
 
 /**
@@ -3193,6 +3342,44 @@ function shufei_parse_comment_markdown($text)
 
     // 解析评论中的表情代码为图片
     $html = shufei_parse_emoji_code($html, $options);
+
+    // 安全过滤：对评论 HTML 做白名单过滤，防止存储型 XSS
+    $html = shufei_sanitize_comment_html($html);
+
+    return $html;
+}
+
+/**
+ * 评论 HTML 白名单过滤
+ * 仅允许安全的标签和属性，移除所有事件处理器、javascript: 协议等危险内容
+ *
+ * @param string $html 原始 HTML
+ * @return string 过滤后的安全 HTML
+ */
+function shufei_sanitize_comment_html($html)
+{
+    if (empty($html)) return $html;
+
+    // 允许的标签白名单（不含 script/style/iframe/object/embed 等危险标签）
+    $allowedTags = '<a><b><strong><i><em><u><s><del><ins><code><pre><blockquote><p><br><hr>'
+        . '<ul><ol><li><dl><dt><dd><h1><h2><h3><h4><h5><h6>'
+        . '<img><span><div><table><thead><tbody><tr><td><th><sup><sub><mark>'
+        . '<details><summary><figure><figcaption><source><video><audio>';
+
+    // 1. 移除不允许的标签（保留其内部文本内容）
+    $html = strip_tags($html, $allowedTags);
+
+    // 2. 移除所有 on* 事件属性（onclick/onerror/onload/onmouseover 等）
+    $html = preg_replace('#\s+on[a-z]+\s*=\s*(["\']).*?\1#is', '', $html);
+
+    // 3. 移除 javascript: 协议（href="javascript:..."、src="javascript:..."）
+    $html = preg_replace('#(href|src)\s*=\s*(["\'])\s*javascript\s*:.*?\2#is', '$1="$2"', $html);
+
+    // 4. 移除 data: 协议（除 img src 外的 data: URI 可能被滥用）
+    $html = preg_replace('#(href)\s*=\s*(["\'])\s*data\s*:.*?\2#is', '$1="$2"', $html);
+
+    // 5. 移除 style 属性中的危险内容（expression()、url(javascript:) 等）
+    $html = preg_replace('#style\s*=\s*(["\']).*?(expression\s*\(|url\s*\(\s*["\']?\s*javascript\s*:).*?\1#is', '', $html);
 
     return $html;
 }

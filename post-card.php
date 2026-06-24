@@ -17,8 +17,8 @@
 <?php if ($postListStyle === 'classic'): ?>
 <article class="post <?php echo $hasThumb ? 'has-thumbnail' : ''; ?> <?php echo $isSticky ? 'post-sticky' : ''; ?>"
          itemscope itemtype="http://schema.org/BlogPosting"
-         style="<?php echo $hasThumb ? 'background-image: url(' . htmlspecialchars($thumbnail) . ');' : ''; ?>">
-    <a href="<?php echo $post->permalink(); ?>" class="post-link"></a>
+         style="<?php echo $hasThumb ? 'background-image: url(' . shufei_sanitize_url($thumbnail) . ');' : ''; ?>">
+    <a href="<?php echo $post->permalink(); ?>" class="post-link" aria-label="<?php $post->title(); ?>"></a>
 
     <?php if ($isSticky): ?>
     <div class="sticky-badge">
@@ -60,7 +60,7 @@
 <?php else: ?>
 <article class="post <?php echo $hasThumb ? 'has-thumbnail' : 'no-thumbnail'; ?> <?php echo $isSticky ? 'post-sticky' : ''; ?>"
          itemscope itemtype="http://schema.org/BlogPosting">
-    <a href="<?php echo $post->permalink(); ?>" class="post-link"></a>
+    <a href="<?php echo $post->permalink(); ?>" class="post-link" aria-label="<?php $post->title(); ?>"></a>
 
     <?php if ($isSticky): ?>
     <div class="sticky-badge">
@@ -72,7 +72,7 @@
     <?php if ($hasThumb): ?>
     <div class="post-thumbnail-side">
         <a href="<?php $post->permalink(); ?>" class="thumbnail-link-side" title="<?php $post->title(); ?>">
-            <img src="<?php echo htmlspecialchars($thumbnail); ?>" alt="<?php $post->title(); ?>" class="thumbnail-img-side" />
+            <img src="<?php echo shufei_sanitize_url($thumbnail); ?>" alt="<?php $post->title(); ?>" class="thumbnail-img-side" />
         </a>
     </div>
     <?php endif; ?>

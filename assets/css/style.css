@@ -107,11 +107,13 @@ img {
 }
 
 .left-sidebar::-webkit-scrollbar-thumb {
+    background: rgba(255, 107, 107, 0.2);
     background: color-mix(in srgb, var(--primary-color) 20%, transparent);
     border-radius: 4px;
 }
 
 .left-sidebar::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 107, 107, 0.4);
     background: color-mix(in srgb, var(--primary-color) 40%, transparent);
 }
 
@@ -156,6 +158,7 @@ img {
     background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%);
     color: #fff;
     transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
     box-shadow: 0 4px 12px color-mix(in srgb, var(--primary-color) 30%, transparent);
 }
 
@@ -304,6 +307,7 @@ img {
     top: 0;
     width: 100%;
     height: 100%;
+    background: rgba(255, 107, 107, 0.08);
     background: linear-gradient(135deg, color-mix(in srgb, var(--primary-color) 8%, transparent) 0%, color-mix(in srgb, var(--primary-hover) 4%, transparent) 100%);
     transform: translateX(-100%);
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -336,6 +340,7 @@ img {
 
 .category-nav-item.active a,
 .category-nav-item.layui-this a {
+    background: rgba(255, 107, 107, 0.1);
     background: linear-gradient(135deg, color-mix(in srgb, var(--primary-color) 10%, transparent) 0%, color-mix(in srgb, var(--primary-hover) 5%, transparent) 100%);
     color: var(--primary-color);
     font-weight: 500;
@@ -351,6 +356,7 @@ img {
 .category-nav-item.layui-this .category-count {
     background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%);
     color: #fff;
+    box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
     box-shadow: 0 2px 8px color-mix(in srgb, var(--primary-color) 30%, transparent);
 }
 
@@ -388,12 +394,14 @@ img {
     border-radius: 50%;
     padding: 3px;
     background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%);
+    box-shadow: 0 4px 15px rgba(255, 107, 107, 0.25);
     box-shadow: 0 4px 15px color-mix(in srgb, var(--primary-color) 25%, transparent);
     transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .author-avatar-wrap:hover {
     transform: scale(1.08) rotate(5deg);
+    box-shadow: 0 6px 20px rgba(255, 107, 107, 0.35);
     box-shadow: 0 6px 20px color-mix(in srgb, var(--primary-color) 35%, transparent);
 }
 
@@ -500,6 +508,7 @@ img {
     color: #fff;
     background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%);
     transform: translateY(-3px);
+    box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
     box-shadow: 0 4px 12px color-mix(in srgb, var(--primary-color) 30%, transparent);
 }
 .sidebar-footer {
@@ -573,6 +582,7 @@ img {
     top: 0;
     width: 100%;
     height: 100%;
+    background: rgba(255, 107, 107, 0.08);
     background: linear-gradient(135deg, color-mix(in srgb, var(--primary-color) 8%, transparent) 0%, color-mix(in srgb, var(--primary-hover) 4%, transparent) 100%);
     transform: translateX(-100%);
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -636,6 +646,7 @@ img {
     top: 0;
     width: 100%;
     height: 100%;
+    background: rgba(255, 107, 107, 0.08);
     background: linear-gradient(135deg, color-mix(in srgb, var(--primary-color) 8%, transparent) 0%, color-mix(in srgb, var(--primary-hover) 4%, transparent) 100%);
     transform: translateX(-100%);
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -666,6 +677,7 @@ img {
 }
 
 .left-sidebar .page-nav-widget .page-nav-list li a.current {
+    background: rgba(255, 107, 107, 0.1);
     background: linear-gradient(135deg, color-mix(in srgb, var(--primary-color) 10%, transparent) 0%, color-mix(in srgb, var(--primary-hover) 5%, transparent) 100%);
     color: var(--primary-color);
     font-weight: 500;
@@ -692,6 +704,7 @@ img {
     max-height: 200px;
     overflow-y: auto;
     scrollbar-width: thin;
+    scrollbar-color: rgba(255, 107, 107, 0.3) transparent;
     scrollbar-color: color-mix(in srgb, var(--primary-color) 30%, transparent) transparent;
 }
 
@@ -704,11 +717,13 @@ img {
 }
 
 .right-sidebar .archive-list::-webkit-scrollbar-thumb {
+    background: rgba(255, 107, 107, 0.3);
     background: color-mix(in srgb, var(--primary-color) 30%, transparent);
     border-radius: 2px;
 }
 
 .right-sidebar .archive-list::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 107, 107, 0.5);
     background: color-mix(in srgb, var(--primary-color) 50%, transparent);
 }
 
@@ -721,11 +736,13 @@ img {
 }
 
 .right-sidebar::-webkit-scrollbar-thumb {
+    background: rgba(255, 107, 107, 0.3);
     background: color-mix(in srgb, var(--primary-color) 30%, transparent);
     border-radius: 2px;
 }
 
 .right-sidebar::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 107, 107, 0.5);
     background: color-mix(in srgb, var(--primary-color) 50%, transparent);
 }
 
@@ -746,11 +763,13 @@ img {
 }
 
 .toc-widget .toc-nav::-webkit-scrollbar-thumb {
+    background: rgba(255, 107, 107, 0.3);
     background: color-mix(in srgb, var(--primary-color) 30%, transparent);
     border-radius: 2px;
 }
 
 .toc-widget .toc-nav::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 107, 107, 0.5);
     background: color-mix(in srgb, var(--primary-color) 50%, transparent);
 }
 
@@ -785,12 +804,14 @@ img {
 
 .toc-link:hover {
     color: var(--primary-color);
+    background: rgba(255, 107, 107, 0.06);
     background: color-mix(in srgb, var(--primary-color) 6%, transparent);
 }
 
 .toc-link.toc-active {
     color: var(--primary-color);
     border-left-color: var(--primary-color);
+    background: rgba(255, 107, 107, 0.08);
     background: color-mix(in srgb, var(--primary-color) 8%, transparent);
     font-weight: 500;
 }
@@ -823,12 +844,14 @@ img {
 }
 
 .page-nav-widget .widget-list li a:hover {
+    background: rgba(255, 107, 107, 0.08);
     background: color-mix(in srgb, var(--primary-color) 8%, transparent);
     color: var(--primary-color);
     padding-left: 15px;
 }
 
 .page-nav-widget .widget-list li a.current {
+    background: rgba(255, 107, 107, 0.12);
     background: color-mix(in srgb, var(--primary-color) 12%, transparent);
     color: var(--primary-color);
     font-weight: 500;
@@ -863,6 +886,7 @@ img {
 .links-select:focus {
     outline: none;
     border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(255, 107, 107, 0.1);
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary-color) 10%, transparent);
 }
 
@@ -1034,6 +1058,7 @@ img {
 #search input:focus {
     border-color: var(--primary-color);
     background: #fff;
+    box-shadow: 0 0 0 4px rgba(255, 107, 107, 0.1);
     box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary-color) 10%, transparent);
 }
 
@@ -1088,10 +1113,12 @@ img {
 .post:hover {
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
     transform: translateY(-4px);
+    border-color: rgba(255, 107, 107, 0.12);
     border-color: color-mix(in srgb, var(--primary-color) 12%, transparent);
 }
 
 .post-list-card .post.no-thumbnail {
+    border-left: 4px solid rgba(255, 107, 107, 0.3);
     border-left: 4px solid color-mix(in srgb, var(--primary-color) 30%, transparent);
 }
 
@@ -1339,7 +1366,9 @@ img {
 
 .post-list-classic .post.has-thumbnail .read-more:hover {
     color: #fff;
+    background: rgba(255, 107, 107, 0.85);
     background: color-mix(in srgb, var(--primary-color) 85%, transparent);
+    box-shadow: 0 6px 20px rgba(255, 107, 107, 0.45);
     box-shadow: 0 6px 20px color-mix(in srgb, var(--primary-color) 45%, transparent);
     transform: translateY(-2px);
 }
@@ -1349,6 +1378,7 @@ img {
 }
 
 .post-list-classic .post.has-thumbnail.post-sticky::before {
+    background: rgba(255, 107, 107, 0.15);
     background: linear-gradient(to bottom, color-mix(in srgb, var(--primary-color) 15%, transparent) 0%, rgba(0, 0, 0, 0.6) 100%);
     border-radius: 12px;
 }
@@ -1433,6 +1463,7 @@ img {
     background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%);
     padding: 7px 18px;
     border-radius: 20px;
+    box-shadow: 0 2px 8px rgba(255, 107, 107, 0.2);
     box-shadow: 0 2px 8px color-mix(in srgb, var(--primary-color) 20%, transparent);
     position: relative;
     overflow: hidden;
@@ -1461,6 +1492,7 @@ img {
     color: #fff;
     gap: 10px;
     transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);
     box-shadow: 0 6px 20px color-mix(in srgb, var(--primary-color) 40%, transparent);
 }
 
@@ -2115,6 +2147,7 @@ pre[class*="language-"].line-numbers > code {
 
 .widget-list li a:hover {
     color: var(--primary-color);
+    background-color: rgba(255, 107, 107, 0.05);
     background-color: color-mix(in srgb, var(--primary-color) 5%, transparent);
     border-radius: 4px;
 }
@@ -2207,6 +2240,7 @@ pre[class*="language-"].line-numbers > code {
     display: block;
     list-style: none;
     flex-basis: 100%;
+    border-left: 2px solid rgba(255, 107, 107, 0.15);
     border-left: 2px solid color-mix(in srgb, var(--primary-color) 15%, var(--border-color));
 }
 
@@ -2237,13 +2271,16 @@ pre[class*="language-"].line-numbers > code {
 
 #comments > .comment-list > li:hover,
 .comment-children > li:hover {
+    border-color: rgba(255, 107, 107, 0.3);
     border-color: color-mix(in srgb, var(--primary-color) 30%, var(--border-color));
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
 }
 
 #comments > .comment-list > li.comment-by-author,
 .comment-children > li.comment-by-author {
+    background: rgba(255, 107, 107, 0.04);
     background: color-mix(in srgb, var(--primary-color) 4%, var(--card-bg));
+    border-color: rgba(255, 107, 107, 0.25);
     border-color: color-mix(in srgb, var(--primary-color) 25%, var(--border-color));
 }
 
@@ -2301,6 +2338,7 @@ pre[class*="language-"].line-numbers > code {
     font-size: 11px;
     font-weight: 500;
     color: var(--primary-color);
+    background: rgba(255, 107, 107, 0.1);
     background: color-mix(in srgb, var(--primary-color) 10%, transparent);
     padding: 1px 6px;
     border-radius: 4px;
@@ -2354,7 +2392,9 @@ pre[class*="language-"].line-numbers > code {
 
 .comment-reply-btn a:hover {
     color: var(--primary-color);
+    background: rgba(255, 107, 107, 0.06);
     background: color-mix(in srgb, var(--primary-color) 6%, transparent);
+    border-color: rgba(255, 107, 107, 0.2);
     border-color: color-mix(in srgb, var(--primary-color) 20%, transparent);
 }
 
@@ -2427,6 +2467,7 @@ pre[class*="language-"].line-numbers > code {
 }
 
 .comment-logged-info {
+    background: rgba(255, 107, 107, 0.05);
     background: color-mix(in srgb, var(--primary-color) 5%, var(--card-bg));
     padding: 12px 16px;
     border-radius: 8px;
@@ -2526,6 +2567,7 @@ pre[class*="language-"].line-numbers > code {
     outline: none;
     border-color: var(--primary-color);
     background: #fff;
+    box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.1);
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 10%, transparent);
 }
 
@@ -2560,6 +2602,7 @@ pre[class*="language-"].line-numbers > code {
 #comment-form .submit:hover {
     background: var(--primary-hover);
     transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
     box-shadow: 0 4px 12px color-mix(in srgb, var(--primary-color) 30%, transparent);
 }
 
@@ -2841,6 +2884,7 @@ pre[class*="language-"].line-numbers > code {
 .protected input[type="password"]:focus {
     border-color: var(--primary-color);
     background: #fff;
+    box-shadow: 0 0 0 4px rgba(255, 107, 107, 0.1);
     box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary-color) 10%, transparent);
 }
 
@@ -2854,11 +2898,13 @@ pre[class*="language-"].line-numbers > code {
     font-weight: 600;
     cursor: pointer;
     transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
     box-shadow: 0 4px 15px color-mix(in srgb, var(--primary-color) 30%, transparent);
 }
 
 .protected input[type="submit"]:hover {
     transform: translateY(-2px);
+    box-shadow: 0 6px 25px rgba(255, 107, 107, 0.4);
     box-shadow: 0 6px 25px color-mix(in srgb, var(--primary-color) 40%, transparent);
     background: linear-gradient(135deg, var(--primary-hover) 0%, var(--primary-color) 100%);
 }
@@ -2891,6 +2937,7 @@ pre[class*="language-"].line-numbers > code {
     align-items: center;
     justify-content: center;
     margin-bottom: 20px;
+    box-shadow: 0 8px 25px rgba(255, 107, 107, 0.3);
     box-shadow: 0 8px 25px color-mix(in srgb, var(--primary-color) 30%, transparent);
     animation: lock-pulse 2s ease-in-out infinite;
 }
@@ -2898,10 +2945,12 @@ pre[class*="language-"].line-numbers > code {
 @keyframes lock-pulse {
     0%, 100% {
         transform: scale(1);
+        box-shadow: 0 8px 25px rgba(255, 107, 107, 0.3);
         box-shadow: 0 8px 25px color-mix(in srgb, var(--primary-color) 30%, transparent);
     }
     50% {
         transform: scale(1.05);
+        box-shadow: 0 12px 35px rgba(255, 107, 107, 0.4);
         box-shadow: 0 12px 35px color-mix(in srgb, var(--primary-color) 40%, transparent);
     }
 }
