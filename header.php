@@ -210,6 +210,7 @@
     
     <script>
     window.themeUrl = '<?php echo rtrim($this->options->themeUrl, '/') . '/'; ?>';
+    window.csrfToken = '<?php echo $this->security->getToken($this->request->getRequestUrl()); ?>';
     <?php
     $resourceMode = !empty($this->options->resourceMode) ? $this->options->resourceMode : 'local';
     $customCdn = !empty($this->options->customCdn) ? rtrim($this->options->customCdn, '/') : '';

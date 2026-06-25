@@ -14,7 +14,7 @@ if (!defined('__TYPECHO_ROOT_DIR__')) exit;
  */
 function shufei_check_theme_update()
 {
-    $currentVersion = '1.4.0-rc.8';
+    $currentVersion = '1.4.0-rc.9';
     $cacheKey = 'shufei_update_check';
     $cacheTime = 3600; // 缓存1小时
 
@@ -75,7 +75,7 @@ function shufei_check_theme_update()
  */
 function shufei_get_theme_version()
 {
-    return '1.4.0-rc.8';
+    return '1.4.0-rc.9';
 }
 
 /**
@@ -146,7 +146,7 @@ function themeConfig($form)
                     '<li data-id="cat-stats">文章统计</li>' .
                     '<li data-id="cat-seo">SEO 设置</li>' .
                     '<li data-id="cat-mail">评论邮件通知</li>' .
-                    '<li data-id="cat-ai">AI 评论审核</li>' .
+                    '<li data-id="cat-ai">AI 助手</li>' .
                     '<li data-id="cat-verify">人机验证</li>' .
                     '<li data-id="cat-enhance">功能增强</li>' .
                     '<li data-id="cat-nav">导航增强</li>' .
@@ -953,7 +953,7 @@ GITHUBJS;
 
     $commentMailSMTPSecure = new \Typecho\Widget\Helper\Form\Element\Radio(
         'commentMailSMTPSecure',
-        array('ssl' => _t('ssl'), 'tsl' => _t('tsl')),
+        array('ssl' => _t('ssl'), 'tls' => _t('tls')),
         'ssl',
         _t('加密方式'),
         _t('介绍：用于选择登录鉴权加密方式')
@@ -1001,6 +1001,17 @@ GITHUBJS;
     $commentMailPassword->setAttribute('class', 'typecho-option cat-group-mail');
     $form->addInput($commentMailPassword);
 
+    // ===== AI 助手配置 =====
+    $aiWriterEnabled = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'aiWriterEnabled',
+        array('off' => _t('关闭'), 'on' => _t('开启')),
+        'off',
+        _t('AI写作助手'),
+        _t('介绍：开启后可在后台文章编辑器中使用 AI 美化（多种风格）、AI 续写、AI 检查功能')
+    );
+    $aiWriterEnabled->setAttribute('class', 'typecho-option cat-group-ai');
+    $form->addInput($aiWriterEnabled);
+
     $aiModerationEnabled = new \Typecho\Widget\Helper\Form\Element\Radio(
         'aiModerationEnabled',
         array('off' => _t('关闭'), 'on' => _t('开启')),
@@ -1010,100 +1021,361 @@ GITHUBJS;
     );
     $aiModerationEnabled->setAttribute('class', 'typecho-option cat-group-ai');
     $form->addInput($aiModerationEnabled);
-    
-    $aiOptions = \Typecho\Widget::widget('Widget_Options');
-    $aiEnabled = isset($aiOptions->aiModerationEnabled) ? $aiOptions->aiModerationEnabled : 'off';
 
-    if ($aiEnabled === 'on') {
-        $apiType = isset($aiOptions->aiApiType) ? $aiOptions->aiApiType : 'free';
-        $apiUrl = isset($aiOptions->aiModerationApiUrl) ? $aiOptions->aiModerationApiUrl : '';
-        $apiKey = isset($aiOptions->aiModerationApiKey) ? $aiOptions->aiModerationApiKey : '';
-        $model = isset($aiOptions->aiModerationModel) ? $aiOptions->aiModerationModel : '';
-
-        if ($apiType === 'free' && empty($apiUrl)) {
-            echo '<div class="typecho-option cat-group-ai"><div class="api-status-box api-error"><b>接口状态检测：</b><br>免费接口已下线，请切换到自定义接口并填写您自己的 API 地址和密钥</div></div>';
-        } elseif (empty($apiUrl) || empty($apiKey)) {
-            echo '<div class="typecho-option cat-group-ai"><div class="api-status-box api-error"><b>接口状态检测：</b><br>请先填写 AI API 地址和密钥</div></div>';
-        } else {
-            $targetUrl = $apiUrl;
-            $targetKey = $apiKey;
-            $targetModel = !empty($model) ? $model : 'gpt-3.5-turbo';
-
-            $apiStatus = '正在检测 AI 接口连通性...';
-            $apiClass = 'api-error';
-
-            $ch = curl_init();
-            curl_setopt($ch, CURLOPT_URL, $targetUrl);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_POST, true);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(array(
-                'model' => $targetModel,
-                'messages' => array(array('role' => 'user', 'content' => 'ping')),
-                'max_tokens' => 1
-            )));
-            curl_setopt($ch, CURLOPT_TIMEOUT, 8);
-            curl_setopt($ch, CURLOPT_HTTPHEADER, array(
-                'Content-Type: application/json',
-                'Authorization: Bearer ' . $targetKey
-            ));
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
-
-            $resp = curl_exec($ch);
-            $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            $err = curl_error($ch);
-            curl_close($ch);
-
-            if ($err) { $apiStatus = '✗ AI API 连接失败: ' . $err; $apiClass = 'api-error'; }
-            elseif ($code === 200) { $apiStatus = '✓ AI 接口正常连通 (HTTP 200)'; $apiClass = 'api-success'; }
-            else { $apiStatus = '✗ AI API 返回异常: HTTP ' . $code . ' (请检查 API 地址或密钥)'; $apiClass = 'api-error'; }
-
-            echo '<div class="typecho-option cat-group-ai"><div class="api-status-box ' . $apiClass . '"><b>接口状态检测：</b><br>' . $apiStatus . '</div></div>';
-        }
-    } else {
-
-        echo '<div class="typecho-option cat-group-ai"><div class="api-status-box api-error"><b>接口状态检测：</b><br>AI审核功能已关闭，开启后自动检测接口状态</div></div>';
-    }
-    $aiApiType = new \Typecho\Widget\Helper\Form\Element\Radio(
-        'aiApiType',
-        array('custom' => '自定义接口'),
-        'custom',
-        _t('AI接口类型'),
-        _t('介绍：请配置您自己的兼容 OpenAI 格式的 API 地址和密钥')
+    // 接口模式：统一接口 or 分别设置
+    $aiUnifiedApi = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'aiUnifiedApi',
+        array('on' => _t('统一接口（写作和审核共用）'), 'off' => _t('分别设置（写作和审核使用不同接口）')),
+        'on',
+        _t('接口模式'),
+        _t('介绍：选择「统一接口」时，下方配置同时用于 AI 写作和评论审核；选择「分别设置」时可分别为写作和审核配置不同的接口')
     );
-    $aiApiType->setAttribute('class', 'typecho-option cat-group-ai');
-    $form->addInput($aiApiType);
+    $aiUnifiedApi->setAttribute('class', 'typecho-option cat-group-ai');
+    $form->addInput($aiUnifiedApi);
 
+    // 统一接口类型：免费接口 or 自定义接口
+    $aiUnifiedApiType = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'aiUnifiedApiType',
+        array('free' => _t('免费接口（内置，无需填写）'), 'custom' => _t('自定义接口')),
+        'custom',
+        _t('统一接口类型'),
+        _t('介绍：选择「免费接口」将使用内置的免费 AI 接口，无需填写下方地址和密钥；选择「自定义接口」需在下方填写您自己的 API 地址和密钥')
+    );
+    $aiUnifiedApiType->setAttribute('class', 'typecho-option cat-group-ai ai-unified-field ai-api-type-unified');
+    $form->addInput($aiUnifiedApiType);
+
+    // 统一接口配置（aiModerationApiUrl 同时作为统一接口地址，向后兼容）
     $aiModerationApiUrl = new \Typecho\Widget\Helper\Form\Element\Text(
         'aiModerationApiUrl',
         null,
         null,
-        _t('AI API 地址'),
-        _t('介绍：兼容OpenAI格式，如：https://api.openai.com/v1/chat/completions')
+        _t('统一接口 API 地址'),
+        _t('介绍：兼容 OpenAI 格式。可填入完整地址如 https://api.openai.com/v1/chat/completions，也可只填 https://api.openai.com/v1（将自动补全）')
     );
-    $aiModerationApiUrl->setAttribute('class', 'typecho-option cat-group-ai');
+    $aiModerationApiUrl->setAttribute('class', 'typecho-option cat-group-ai ai-unified-field ai-custom-unified-field');
     $form->addInput($aiModerationApiUrl);
 
     $aiModerationApiKey = new \Typecho\Widget\Helper\Form\Element\Password(
         'aiModerationApiKey',
         null,
         null,
-        _t('AI API 密钥'),
+        _t('统一接口 API 密钥'),
         _t('介绍：填写您的 AI 接口 API Key')
     );
-    $aiModerationApiKey->setAttribute('class', 'typecho-option cat-group-ai');
+    $aiModerationApiKey->setAttribute('class', 'typecho-option cat-group-ai ai-unified-field ai-custom-unified-field');
     $form->addInput($aiModerationApiKey);
 
     $aiModerationModel = new \Typecho\Widget\Helper\Form\Element\Text(
         'aiModerationModel',
         null,
         'gpt-3.5-turbo',
-        _t('AI 模型'),
-        _t('介绍：填写使用的模型名称，如：gpt-3.5-turbo, gpt-4o 等')
+        _t('统一接口模型'),
+        _t('介绍：填写使用的模型名称，如 gpt-3.5-turbo、gpt-4o 等')
     );
-    $aiModerationModel->setAttribute('class', 'typecho-option cat-group-ai');
+    $aiModerationModel->setAttribute('class', 'typecho-option cat-group-ai ai-unified-field ai-custom-unified-field');
     $form->addInput($aiModerationModel);
 
-    
+    // 分别设置模式：写作专用接口类型
+    $aiWriterApiType = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'aiWriterApiType',
+        array('free' => _t('免费接口（内置，无需填写）'), 'custom' => _t('自定义接口')),
+        'custom',
+        _t('写作接口类型'),
+        _t('介绍：仅当接口模式为「分别设置」时生效。选择「免费接口」将使用内置的免费 AI 接口')
+    );
+    $aiWriterApiType->setAttribute('class', 'typecho-option cat-group-ai ai-separate-writer-field ai-api-type-writer');
+    $form->addInput($aiWriterApiType);
+
+    // 分别设置模式：写作专用接口
+    $aiWriterApiUrl = new \Typecho\Widget\Helper\Form\Element\Text(
+        'aiWriterApiUrl',
+        null,
+        null,
+        _t('写作接口 API 地址'),
+        _t('介绍：仅当接口模式为「分别设置」且接口类型为「自定义接口」时生效。兼容 OpenAI 格式')
+    );
+    $aiWriterApiUrl->setAttribute('class', 'typecho-option cat-group-ai ai-separate-writer-field ai-custom-writer-field');
+    $form->addInput($aiWriterApiUrl);
+
+    $aiWriterApiKey = new \Typecho\Widget\Helper\Form\Element\Password(
+        'aiWriterApiKey',
+        null,
+        null,
+        _t('写作接口 API 密钥'),
+        _t('介绍：仅当接口模式为「分别设置」且接口类型为「自定义接口」时生效')
+    );
+    $aiWriterApiKey->setAttribute('class', 'typecho-option cat-group-ai ai-separate-writer-field ai-custom-writer-field');
+    $form->addInput($aiWriterApiKey);
+
+    $aiWriterModel = new \Typecho\Widget\Helper\Form\Element\Text(
+        'aiWriterModel',
+        null,
+        'gpt-3.5-turbo',
+        _t('写作接口模型'),
+        _t('介绍：仅当接口模式为「分别设置」且接口类型为「自定义接口」时生效')
+    );
+    $aiWriterModel->setAttribute('class', 'typecho-option cat-group-ai ai-separate-writer-field ai-custom-writer-field');
+    $form->addInput($aiWriterModel);
+
+    // 分别设置模式：审核专用接口类型
+    $aiModerationApiType = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'aiModerationApiType',
+        array('free' => _t('免费接口（内置，无需填写）'), 'custom' => _t('自定义接口')),
+        'custom',
+        _t('审核接口类型'),
+        _t('介绍：仅当接口模式为「分别设置」时生效。选择「免费接口」将使用内置的免费 AI 接口')
+    );
+    $aiModerationApiType->setAttribute('class', 'typecho-option cat-group-ai ai-separate-moderation-field ai-api-type-moderation');
+    $form->addInput($aiModerationApiType);
+
+    // 分别设置模式：审核专用接口（使用 aiModerationApiUrl 等字段，标签动态切换）
+    $aiModerationSepApiUrl = new \Typecho\Widget\Helper\Form\Element\Text(
+        'aiModerationSepApiUrl',
+        null,
+        null,
+        _t('审核接口 API 地址'),
+        _t('介绍：仅当接口模式为「分别设置」且接口类型为「自定义接口」时生效。兼容 OpenAI 格式')
+    );
+    $aiModerationSepApiUrl->setAttribute('class', 'typecho-option cat-group-ai ai-separate-moderation-field ai-custom-moderation-field');
+    $form->addInput($aiModerationSepApiUrl);
+
+    $aiModerationSepApiKey = new \Typecho\Widget\Helper\Form\Element\Password(
+        'aiModerationSepApiKey',
+        null,
+        null,
+        _t('审核接口 API 密钥'),
+        _t('介绍：仅当接口模式为「分别设置」且接口类型为「自定义接口」时生效')
+    );
+    $aiModerationSepApiKey->setAttribute('class', 'typecho-option cat-group-ai ai-separate-moderation-field ai-custom-moderation-field');
+    $form->addInput($aiModerationSepApiKey);
+
+    $aiModerationSepModel = new \Typecho\Widget\Helper\Form\Element\Text(
+        'aiModerationSepModel',
+        null,
+        'gpt-3.5-turbo',
+        _t('审核接口模型'),
+        _t('介绍：仅当接口模式为「分别设置」且接口类型为「自定义接口」时生效')
+    );
+    $aiModerationSepModel->setAttribute('class', 'typecho-option cat-group-ai ai-separate-moderation-field ai-custom-moderation-field');
+    $form->addInput($aiModerationSepModel);
+
+    // ===== AI 审核高级设置 =====
+    $aiModerationPromptLevel = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'aiModerationPromptLevel',
+        array(
+            'lenient' => _t('宽松'),
+            'normal'  => _t('标准'),
+            'strict'  => _t('严格')
+        ),
+        'normal',
+        _t('AI审核力度'),
+        _t('介绍：选择审核提示词的严格程度。「宽松」只拦截明显违规内容；「标准」按常规标准审核；「严格」对边界情况倾向于判定不通过')
+    );
+    $aiModerationPromptLevel->setAttribute('class', 'typecho-option cat-group-ai ai-moderation-advanced');
+    $form->addInput($aiModerationPromptLevel);
+
+    $aiModerationStrategy = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'aiModerationStrategy',
+        array(
+            'auto_publish'  => _t('通过则直接发布，不通过则进入人工审核'),
+            'manual_review' => _t('全部进入人工审核（AI 仅作参考）'),
+            'reject'        => _t('不通过则直接拦截（标记为垃圾）')
+        ),
+        'auto_publish',
+        _t('审核后处理方式'),
+        _t('介绍：设置 AI 审核结果对评论状态的处理方式')
+    );
+    $aiModerationStrategy->setAttribute('class', 'typecho-option cat-group-ai ai-moderation-advanced');
+    $form->addInput($aiModerationStrategy);
+
+    $aiModerationErrorStrategy = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'aiModerationErrorStrategy',
+        array(
+            'waiting' => _t('接口异常时进入人工审核（推荐）'),
+            'pass'    => _t('接口异常时直接放行')
+        ),
+        'waiting',
+        _t('AI审核失败处理'),
+        _t('介绍：当 AI 接口请求失败或超时时的兜底策略。建议选择「人工审核」更安全；选择「放行」可保证评论不卡顿但有漏审风险')
+    );
+    $aiModerationErrorStrategy->setAttribute('class', 'typecho-option cat-group-ai ai-moderation-advanced');
+    $form->addInput($aiModerationErrorStrategy);
+
+    $aiModerationTimeout = new \Typecho\Widget\Helper\Form\Element\Text(
+        'aiModerationTimeout',
+        null,
+        '30',
+        _t('AI审核超时时间（秒）'),
+        _t('介绍：AI 接口请求的超时时间，建议 15-60 秒。超时时间过长会导致评论提交变慢')
+    );
+    $aiModerationTimeout->setAttribute('class', 'typecho-option cat-group-ai ai-moderation-advanced');
+    $form->addInput($aiModerationTimeout);
+
+    $aiModerationPrompt = new \Typecho\Widget\Helper\Form\Element\Textarea(
+        'aiModerationPrompt',
+        null,
+        null,
+        _t('自定义审核提示词（可选）'),
+        _t('介绍：留空则使用上方「审核力度」对应的内置提示词。填写后将完全替代内置提示词，可用 {content} 占位符表示评论内容')
+    );
+    $aiModerationPrompt->setAttribute('class', 'typecho-option cat-group-ai ai-moderation-advanced');
+    $form->addInput($aiModerationPrompt);
+
+    // 接口测试按钮与状态显示
+    echo '<div class="typecho-option cat-group-ai">'
+        . '<div style="margin-bottom:12px;font-weight:bold;color:#333;">接口连通性测试</div>'
+        . '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;">'
+        . '<button type="button" class="cat-data-btn cat-data-btn-primary" id="cat-test-unified-api" style="display:none;">测试统一接口</button>'
+        . '<button type="button" class="cat-data-btn cat-data-btn-primary" id="cat-test-writer-api" style="display:none;">测试写作接口</button>'
+        . '<button type="button" class="cat-data-btn cat-data-btn-primary" id="cat-test-moderation-api" style="display:none;">测试审核接口</button>'
+        . '</div>'
+        . '<div class="cat-data-status" id="cat-api-test-status" style="display:block;max-width:100%;"></div>'
+        . '</div>';
+
+    // AI 设置页面的 JS：接口模式切换 + 接口类型切换 + 测试按钮
+    $aiOptions = \Typecho\Widget::widget('Widget_Options');
+    $aiAjaxUrl = \Typecho\Common::url('usr/themes/ShuFeiCat/core/ai-writer-ajax.php', $aiOptions->siteUrl);
+    // 内置免费接口配置（供前端测试时回传后端，避免在 JS 中硬编码密钥）
+    $freeApiUrl = AiModeration::FREE_API_URL;
+    $freeApiKey = AiModeration::FREE_API_KEY;
+    $freeApiModel = AiModeration::FREE_API_MODEL;
+    // 使用 heredoc 避免单引号/双引号在 PHP 字符串拼接中误判（曾导致 "Undefined constant label" 错误）
+    echo <<<HTML
+<script>
+(function(){
+    function initAiSettings(){
+        var modeRadios=document.querySelectorAll("input[name=aiUnifiedApi]");
+        var unifiedTypeRadios=document.querySelectorAll("input[name=aiUnifiedApiType]");
+        var writerTypeRadios=document.querySelectorAll("input[name=aiWriterApiType]");
+        var modTypeRadios=document.querySelectorAll("input[name=aiModerationApiType]");
+        var modEnabledRadios=document.querySelectorAll("input[name=aiModerationEnabled]");
+        var unifiedFields=document.querySelectorAll(".ai-unified-field");
+        var writerFields=document.querySelectorAll(".ai-separate-writer-field");
+        var modFields=document.querySelectorAll(".ai-separate-moderation-field");
+        var customUnifiedFields=document.querySelectorAll(".ai-custom-unified-field");
+        var customWriterFields=document.querySelectorAll(".ai-custom-writer-field");
+        var customModFields=document.querySelectorAll(".ai-custom-moderation-field");
+        var modAdvancedFields=document.querySelectorAll(".ai-moderation-advanced");
+        var btnUnified=document.getElementById("cat-test-unified-api");
+        var btnWriter=document.getElementById("cat-test-writer-api");
+        var btnMod=document.getElementById("cat-test-moderation-api");
+
+        function getRadio(name,def){
+            var r=document.querySelector("input[name="+name+"]:checked");
+            return r?r.value:def;
+        }
+        function getMode(){return getRadio("aiUnifiedApi","on");}
+        function getUnifiedType(){return getRadio("aiUnifiedApiType","custom");}
+        function getWriterType(){return getRadio("aiWriterApiType","custom");}
+        function getModType(){return getRadio("aiModerationApiType","custom");}
+        function getModEnabled(){return getRadio("aiModerationEnabled","off");}
+
+        function updateFields(){
+            var mode=getMode();
+            // 接口模式：统一/分别
+            unifiedFields.forEach(function(el){el.style.display=mode==="on"?"":"none";});
+            writerFields.forEach(function(el){el.style.display=mode==="off"?"":"none";});
+            modFields.forEach(function(el){el.style.display=mode==="off"?"":"none";});
+            // 接口类型：免费模式下隐藏自定义字段
+            var uType=getUnifiedType();
+            var wType=getWriterType();
+            var mType=getModType();
+            if(mode==="on"){
+                customUnifiedFields.forEach(function(el){el.style.display=uType==="custom"?"":"none";});
+            }else{
+                customUnifiedFields.forEach(function(el){el.style.display="none";});
+            }
+            if(mode==="off"){
+                customWriterFields.forEach(function(el){el.style.display=wType==="custom"?"":"none";});
+                customModFields.forEach(function(el){el.style.display=mType==="custom"?"":"none";});
+            }else{
+                customWriterFields.forEach(function(el){el.style.display="none";});
+                customModFields.forEach(function(el){el.style.display="none";});
+            }
+            // AI 审核高级设置：仅在 AI 评论审核开启时显示
+            var modOn=getModEnabled()==="on";
+            modAdvancedFields.forEach(function(el){el.style.display=modOn?"":"none";});
+            // 测试按钮显示
+            if(btnUnified)btnUnified.style.display=mode==="on"?"inline-block":"none";
+            if(btnWriter)btnWriter.style.display=mode==="off"?"inline-block":"none";
+            if(btnMod)btnMod.style.display=mode==="off"?"inline-block":"none";
+        }
+        [modeRadios,unifiedTypeRadios,writerTypeRadios,modTypeRadios,modEnabledRadios].forEach(function(group){
+            group.forEach(function(r){r.addEventListener("change",updateFields);});
+        });
+        updateFields();
+
+        var statusEl=document.getElementById("cat-api-test-status");
+        function showStatus(msg,type){
+            if(!statusEl)return;
+            statusEl.className="cat-data-status show "+(type||"info");
+            statusEl.innerHTML=msg;
+        }
+
+        /**
+         * 执行测试
+         * @param apiType "free" 使用内置免费接口；"custom" 使用表单填写的地址密钥
+         */
+        function doTest(btn,apiType,urlInput,keyInput,modelInput,label){
+            var url="",key="",model="gpt-3.5-turbo";
+            if(apiType==="free"){
+                url="{$freeApiUrl}";
+                key="{$freeApiKey}";
+                model="{$freeApiModel}";
+            }else{
+                if(!urlInput||!keyInput||!modelInput){showStatus("接口字段缺失","error");return;}
+                url=urlInput.value.trim();
+                key=keyInput.value.trim();
+                model=modelInput.value.trim()||"gpt-3.5-turbo";
+                if(!url||!key){showStatus("请先填写 API 地址和密钥","error");return;}
+            }
+            btn.disabled=true;
+            btn.textContent="测试中...";
+            showStatus("正在测试 "+label+"...","info");
+            fetch("{$aiAjaxUrl}",{
+                method:"POST",
+                credentials:"same-origin",
+                headers:{"Content-Type":"application/x-www-form-urlencoded"},
+                body:"action=test_api&api_type="+encodeURIComponent(apiType)
+                    +"&api_url="+encodeURIComponent(url)
+                    +"&api_key="+encodeURIComponent(key)
+                    +"&model="+encodeURIComponent(model)
+            })
+            .then(function(r){return r.json();})
+            .then(function(data){
+                var type=data.success?"success":"error";
+                showStatus("<b>"+label+"测试结果：</b><br>"+(data.message||"未知结果"),type);
+                btn.disabled=false;
+                btn.textContent="测试"+label;
+            })
+            .catch(function(e){
+                showStatus("测试请求失败："+e,"error");
+                btn.disabled=false;
+                btn.textContent="测试"+label;
+            });
+        }
+
+        if(btnUnified)btnUnified.addEventListener("click",function(){
+            doTest(btnUnified,getUnifiedType(),getFieldInputs("aiModerationApiUrl"),getFieldInputs("aiModerationApiKey"),getFieldInputs("aiModerationModel"),"统一接口");
+        });
+        if(btnWriter)btnWriter.addEventListener("click",function(){
+            doTest(btnWriter,getWriterType(),getFieldInputs("aiWriterApiUrl"),getFieldInputs("aiWriterApiKey"),getFieldInputs("aiWriterModel"),"写作接口");
+        });
+        if(btnMod)btnMod.addEventListener("click",function(){
+            doTest(btnMod,getModType(),getFieldInputs("aiModerationSepApiUrl"),getFieldInputs("aiModerationSepApiKey"),getFieldInputs("aiModerationSepModel"),"审核接口");
+        });
+
+        function getFieldInputs(fieldName){
+            var els=document.getElementsByName(fieldName);
+            return els.length>0?els[0]:null;
+        }
+    }
+    if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",initAiSettings);}else{initAiSettings();}
+})();
+</script>
+HTML;
+
+
     $captchaType = new \Typecho\Widget\Helper\Form\Element\Radio(
         'captchaType',
         array(
@@ -1331,10 +1603,21 @@ function themeFields($layout)
     $layout->addItem($disableLike);
 }
 
-/* 加载核心逻辑库 */
-@require_once dirname(__FILE__) . '/core/mail.php';
-@require_once dirname(__FILE__) . '/core/ai-moderation.php';
-@require_once dirname(__FILE__) . '/core/post-stats.php';
+/* 加载核心逻辑库（去除 @ 静默加载，改为文件存在性检查） */
+$_coreLibs = array(
+    dirname(__FILE__) . '/core/mail.php',
+    dirname(__FILE__) . '/core/ai-moderation.php',
+    dirname(__FILE__) . '/core/ai-writer.php',
+    dirname(__FILE__) . '/core/post-stats.php',
+);
+foreach ($_coreLibs as $_lib) {
+    if (file_exists($_lib)) {
+        require_once $_lib;
+    } else {
+        // 记录缺失文件到错误日志，便于排查
+        error_log('[ShuFeiCat] 核心库缺失: ' . $_lib);
+    }
+}
 
 /**
  * 检查当前用户是否已评论指定文章
@@ -1344,6 +1627,11 @@ function themeFields($layout)
  */
 function shufei_has_commented($cid)
 {
+    static $cache = array();
+    if (isset($cache[$cid])) {
+        return $cache[$cid];
+    }
+
     $db = \Typecho\Db::get();
     $hasCommented = false;
 
@@ -1367,6 +1655,7 @@ function shufei_has_commented($cid)
         }
     }
 
+    $cache[$cid] = $hasCommented;
     return $hasCommented;
 }
 
@@ -1421,11 +1710,17 @@ function shufei_comment_check($comment, $post) {
         }
         // 调用 Cloudflare Siteverify API 验证 token
         $secretKey = isset($options->turnstileSecretKey) ? $options->turnstileSecretKey : '';
-        if (!empty($secretKey)) {
-            $verifyResult = shufei_turnstile_verify_curl($secretKey, $token);
-            if ($verifyResult !== null && isset($verifyResult['success']) && !$verifyResult['success']) {
-                throw new \Typecho\Widget\Exception(_t('人机验证未通过，请重试'));
-            }
+        if (empty($secretKey)) {
+            // fail-closed：密钥未配置视为校验失败，避免静默放行
+            throw new \Typecho\Widget\Exception(_t('人机验证服务未正确配置，请联系管理员'));
+        }
+        $verifyResult = shufei_turnstile_verify_curl($secretKey, $token);
+        // fail-closed：网络异常、curl 不可用或返回空时拒绝评论
+        if ($verifyResult === null) {
+            throw new \Typecho\Widget\Exception(_t('人机验证服务暂时不可用，请稍后重试'));
+        }
+        if (!isset($verifyResult['success']) || !$verifyResult['success']) {
+            throw new \Typecho\Widget\Exception(_t('人机验证未通过，请重试'));
         }
     } elseif (shufei_is_captcha_enabled()) {
         // 图片验证码验证
@@ -1914,9 +2209,35 @@ function shufei_is_archive()
  */
 function shufei_is_404()
 {
-    return \Typecho\Widget::widget('Widget_Options')->template != '404.php'
-        && !shufei_is_post() && !shufei_is_page() && !shufei_is_category()
-        && !shufei_is_tag() && !shufei_is_search() && !shufei_is_author();
+    // 模板为 404.php 时确定为 404 页面
+    $template = \Typecho\Widget::widget('Widget_Options')->template;
+    if ($template === '404.php') {
+        return true;
+    }
+    // 否则通过排除法：不是任何已知页面类型时视为 404
+    return !shufei_is_post() && !shufei_is_page() && !shufei_is_category()
+        && !shufei_is_tag() && !shufei_is_search() && !shufei_is_author()
+        && !shufei_is_archive();
+}
+
+/**
+ * 净化 URL，仅允许 http/https 协议，防止 CSS/JS 注入
+ * 用于在 style 属性或 src 属性中输出用户可控的 URL
+ *
+ * @param string $url 原始 URL
+ * @return string 净化后的 URL，若协议不允许则返回空字符串
+ */
+function shufei_sanitize_url($url)
+{
+    if (empty($url)) return '';
+    $url = trim($url);
+    // 仅允许 http:// 和 https:// 协议；相对路径（以 / 或 ./ 开头）也允许
+    if (preg_match('#^https?://#i', $url) || preg_match('#^(\./|/)#', $url)) {
+        // 移除可能用于 CSS 注入的字符：() ; 以及控制字符
+        $url = preg_replace('/[\x00-\x1F\x7F-\x9F\(\);]/', '', $url);
+        return htmlspecialchars($url, ENT_QUOTES, 'UTF-8');
+    }
+    return '';
 }
 
 /**
@@ -2013,7 +2334,7 @@ function shufei_get_seo_description()
     }
 
     if (empty($description)) {
-        $description = $options->title;
+        $description = htmlspecialchars($options->title, ENT_QUOTES, 'UTF-8');
     }
 
     return $description;
@@ -2028,41 +2349,42 @@ function shufei_get_seo_title()
 {
     $options = \Typecho\Widget::widget('Widget_Options');
     $archive = shufei_get_archive();
+    $siteTitle = htmlspecialchars($options->title, ENT_QUOTES, 'UTF-8');
 
     if (shufei_is_post() && $archive) {
-        return htmlspecialchars($archive->title) . ' - ' . $options->title;
+        return htmlspecialchars($archive->title, ENT_QUOTES, 'UTF-8') . ' - ' . $siteTitle;
     }
 
     if (shufei_is_page() && $archive) {
-        return htmlspecialchars($archive->title) . ' - ' . $options->title;
+        return htmlspecialchars($archive->title, ENT_QUOTES, 'UTF-8') . ' - ' . $siteTitle;
     }
 
     if (shufei_is_category() && $archive) {
-        return sprintf(_t('分类 %s 下的文章'), $archive->name) . ' - ' . $options->title;
+        return sprintf(_t('分类 %s 下的文章'), htmlspecialchars($archive->name, ENT_QUOTES, 'UTF-8')) . ' - ' . $siteTitle;
     }
 
     if (shufei_is_tag() && $archive) {
-        return sprintf(_t('标签 %s 下的文章'), $archive->name) . ' - ' . $options->title;
+        return sprintf(_t('标签 %s 下的文章'), htmlspecialchars($archive->name, ENT_QUOTES, 'UTF-8')) . ' - ' . $siteTitle;
     }
 
     if (shufei_is_search()) {
-        $s = isset($_GET['s']) ? htmlspecialchars(trim($_GET['s'])) : '';
+        $s = isset($_GET['s']) ? htmlspecialchars(trim($_GET['s']), ENT_QUOTES, 'UTF-8') : '';
         if (empty($s) && $archive && !empty($archive->archiveTitle)) {
-            $s = htmlspecialchars($archive->archiveTitle);
+            $s = htmlspecialchars($archive->archiveTitle, ENT_QUOTES, 'UTF-8');
         }
-        return sprintf(_t('包含关键字 %s 的文章'), $s) . ' - ' . $options->title;
+        return sprintf(_t('包含关键字 %s 的文章'), $s) . ' - ' . $siteTitle;
     }
 
     if (shufei_is_author() && $archive) {
         $name = !empty($archive->screenName) ? $archive->screenName : (!empty($archive->name) ? $archive->name : '');
-        return sprintf(_t('%s 发布的文章'), $name) . ' - ' . $options->title;
+        return sprintf(_t('%s 发布的文章'), htmlspecialchars($name, ENT_QUOTES, 'UTF-8')) . ' - ' . $siteTitle;
     }
 
     if (shufei_is_archive()) {
-        return _t('文章归档') . ' - ' . $options->title;
+        return _t('文章归档') . ' - ' . $siteTitle;
     }
 
-    return $options->title;
+    return $siteTitle;
 }
 
 /**
@@ -2145,12 +2467,30 @@ function shufei_get_robots_content()
 /**
  * 渲染文章内容（模板调用入口）
  * 整合预处理、Markdown 解析、回复可见、扩展处理
+ * 优化：对渲染结果做文件缓存，避免每次请求重复 16+ 次正则替换
  *
  * @param Widget\Base\Contents $widget 文章 widget 实例
  * @return string 处理后的 HTML 内容
  */
 function shufei_render_post_content($widget)
 {
+    // 仅对已发布文章/页面启用缓存
+    $cid = $widget->cid;
+    $rawText = $widget->text;
+    $contentHash = md5($rawText . ($widget->modified ?? $widget->created));
+    $cacheKey = 'content_' . $cid . '_' . $contentHash;
+    $cacheFile = dirname(__FILE__) . '/cache/' . $cacheKey . '.html';
+    $cacheDir = dirname($cacheFile);
+
+    // 尝试读取缓存（缓存有效期 6 小时）
+    if (file_exists($cacheFile) && (time() - filemtime($cacheFile)) < 21600) {
+        $cached = @file_get_contents($cacheFile);
+        if ($cached !== false) {
+            // 缓存命中后仍需处理回复可见（依赖用户状态）
+            return shufei_parse_reply_content($cached, $cid);
+        }
+    }
+
     if ($widget->isMarkdown) {
         // 获取原始 Markdown 文本（___text() 已剥离 <!--markdown--> 前缀）
         $rawText = $widget->text;
@@ -2185,11 +2525,17 @@ function shufei_render_post_content($widget)
         $html = $widget->content;
     }
 
+    // 应用 Markdown 扩展（在缓存前完成，避免重复正则处理）
+    $html = shufei_apply_markdown_ext($html);
+
+    // 写入缓存（回复可见部分不缓存，因为依赖用户状态）
+    if (!is_dir($cacheDir)) {
+        @mkdir($cacheDir, 0755, true);
+    }
+    @file_put_contents($cacheFile, $html);
+
     // 处理回复可见
     $html = shufei_parse_reply_content($html, $widget->cid);
-
-    // 应用 Markdown 扩展
-    $html = shufei_apply_markdown_ext($html);
 
     return $html;
 }
@@ -2945,6 +3291,7 @@ function shufei_get_guestbook_url()
 
 /**
  * 获取 GitHub 项目列表（带缓存）
+ * 优化：缓存过期时返回旧缓存并异步刷新，避免前台同步阻塞最长 50 秒
  *
  * @return array 项目列表数组
  */
@@ -2969,67 +3316,69 @@ function shufei_get_github_repos()
 
     $cacheTime = isset($options->githubCacheTime) ? intval($options->githubCacheTime) : 3600;
     $cacheFile = dirname(__FILE__) . '/cache/github_repos.json';
+    $refreshingFlag = dirname(__FILE__) . '/cache/github_repos.refreshing';
+
+    // 按选定项目过滤的闭包
+    $filterSelected = function($repos) use ($selectedRepos) {
+        if (!empty($selectedRepos)) {
+            $repos = array_filter($repos, function($repo) use ($selectedRepos) {
+                return in_array($repo['name'], $selectedRepos);
+            });
+            $repos = array_values($repos);
+        }
+        return $repos;
+    };
 
     // 尝试从缓存读取
+    $cachedRepos = null;
+    $cacheIsFresh = false;
     if (file_exists($cacheFile)) {
-        $cache = @json_decode(file_get_contents($cacheFile), true);
-        if ($cache && isset($cache['timestamp']) && (time() - $cache['timestamp']) < $cacheTime) {
-            $repos = $cache['repos'];
-            // 按选定项目过滤
-            if (!empty($selectedRepos)) {
-                $repos = array_filter($repos, function($repo) use ($selectedRepos) {
-                    return in_array($repo['name'], $selectedRepos);
-                });
-                $repos = array_values($repos);
+        $cache = @json_decode(@file_get_contents($cacheFile), true);
+        if ($cache && isset($cache['timestamp'], $cache['repos'])) {
+            $cachedRepos = $cache['repos'];
+            $cacheIsFresh = (time() - $cache['timestamp']) < $cacheTime;
+            if ($cacheIsFresh) {
+                // 缓存新鲜，直接返回
+                return $filterSelected($cachedRepos);
             }
-            return $repos;
         }
     }
 
-    // 请求 GitHub API - 获取全部项目
-    $allRepos = array();
-    $page = 1;
-    $maxPages = 5; // 最多获取5页，每页100个
-
-    while ($page <= $maxPages) {
-        $apiUrl = 'https://api.github.com/users/' . urlencode($username) . '/repos?sort=stars&per_page=100&page=' . $page;
-
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $apiUrl);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
-        curl_setopt($ch, CURLOPT_USERAGENT, 'ShuFeiCat-Typecho-Theme');
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-
-        if ($httpCode == 200 && $response) {
-            $data = json_decode($response, true);
-            if (is_array($data) && count($data) > 0) {
-                foreach ($data as $repo) {
-                    $allRepos[] = array(
-                        'name' => isset($repo['name']) ? $repo['name'] : '',
-                        'full_name' => isset($repo['full_name']) ? $repo['full_name'] : '',
-                        'description' => isset($repo['description']) ? $repo['description'] : '',
-                        'url' => isset($repo['html_url']) ? $repo['html_url'] : '',
-                        'stars' => isset($repo['stargazers_count']) ? $repo['stargazers_count'] : 0,
-                        'forks' => isset($repo['forks_count']) ? $repo['forks_count'] : 0,
-                        'language' => isset($repo['language']) ? $repo['language'] : '',
-                        'updated_at' => isset($repo['updated_at']) ? $repo['updated_at'] : ''
-                    );
-                }
-                if (count($data) < 100) break;
-                $page++;
-            } else {
-                break;
-            }
-        } else {
-            break;
+    // 缓存过期或不存在时：
+    // 1. 若存在旧缓存，立即返回旧数据，避免前台阻塞
+    // 2. 通过标志文件避免并发刷新
+    if ($cachedRepos !== null) {
+        // 触发后台刷新（仅当没有正在进行的刷新时）
+        if (!file_exists($refreshingFlag) || (time() - @filemtime($refreshingFlag)) > 300) {
+            @touch($refreshingFlag);
+            shufei_refresh_github_repos_cache($username, $cacheFile);
+            @unlink($refreshingFlag);
         }
+        return $filterSelected($cachedRepos);
     }
 
-    // 写入缓存（保存全部项目）
+    // 完全无缓存时，仅同步获取第一页（最多 10 秒）以快速填充缓存
+    $allRepos = shufei_fetch_github_repos_page($username, 1);
+    // 若第一页已满 100 条，再异步获取剩余页（不阻塞当前请求）
+    if (count($allRepos) >= 100) {
+        $cacheDir = dirname($cacheFile);
+        if (!is_dir($cacheDir)) {
+            @mkdir($cacheDir, 0755, true);
+        }
+        @file_put_contents($cacheFile, json_encode(array(
+            'timestamp' => time(),
+            'repos' => $allRepos
+        )));
+        // 后台补全剩余页
+        if (!file_exists($refreshingFlag) || (time() - @filemtime($refreshingFlag)) > 300) {
+            @touch($refreshingFlag);
+            shufei_refresh_github_repos_cache($username, $cacheFile);
+            @unlink($refreshingFlag);
+        }
+        return $filterSelected($allRepos);
+    }
+
+    // 写入缓存
     $cacheDir = dirname($cacheFile);
     if (!is_dir($cacheDir)) {
         @mkdir($cacheDir, 0755, true);
@@ -3039,15 +3388,88 @@ function shufei_get_github_repos()
         'repos' => $allRepos
     )));
 
-    // 按选定项目过滤
-    if (!empty($selectedRepos)) {
-        $allRepos = array_filter($allRepos, function($repo) use ($selectedRepos) {
-            return in_array($repo['name'], $selectedRepos);
-        });
-        $allRepos = array_values($allRepos);
+    return $filterSelected($allRepos);
+}
+
+/**
+ * 抓取 GitHub API 单页数据
+ *
+ * @param string $username GitHub 用户名
+ * @param int $page 页码
+ * @return array 该页项目列表
+ */
+function shufei_fetch_github_repos_page($username, $page)
+{
+    $apiUrl = 'https://api.github.com/users/' . urlencode($username) . '/repos?sort=stars&per_page=100&page=' . $page;
+
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $apiUrl);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+    curl_setopt($ch, CURLOPT_USERAGENT, 'ShuFeiCat-Typecho-Theme');
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    if ($httpCode != 200 || !$response) {
+        return array();
     }
 
-    return $allRepos;
+    $data = json_decode($response, true);
+    if (!is_array($data)) {
+        return array();
+    }
+
+    $repos = array();
+    foreach ($data as $repo) {
+        $repos[] = array(
+            'name' => isset($repo['name']) ? $repo['name'] : '',
+            'full_name' => isset($repo['full_name']) ? $repo['full_name'] : '',
+            'description' => isset($repo['description']) ? $repo['description'] : '',
+            'url' => isset($repo['html_url']) ? $repo['html_url'] : '',
+            'stars' => isset($repo['stargazers_count']) ? $repo['stargazers_count'] : 0,
+            'forks' => isset($repo['forks_count']) ? $repo['forks_count'] : 0,
+            'language' => isset($repo['language']) ? $repo['language'] : '',
+            'updated_at' => isset($repo['updated_at']) ? $repo['updated_at'] : ''
+        );
+    }
+    return $repos;
+}
+
+/**
+ * 后台刷新 GitHub 仓库缓存（获取全部页）
+ * 单页超时 10s，最多 5 页，但仅在缓存过期或不存在时调用
+ *
+ * @param string $username GitHub 用户名
+ * @param string $cacheFile 缓存文件路径
+ */
+function shufei_refresh_github_repos_cache($username, $cacheFile)
+{
+    $allRepos = array();
+    $maxPages = 5;
+
+    for ($page = 1; $page <= $maxPages; $page++) {
+        $pageRepos = shufei_fetch_github_repos_page($username, $page);
+        if (empty($pageRepos)) {
+            break;
+        }
+        $allRepos = array_merge($allRepos, $pageRepos);
+        if (count($pageRepos) < 100) {
+            break;
+        }
+    }
+
+    if (!empty($allRepos)) {
+        $cacheDir = dirname($cacheFile);
+        if (!is_dir($cacheDir)) {
+            @mkdir($cacheDir, 0755, true);
+        }
+        @file_put_contents($cacheFile, json_encode(array(
+            'timestamp' => time(),
+            'repos' => $allRepos
+        )));
+    }
 }
 
 /**
@@ -3194,6 +3616,44 @@ function shufei_parse_comment_markdown($text)
     // 解析评论中的表情代码为图片
     $html = shufei_parse_emoji_code($html, $options);
 
+    // 安全过滤：对评论 HTML 做白名单过滤，防止存储型 XSS
+    $html = shufei_sanitize_comment_html($html);
+
+    return $html;
+}
+
+/**
+ * 评论 HTML 白名单过滤
+ * 仅允许安全的标签和属性，移除所有事件处理器、javascript: 协议等危险内容
+ *
+ * @param string $html 原始 HTML
+ * @return string 过滤后的安全 HTML
+ */
+function shufei_sanitize_comment_html($html)
+{
+    if (empty($html)) return $html;
+
+    // 允许的标签白名单（不含 script/style/iframe/object/embed 等危险标签）
+    $allowedTags = '<a><b><strong><i><em><u><s><del><ins><code><pre><blockquote><p><br><hr>'
+        . '<ul><ol><li><dl><dt><dd><h1><h2><h3><h4><h5><h6>'
+        . '<img><span><div><table><thead><tbody><tr><td><th><sup><sub><mark>'
+        . '<details><summary><figure><figcaption><source><video><audio>';
+
+    // 1. 移除不允许的标签（保留其内部文本内容）
+    $html = strip_tags($html, $allowedTags);
+
+    // 2. 移除所有 on* 事件属性（onclick/onerror/onload/onmouseover 等）
+    $html = preg_replace('#\s+on[a-z]+\s*=\s*(["\']).*?\1#is', '', $html);
+
+    // 3. 移除 javascript: 协议（href="javascript:..."、src="javascript:..."）
+    $html = preg_replace('#(href|src)\s*=\s*(["\'])\s*javascript\s*:.*?\2#is', '$1="$2"', $html);
+
+    // 4. 移除 data: 协议（除 img src 外的 data: URI 可能被滥用）
+    $html = preg_replace('#(href)\s*=\s*(["\'])\s*data\s*:.*?\2#is', '$1="$2"', $html);
+
+    // 5. 移除 style 属性中的危险内容（expression()、url(javascript:) 等）
+    $html = preg_replace('#style\s*=\s*(["\']).*?(expression\s*\(|url\s*\(\s*["\']?\s*javascript\s*:).*?\1#is', '', $html);
+
     return $html;
 }
 
@@ -3338,4 +3798,1175 @@ function shufei_process_music_shortcode($content)
     );
 
     return $content;
+}
+
+/**
+ * ===== 文章编辑器快捷插入功能 =====
+ * 在后台文章/页面 Markdown 编辑器工具栏中添加快捷按钮
+ * 支持所有增强 Markdown 语法：高亮、公式、任务列表、提示框、折叠、图片、视频、音乐、Mermaid、ECharts
+ * 利用 Typecho 的 admin/write-post.php 和 admin/write-page.php 的 bottom 钩子
+ */
+
+// 注册后台编辑器钩子（文章 + 页面）
+\Typecho\Plugin::factory('admin/write-post.php')->bottom = 'shufei_quick_insert_js';
+\Typecho\Plugin::factory('admin/write-page.php')->bottom = 'shufei_quick_insert_js';
+
+/**
+ * 输出快捷插入功能所需的 CSS 和 JavaScript
+ * 将快捷按钮注入到 Markdown 编辑器工具栏（#wmd-button-bar），位于"撰写/预览"标签左侧
+ *
+ * @param mixed $post 文章/页面对象（由钩子传入，此处未使用）
+ */
+function shufei_quick_insert_js($post)
+{
+    $options = \Typecho\Widget::widget('Widget_Options');
+    if (empty($options->markdown)) {
+        return;
+    }
+    ?>
+<style>
+/* ===== 工具栏自动换行 ===== */
+.wmd-button-row {
+    height: auto !important;
+    min-height: 26px;
+    padding-bottom: 4px !important;
+    white-space: normal;
+}
+.wmd-button-row li {
+    white-space: nowrap;
+}
+
+/* ===== 所有按钮统一样式（原 sprite 按钮也用文字替代）===== */
+.wmd-button-row li span {
+    width: auto !important;
+    height: 20px;
+    line-height: 20px;
+    padding: 0 5px;
+    font-size: 12px;
+    color: #666;
+    background: none !important;
+    display: block;
+    white-space: nowrap;
+}
+.wmd-button-row li:hover {
+    background-color: #E9E9E6;
+}
+.wmd-button-row li:hover span {
+    color: #467B96;
+}
+
+/* 分隔符 */
+.wmd-button-row li.shufei-qi-sep {
+    display: inline-block;
+    width: 1px;
+    height: 16px;
+    margin: 0 4px;
+    padding: 0;
+    background: #d0d0d0;
+    vertical-align: middle;
+    cursor: default;
+}
+.wmd-button-row li.shufei-qi-sep:hover {
+    background: #d0d0d0;
+}
+
+/* ===== 预览区样式（与前台一致）===== */
+#wmd-preview {
+    line-height: 1.8;
+    color: #333;
+    font-size: 15px;
+}
+#wmd-preview h1, #wmd-preview h2, #wmd-preview h3,
+#wmd-preview h4, #wmd-preview h5, #wmd-preview h6 {
+    margin: 1.2em 0 0.6em;
+    font-weight: bold;
+    line-height: 1.3;
+}
+#wmd-preview h1 { font-size: 1.8em; border-bottom: 1px solid #eee; padding-bottom: .3em; }
+#wmd-preview h2 { font-size: 1.5em; border-bottom: 1px solid #eee; padding-bottom: .3em; }
+#wmd-preview h3 { font-size: 1.3em; }
+#wmd-preview h4 { font-size: 1.1em; }
+#wmd-preview h5 { font-size: 1em; }
+#wmd-preview h6 { font-size: .9em; color: #999; }
+#wmd-preview p { margin: 0.8em 0; }
+#wmd-preview a { color: #467B96; text-decoration: none; }
+#wmd-preview a:hover { text-decoration: underline; }
+#wmd-preview blockquote {
+    margin: 1em 0;
+    padding: 10px 16px;
+    border-left: 4px solid #467B96;
+    background: #f7f7f9;
+    color: #666;
+}
+#wmd-preview blockquote p { margin: 0.4em 0; }
+#wmd-preview code {
+    padding: 2px 6px;
+    background: #f0f0f0;
+    border-radius: 3px;
+    font-size: 0.9em;
+    color: #c7254e;
+}
+#wmd-preview pre {
+    margin: 1em 0;
+    padding: 14px 18px;
+    background: #2d2d2d;
+    border-radius: 5px;
+    overflow-x: auto;
+}
+#wmd-preview pre code {
+    padding: 0;
+    background: none;
+    color: #ccc;
+    font-size: 13px;
+}
+#wmd-preview ul, #wmd-preview ol { margin: 0.8em 0; padding-left: 2em; }
+#wmd-preview li { margin: 0.3em 0; }
+#wmd-preview img { max-width: 100%; height: auto; border-radius: 4px; }
+#wmd-preview table {
+    margin: 1em 0;
+    border-collapse: collapse;
+    width: 100%;
+}
+#wmd-preview th, #wmd-preview td {
+    border: 1px solid #ddd;
+    padding: 8px 12px;
+}
+#wmd-preview th { background: #f5f5f5; font-weight: bold; }
+#wmd-preview hr { border: none; border-top: 1px solid #eee; margin: 1.5em 0; }
+
+/* ===== 全屏模式适配 ===== */
+.fullscreen .wmd-button-row {
+    padding-bottom: 0 !important;
+}
+.fullscreen #wmd-preview {
+    display: block !important;
+}
+/* 全屏模式下隐藏高级选项按钮（避免从 .submit 与 #wmd-preview 间隙露出） */
+.fullscreen #advance-panel {
+    display: none !important;
+}
+
+/* 模态对话框 */
+.shufei-modal-mask {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 99999;
+    display: none;
+}
+.shufei-modal-mask.active { display: block; }
+.shufei-modal {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    background: #fff;
+    border-radius: 6px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.18);
+    z-index: 100000;
+    min-width: 380px;
+    max-width: 90vw;
+    display: none;
+}
+.shufei-modal.active { display: block; }
+.shufei-modal-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid #eee;
+    font-weight: bold;
+    color: #467B96;
+    font-size: 14px;
+}
+.shufei-modal-body { padding: 16px; }
+.shufei-modal-body .field { margin-bottom: 12px; }
+.shufei-modal-body .field:last-child { margin-bottom: 0; }
+.shufei-modal-body label {
+    display: block;
+    font-size: 12px;
+    color: #666;
+    margin-bottom: 4px;
+}
+.shufei-modal-body input[type="text"],
+.shufei-modal-body select {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    font-size: 13px;
+    box-sizing: border-box;
+}
+.shufei-modal-body input[type="text"]:focus,
+.shufei-modal-body select:focus {
+    border-color: #467B96;
+    outline: none;
+}
+.shufei-modal-body .field-row {
+    display: flex;
+    gap: 10px;
+}
+.shufei-modal-body .field-row .field { flex: 1; }
+.shufei-modal-footer {
+    padding: 12px 16px;
+    border-top: 1px solid #eee;
+    text-align: right;
+}
+.shufei-modal-footer .btn { margin-left: 8px; }
+.shufei-modal-footer .btn-primary {
+    background: #467B96;
+    color: #fff;
+    border: 1px solid #467B96;
+}
+.shufei-modal-footer .btn-cancel {
+    background: #f5f5f5;
+    color: #666;
+    border: 1px solid #ddd;
+}
+</style>
+<script>
+(function ($) {
+    $(document).ready(function () {
+        var textarea = $('#text');
+        if (textarea.length === 0) return;
+
+        // 在光标位置插入文本，并触发预览刷新
+        function insertAtCursor(text) {
+            var sel = textarea.getSelection();
+            var offset = (sel ? sel.start : 0) + text.length;
+            textarea.replaceSelection(text);
+            textarea.setSelection(offset, offset);
+            textarea.trigger('input');
+            textarea.focus();
+        }
+
+        // 在选中文本两侧包裹标记（如 ==高亮==），无选中时插入占位
+        function wrapSelection(before, after, placeholder) {
+            var sel = textarea.getSelection();
+            var text = sel && sel.text ? sel.text : (placeholder || '');
+            var replacement = before + text + (after || before);
+            var start = sel ? sel.start : 0;
+            textarea.replaceSelection(replacement);
+            // 选中插入的文本部分（不含包裹标记）
+            textarea.setSelection(start + before.length, start + before.length + text.length);
+            textarea.trigger('input');
+            textarea.focus();
+        }
+
+        // 创建并显示模态对话框
+        function showModal(title, fields, callback) {
+            $('#shufei-modal-mask, #shufei-modal').remove();
+
+            var mask = $('<div class="shufei-modal-mask" id="shufei-modal-mask"></div>');
+            var modal = $('<div class="shufei-modal" id="shufei-modal"></div>');
+            var header = $('<div class="shufei-modal-header"></div>').text(title);
+            var body = $('<div class="shufei-modal-body"></div>');
+            var footer = $('<div class="shufei-modal-footer"></div>');
+            var btnOk = $('<button type="button" class="btn btn-xs btn-primary">确定</button>');
+            var btnCancel = $('<button type="button" class="btn btn-xs btn-cancel">取消</button>');
+
+            var inputs = {};
+            var currentRow = null;
+
+            fields.forEach(function (f) {
+                if (f.half && !currentRow) {
+                    currentRow = $('<div class="field-row"></div>');
+                    body.append(currentRow);
+                } else if (!f.half) {
+                    currentRow = null;
+                }
+
+                var fieldWrap = $('<div class="field"></div>');
+                var label = $('<label></label>').attr('for', 'shufei-field-' + f.name).text(f.label);
+
+                var input;
+                if (f.type === 'select') {
+                    input = $('<select></select>').attr('id', 'shufei-field-' + f.name);
+                    (f.options || []).forEach(function (opt) {
+                        var val = typeof opt === 'object' ? opt.value : opt;
+                        var text = typeof opt === 'object' ? opt.text : opt;
+                        var option = $('<option></option>').attr('value', val).text(text);
+                        if (val === f.value) option.attr('selected', 'selected');
+                        input.append(option);
+                    });
+                } else {
+                    input = $('<input type="text" />')
+                        .attr('id', 'shufei-field-' + f.name)
+                        .attr('placeholder', f.placeholder || '');
+                    if (f.value) input.val(f.value);
+                }
+
+                fieldWrap.append(label).append(input);
+                inputs[f.name] = input;
+
+                if (currentRow) {
+                    currentRow.append(fieldWrap);
+                    if (currentRow.children().length >= 2) currentRow = null;
+                } else {
+                    body.append(fieldWrap);
+                }
+            });
+
+            footer.append(btnCancel).append(btnOk);
+            modal.append(header).append(body).append(footer);
+            $('body').append(mask).append(modal);
+            mask.addClass('active');
+            modal.addClass('active');
+
+            var firstInput = body.find('input, select').first();
+            if (firstInput.length) firstInput.focus();
+
+            function closeModal() {
+                mask.removeClass('active').remove();
+                modal.removeClass('active').remove();
+            }
+
+            btnOk.on('click', function () {
+                var values = {};
+                var hasValue = false;
+                for (var name in inputs) {
+                    values[name] = $.trim(inputs[name].val());
+                    if (values[name]) hasValue = true;
+                }
+                if (hasValue) callback(values);
+                closeModal();
+                textarea.focus();
+            });
+
+            btnCancel.on('click', function () { closeModal(); textarea.focus(); });
+            mask.on('click', function () { closeModal(); textarea.focus(); });
+
+            modal.on('keydown', function (e) {
+                if (e.keyCode === 13) { e.preventDefault(); btnOk.trigger('click'); }
+                else if (e.keyCode === 27) { e.preventDefault(); btnCancel.trigger('click'); }
+            });
+        }
+
+        // ===== 直接插入类（无需弹窗）=====
+
+        // 高亮文本：==高亮内容==
+        function insertHighlight() {
+            wrapSelection('==', '==', '高亮内容');
+        }
+
+        // 回复可见：[reply]内容[/reply]
+        function insertReply() {
+            wrapSelection('[reply]', '[/reply]', '此处内容需要回复后才可查看');
+        }
+
+        // 行内代码：`code`（包裹选中文本）
+        function insertCode() {
+            wrapSelection('`', '`', 'code');
+        }
+
+        // 代码块：```\ncode\n```
+        function insertCodeBlock() {
+            insertAtCursor('\n```\ncode\n```\n');
+        }
+
+        // 数学公式：$$\n公式\n$$
+        function insertMath() {
+            insertAtCursor('\n$$\nE = mc^2\n$$\n');
+        }
+
+        // 任务列表：- [ ] 任务项
+        function insertTask() {
+            insertAtCursor('\n- [ ] 任务项\n- [ ] 任务项\n- [x] 已完成项\n');
+        }
+
+        // 提示框：> [!tip] 标题
+        function insertTip() {
+            insertAtCursor('\n> [!tip] 提示标题\n> 提示内容写在这里\n> 可以换行继续写\n');
+        }
+
+        // 折叠区块：> [details:标题]
+        function insertDetails() {
+            insertAtCursor('\n> [details:点击展开查看]\n> 折叠的内容写在这里\n> 可以换行继续写\n');
+        }
+
+        // Mermaid 流程图
+        function insertMermaid() {
+            insertAtCursor('\n```mermaid\ngraph TD\n    A[开始] --> B[步骤一]\n    B --> C[步骤二]\n    C --> D[结束]\n```\n');
+        }
+
+        // ECharts 图表
+        function insertEcharts() {
+            insertAtCursor('\n```echarts\n{\n  "xAxis": { "type": "category", "data": ["A", "B", "C"] },\n  "yAxis": { "type": "value" },\n  "series": [{ "data": [120, 200, 150], "type": "bar" }]\n}\n```\n');
+        }
+
+        // ===== 弹窗插入类 =====
+
+        // 图片插入：![描述|宽x高#对齐](url)
+        function insertImage() {
+            showModal('插入图片', [
+                { name: 'url', label: '图片地址 *', placeholder: 'https://example.com/image.jpg' },
+                { name: 'alt', label: '图片描述', placeholder: '图片说明文字（可选，会显示为标题）' },
+                { name: 'width', label: '宽度', placeholder: '如 300 或 50%', half: true },
+                { name: 'height', label: '高度', placeholder: '如 200（可选）', half: true },
+                {
+                    name: 'align', label: '对齐方式', type: 'select', value: '',
+                    options: [
+                        { value: '', text: '默认' },
+                        { value: 'center', text: '居中' },
+                        { value: 'left', text: '左对齐' },
+                        { value: 'right', text: '右对齐' }
+                    ]
+                }
+            ], function (v) {
+                if (!v.url) return;
+                var altParts = [];
+                if (v.alt) altParts.push(v.alt);
+                var sizeStr = '';
+                if (v.width && v.height) sizeStr = v.width + 'x' + v.height;
+                else if (v.width) sizeStr = v.width;
+                if (sizeStr) altParts.push(sizeStr);
+                var altText = altParts.join('|');
+                if (v.align) altText += '#' + v.align;
+                insertAtCursor('\n![' + altText + '](' + v.url + ')\n');
+            });
+        }
+
+        // 视频插入：[video src="url" poster="..." autoplay="true"]
+        function insertVideo() {
+            showModal('插入视频', [
+                { name: 'src', label: '视频地址 *', placeholder: 'https://example.com/video.mp4' },
+                { name: 'poster', label: '封面图地址', placeholder: 'https://example.com/poster.jpg（可选）' },
+                {
+                    name: 'autoplay', label: '自动播放', type: 'select', value: 'false',
+                    options: [
+                        { value: 'false', text: '否' },
+                        { value: 'true', text: '是' }
+                    ]
+                }
+            ], function (v) {
+                if (!v.src) return;
+                var attrs = 'src="' + v.src + '"';
+                if (v.poster) attrs += ' poster="' + v.poster + '"';
+                if (v.autoplay === 'true') attrs += ' autoplay="true"';
+                insertAtCursor('\n[video ' + attrs + ']\n');
+            });
+        }
+
+        // 音乐插入：[music src="url" title="..." artist="..." cover="..."]
+        function insertMusic() {
+            showModal('插入音乐', [
+                { name: 'src', label: '音乐地址 *', placeholder: 'https://example.com/song.mp3' },
+                { name: 'title', label: '歌曲名', placeholder: '如：晴天（可选）', half: true },
+                { name: 'artist', label: '艺术家', placeholder: '如：周杰伦（可选）', half: true },
+                { name: 'cover', label: '封面图地址', placeholder: 'https://example.com/cover.jpg（可选）' }
+            ], function (v) {
+                if (!v.src) return;
+                var attrs = 'src="' + v.src + '"';
+                if (v.title) attrs += ' title="' + v.title + '"';
+                if (v.artist) attrs += ' artist="' + v.artist + '"';
+                if (v.cover) attrs += ' cover="' + v.cover + '"';
+                insertAtCursor('\n[music ' + attrs + ']\n');
+            });
+        }
+
+        // ===== 重建工具栏：原按钮文字化 + 新按钮 + 统一排序 =====
+
+        // 原编辑器按钮 ID → 文字标签
+        var origLabels = {
+            'wmd-bold-button': '加粗',
+            'wmd-italic-button': '斜体',
+            'wmd-link-button': '链接',
+            'wmd-quote-button': '引用',
+            'wmd-olist-button': '有序列表',
+            'wmd-ulist-button': '无序列表',
+            'wmd-heading-button': '标题',
+            'wmd-hr-button': '分割线',
+            'wmd-more-button': '摘要',
+            'wmd-undo-button': '撤销',
+            'wmd-redo-button': '重做',
+            'wmd-fullscreen-button': '全屏',
+            'wmd-exit-fullscreen-button': '退出全屏',
+            'wmd-help-button': '帮助'
+        };
+
+        // 将原 sprite 按钮的文字标签写入 span，移除背景图
+        function textifyOrig(li, label) {
+            var span = li.find('span');
+            if (span.length) {
+                span.css('background-image', 'none').width('auto').text(label);
+            }
+            return li;
+        }
+
+        // 重建整个工具栏，按功能分组排列
+        function rebuildToolbar() {
+            var buttonRow = $('.wmd-button-row');
+            if (buttonRow.length === 0) return false;
+            if (buttonRow.data('shufei-rebuilt')) return true;
+
+            // 收集并 detach 所有原按钮（保留事件绑定）
+            var origBtns = {};
+            buttonRow.find('li').each(function () {
+                var li = $(this);
+                var id = li.attr('id');
+                if (id) {
+                    origBtns[id] = li.detach();
+                } else {
+                    li.remove();
+                }
+            });
+
+            // 删除原图片和代码按钮（由新按钮替代）
+            delete origBtns['wmd-image-button'];
+            delete origBtns['wmd-code-button'];
+
+            // 辅助函数
+            function appendOrig(id) {
+                if (origBtns[id]) {
+                    buttonRow.append(textifyOrig(origBtns[id], origLabels[id] || ''));
+                }
+            }
+            function appendNew(action, label, title) {
+                buttonRow.append('<li class="shufei-qi-btn" data-action="' + action + '" title="' + title + '"><span>' + label + '</span></li>');
+            }
+            function appendSep() {
+                buttonRow.append('<li class="shufei-qi-sep"></li>');
+            }
+
+            // === 第1组：文字格式 ===
+            appendOrig('wmd-bold-button');       // 加粗
+            appendOrig('wmd-italic-button');      // 斜体
+            appendNew('highlight', '高亮', '高亮文本 ==高亮==');
+            appendNew('code', '代码', '行内代码 `code`');
+            appendSep();
+
+            // === 第2组：结构 ===
+            appendOrig('wmd-heading-button');     // 标题
+            appendOrig('wmd-quote-button');       // 引用
+            appendOrig('wmd-olist-button');       // 有序列表
+            appendOrig('wmd-ulist-button');       // 无序列表
+            appendNew('task', '任务', '任务列表 - [ ]');
+            appendOrig('wmd-hr-button');          // 分割线
+            appendSep();
+
+            // === 第3组：插入 ===
+            appendOrig('wmd-link-button');        // 链接
+            appendNew('image', '图片', '插入图片（支持大小/对齐）');
+            appendNew('video', '视频', '插入视频（支持封面）');
+            appendNew('music', '音乐', '插入音乐');
+            appendNew('codeblock', '代码块', '代码块 ```code```');
+            appendSep();
+
+            // === 第4组：高级 ===
+            appendNew('math', '公式', '数学公式 $$...$$');
+            appendNew('tip', '提示', '提示框 > [!tip]');
+            appendNew('details', '折叠', '折叠区块 > [details:]');
+            appendNew('reply', '回复可见', '回复可见 [reply]内容[/reply]');
+            appendNew('mermaid', '流程图', 'Mermaid 流程图/时序图/甘特图');
+            appendNew('echarts', '图表', 'ECharts 数据图表');
+            appendSep();
+
+            // === 第5组：工具 ===
+            appendOrig('wmd-more-button');        // 摘要
+            appendOrig('wmd-undo-button');        // 撤销
+            appendOrig('wmd-redo-button');        // 重做
+            appendOrig('wmd-fullscreen-button');  // 全屏
+            if (origBtns['wmd-exit-fullscreen-button']) {
+                appendOrig('wmd-exit-fullscreen-button'); // 退出全屏
+            }
+            appendOrig('wmd-help-button');        // 帮助
+
+            buttonRow.data('shufei-rebuilt', true);
+
+            return true;
+        }
+
+        // 尝试立即重建，若工具栏尚未创建则监听 DOM 变化
+        if (!rebuildToolbar()) {
+            var observer = new MutationObserver(function (mutations, obs) {
+                if (rebuildToolbar()) obs.disconnect();
+            });
+            observer.observe(document.body, { childList: true, subtree: true });
+            setTimeout(function () { observer.disconnect(); }, 30000);
+        }
+
+        // 全屏模式：动态调整 #text 和 #wmd-preview 的 top 位置，避免被工具栏遮挡
+        function adjustFullscreenLayout() {
+            var isFs = $('#text').css('position') === 'absolute';
+            if (isFs) {
+                var barHeight = $('#wmd-button-bar').outerHeight(true) || 53;
+                $('#text').css('top', barHeight + 'px');
+                $('#wmd-preview').css('top', barHeight + 'px');
+                // 让 .submit 覆盖到预览区顶部，避免工具栏换行后露出下方内容
+                $('.submit').css('height', barHeight + 'px');
+            } else {
+                $('#text').css('top', '');
+                $('#wmd-preview').css('top', '');
+                $('.submit').css('height', '');
+            }
+        }
+
+        // 全屏切换时处理 exit-fullscreen 按钮和布局调整
+        $(document).on('click', '#wmd-fullscreen-button, #wmd-exit-fullscreen-button', function () {
+            setTimeout(function () {
+                // 文字化 exit-fullscreen 按钮
+                var exitBtn = $('#wmd-exit-fullscreen-button');
+                if (exitBtn.length) {
+                    var span = exitBtn.find('span');
+                    if (span.length && !span.text()) {
+                        span.css('background-image', 'none').width('auto').text('退出全屏');
+                    }
+                }
+                // 全屏可能重建工具栏，重新文字化所有 sprite 按钮
+                $('.wmd-button-row li[id]').each(function () {
+                    var li = $(this);
+                    var id = li.attr('id');
+                    if (origLabels[id]) {
+                        var span = li.find('span');
+                        if (span.length && !span.text()) {
+                            span.css('background-image', 'none').width('auto').text(origLabels[id]);
+                        }
+                    }
+                });
+                // 调整内容区位置
+                adjustFullscreenLayout();
+            }, 100);
+        });
+
+        // 绑定按钮点击事件（事件委托，支持动态注入）
+        $(document).on('click', '.shufei-qi-btn', function (e) {
+            e.preventDefault();
+            var action = $(this).data('action');
+            switch (action) {
+                case 'highlight': insertHighlight(); break;
+                case 'reply': insertReply(); break;
+                case 'code': insertCode(); break;
+                case 'codeblock': insertCodeBlock(); break;
+                case 'math': insertMath(); break;
+                case 'task': insertTask(); break;
+                case 'tip': insertTip(); break;
+                case 'details': insertDetails(); break;
+                case 'mermaid': insertMermaid(); break;
+                case 'echarts': insertEcharts(); break;
+                case 'image': insertImage(); break;
+                case 'video': insertVideo(); break;
+                case 'music': insertMusic(); break;
+            }
+        });
+    });
+})(jQuery);
+</script>
+<?php
+}
+
+/**
+ * ===== AI 写作助手编辑器集成 =====
+ * 在后台文章/页面编辑器中注入 AI 美化、续写、检查功能
+ * 仅当 AI 写作助手开启时显示
+ */
+
+// 注册 AI 写作助手后台编辑器钩子（文章 + 页面）
+\Typecho\Plugin::factory('admin/write-post.php')->bottom = 'shufei_ai_writer_editor_ui';
+\Typecho\Plugin::factory('admin/write-page.php')->bottom = 'shufei_ai_writer_editor_ui';
+
+/**
+ * 输出 AI 写作助手编辑器 UI（工具栏按钮 + 浮窗）
+ *
+ * @param mixed $post 文章/页面对象（由钩子传入，此处未使用）
+ */
+function shufei_ai_writer_editor_ui($post)
+{
+    $options = \Typecho\Widget::widget('Widget_Options');
+
+    // 仅当 AI 写作助手开启时注入
+    $aiWriterEnabled = isset($options->aiWriterEnabled) ? $options->aiWriterEnabled : 'off';
+    if ($aiWriterEnabled !== 'on') {
+        return;
+    }
+
+    // AI 写作 AJAX 端点
+    $aiAjaxUrl = \Typecho\Common::url('usr/themes/ShuFeiCat/core/ai-writer-ajax.php', $options->siteUrl);
+
+    // 美化风格列表
+    $styles = AiWriter::$beautifyStyles;
+    ?>
+<style>
+/* ===== AI 写作助手样式 ===== */
+.shufei-ai-toolbar {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    padding: 6px 8px;
+    margin: 4px 0 8px;
+    background: linear-gradient(135deg, #f0f7ff 0%, #fff5f6 100%);
+    border: 1px solid #d6e4ff;
+    border-radius: 6px;
+    flex-wrap: wrap;
+}
+.shufei-ai-toolbar .ai-label {
+    font-weight: bold;
+    color: #1d39c4;
+    font-size: 13px;
+    margin-right: 4px;
+}
+.shufei-ai-btn {
+    display: inline-block;
+    padding: 4px 12px;
+    font-size: 12px;
+    color: #fff;
+    background: #597ef7;
+    border: 1px solid #597ef7;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    line-height: 1.6;
+}
+.shufei-ai-btn:hover {
+    background: #4096ff;
+    border-color: #4096ff;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(89, 126, 247, 0.35);
+}
+.shufei-ai-btn.beautify { background: #73d13d; border-color: #73d13d; }
+.shufei-ai-btn.beautify:hover { background: #52c41a; border-color: #52c41a; box-shadow: 0 2px 6px rgba(82, 196, 26, 0.35); }
+.shufei-ai-btn.continue { background: #ffa940; border-color: #ffa940; }
+.shufei-ai-btn.continue:hover { background: #fa8c16; border-color: #fa8c16; box-shadow: 0 2px 6px rgba(250, 140, 22, 0.35); }
+.shufei-ai-btn.check { background: #ff85c0; border-color: #ff85c0; }
+.shufei-ai-btn.check:hover { background: #f759ab; border-color: #f759ab; box-shadow: 0 2px 6px rgba(247, 89, 171, 0.35); }
+
+/* AI 浮窗 */
+.shufei-ai-modal-mask {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 10000;
+    display: none;
+}
+.shufei-ai-modal {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 720px;
+    max-width: 92vw;
+    max-height: 85vh;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+    z-index: 10001;
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+}
+.shufei-ai-modal.show, .shufei-ai-modal-mask.show { display: flex; }
+.shufei-ai-modal-header {
+    padding: 12px 16px;
+    background: #597ef7;
+    color: #fff;
+    font-weight: bold;
+    font-size: 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.shufei-ai-modal-close {
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+    padding: 0 4px;
+    opacity: 0.85;
+}
+.shufei-ai-modal-close:hover { opacity: 1; }
+.shufei-ai-modal-body {
+    padding: 16px;
+    overflow-y: auto;
+    flex: 1;
+}
+.shufei-ai-modal-footer {
+    padding: 10px 16px;
+    border-top: 1px solid #f0f0f0;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    background: #fafafa;
+}
+.shufei-ai-style-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 12px;
+}
+.shufei-ai-style-opt {
+    padding: 10px;
+    border: 1px solid #d9d9d9;
+    border-radius: 4px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s;
+    font-size: 13px;
+}
+.shufei-ai-style-opt:hover { border-color: #597ef7; color: #597ef7; }
+.shufei-ai-style-opt.active {
+    background: #597ef7;
+    color: #fff;
+    border-color: #597ef7;
+}
+.shufei-ai-style-desc {
+    font-size: 11px;
+    color: #8c8c8c;
+    margin-top: 2px;
+}
+.shufei-ai-style-opt.active .shufei-ai-style-desc { color: rgba(255,255,255,0.8); }
+.shufei-ai-result {
+    width: 100%;
+    min-height: 200px;
+    padding: 10px;
+    border: 1px solid #d9d9d9;
+    border-radius: 4px;
+    font-family: 'SFMono-Regular', Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    resize: vertical;
+    box-sizing: border-box;
+}
+.shufei-ai-loading {
+    text-align: center;
+    padding: 40px 20px;
+    color: #8c8c8c;
+}
+.shufei-ai-loading .spinner {
+    display: inline-block;
+    width: 28px;
+    height: 28px;
+    border: 3px solid #d6e4ff;
+    border-top-color: #597ef7;
+    border-radius: 50%;
+    animation: shufei-ai-spin 0.8s linear infinite;
+    margin-bottom: 10px;
+}
+@keyframes shufei-ai-spin { to { transform: rotate(360deg); } }
+.shufei-ai-status {
+    margin-top: 8px;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    display: none;
+}
+.shufei-ai-status.info { display: block; background: #e6f7ff; border: 1px solid #91d5ff; color: #096dd9; }
+.shufei-ai-status.success { display: block; background: #f6ffed; border: 1px solid #b7eb8f; color: #389e0d; }
+.shufei-ai-status.error { display: block; background: #fff2f0; border: 1px solid #ffccc7; color: #cf1322; }
+.shufei-ai-meta {
+    font-size: 12px;
+    color: #8c8c8c;
+    margin-top: 4px;
+}
+.shufei-ai-len-input {
+    width: 80px;
+    padding: 4px 8px;
+    border: 1px solid #d9d9d9;
+    border-radius: 4px;
+    font-size: 13px;
+}
+.shufei-ai-select-wrap {
+    margin-bottom: 12px;
+    font-size: 13px;
+    color: #595959;
+}
+.shufei-ai-select-wrap select {
+    padding: 4px 8px;
+    border: 1px solid #d9d9d9;
+    border-radius: 4px;
+    font-size: 13px;
+    margin-left: 6px;
+}
+</style>
+
+<!-- AI 工具栏（注入到编辑器上方） -->
+<div class="shufei-ai-toolbar" id="shufei-ai-toolbar" style="display:none;">
+    <span class="ai-label">✨ AI 助手</span>
+    <button type="button" class="shufei-ai-btn beautify" data-ai-action="beautify">美化</button>
+    <button type="button" class="shufei-ai-btn continue" data-ai-action="continue">续写</button>
+    <button type="button" class="shufei-ai-btn check" data-ai-action="check">检查</button>
+</div>
+
+<!-- AI 浮窗 -->
+<div class="shufei-ai-modal-mask" id="shufei-ai-mask"></div>
+<div class="shufei-ai-modal" id="shufei-ai-modal">
+    <div class="shufei-ai-modal-header">
+        <span id="shufei-ai-modal-title">AI 助手</span>
+        <span class="shufei-ai-modal-close" id="shufei-ai-close">×</span>
+    </div>
+    <div class="shufei-ai-modal-body" id="shufei-ai-modal-body">
+        <!-- 内容动态注入 -->
+    </div>
+    <div class="shufei-ai-modal-footer" id="shufei-ai-modal-footer">
+        <!-- 按钮动态注入 -->
+    </div>
+</div>
+
+<script>
+(function ($) {
+    $(function () {
+        var ajaxUrl = '<?php echo $aiAjaxUrl; ?>';
+        var styles = <?php echo json_encode($styles); ?>;
+        var styleDescs = {
+            'literary': '用词优美典雅，善用比喻修辞',
+            'professional': '严谨准确，逻辑清晰',
+            'vivid': '生动活泼，富有画面感',
+            'concise': '简练精炼，直击要点',
+            'humorous': '幽默有趣，不失分寸',
+            'warm': '温暖抒情，富有感染力'
+        };
+        var currentStyle = 'literary';
+        var lastResult = '';
+        var lastAction = '';
+
+        // 将工具栏注入到编辑器上方
+        function injectToolbar() {
+            if ($('#shufei-ai-toolbar').data('injected')) return;
+            var $text = $('#text');
+            if (!$text.length) return;
+            $('#shufei-ai-toolbar').insertBefore($text).show().data('injected', true);
+        }
+        injectToolbar();
+        // 重试注入（等待编辑器初始化）
+        setTimeout(injectToolbar, 500);
+
+        // 获取编辑器内容（选区优先）
+        function getContent() {
+            var $text = $('#text');
+            var ta = $text[0];
+            if (!ta) return '';
+            var start = ta.selectionStart;
+            var end = ta.selectionEnd;
+            if (start !== end) {
+                return ta.value.substring(start, end);
+            }
+            return ta.value;
+        }
+
+        // 替换编辑器内容（选区优先替换选区，否则追加）
+        function applyResult(result) {
+            var $text = $('#text');
+            var ta = $text[0];
+            if (!ta) return;
+            var start = ta.selectionStart;
+            var end = ta.selectionEnd;
+            if (start !== end) {
+                // 有选区：替换选区
+                var newVal = ta.value.substring(0, start) + result + ta.value.substring(end);
+                ta.value = newVal;
+                ta.selectionStart = start;
+                ta.selectionEnd = start + result.length;
+            } else if (lastAction === 'continue') {
+                // 续写：追加到末尾
+                ta.value = ta.value + '\n\n' + result;
+                ta.scrollTop = ta.scrollHeight;
+            } else {
+                // 美化：替换全部内容
+                ta.value = result;
+            }
+            // 触发 change 让预览更新
+            $text.trigger('change').trigger('input');
+        }
+
+        // 显示浮窗
+        function showModal(title, bodyHtml, footerHtml) {
+            $('#shufei-ai-modal-title').text(title);
+            $('#shufei-ai-modal-body').html(bodyHtml);
+            $('#shufei-ai-modal-footer').html(footerHtml || '');
+            $('#shufei-ai-mask, #shufei-ai-modal').addClass('show');
+        }
+
+        function closeModal() {
+            $('#shufei-ai-mask, #shufei-ai-modal').removeClass('show');
+        }
+
+        function setStatus(msg, type) {
+            $('#shufei-ai-status').removeClass('info success error').addClass(type || 'info').html(msg).show();
+        }
+
+        // 显示加载
+        function showLoading(text) {
+            $('#shufei-ai-modal-body').html(
+                '<div class="shufei-ai-loading"><div class="spinner"></div><div>' + (text || 'AI 正在思考中...') + '</div></div>'
+            );
+        }
+
+        // 调用 AI 接口
+        function callAi(action, data, onDone) {
+            var postData = 'action=' + encodeURIComponent(action);
+            for (var k in data) {
+                if (data.hasOwnProperty(k)) {
+                    postData += '&' + k + '=' + encodeURIComponent(data[k]);
+                }
+            }
+            showLoading(action === 'beautify' ? 'AI 正在美化文章...' :
+                        action === 'continue' ? 'AI 正在续写文章...' :
+                        action === 'check' ? 'AI 正在检查文章...' : 'AI 处理中...');
+            $.ajax({
+                url: ajaxUrl,
+                type: 'POST',
+                data: postData,
+                dataType: 'json',
+                timeout: 90000
+            }).done(function (resp) {
+                if (resp && resp.success) {
+                    lastResult = resp.content || '';
+                    onDone(resp);
+                } else {
+                    $('#shufei-ai-modal-body').html(
+                        '<div class="shufei-ai-status error">✗ ' + (resp && resp.message ? resp.message : 'AI 请求失败') + '</div>' +
+                        '<div style="text-align:right;margin-top:12px;"><button type="button" class="shufei-ai-btn" onclick="jQuery(\'#shufei-ai-mask, #shufei-ai-modal\').removeClass(\'show\');">关闭</button></div>'
+                    );
+                }
+            }).fail(function (xhr) {
+                var msg = '请求失败';
+                try { var r = JSON.parse(xhr.responseText); if (r.message) msg = r.message; } catch (e) {}
+                $('#shufei-ai-modal-body').html(
+                    '<div class="shufei-ai-status error">✗ ' + msg + ' (HTTP ' + xhr.status + ')</div>' +
+                    '<div style="text-align:right;margin-top:12px;"><button type="button" class="shufei-ai-btn" onclick="jQuery(\'#shufei-ai-mask, #shufei-ai-modal\').removeClass(\'show\');">关闭</button></div>'
+                );
+            });
+        }
+
+        // 美化弹窗
+        function openBeautify() {
+            var content = getContent();
+            if (!content.trim()) { alert('请先输入文章内容，或选中要美化的段落'); return; }
+            lastAction = 'beautify';
+            var styleHtml = '<div style="margin-bottom:8px;font-weight:bold;">选择美化风格：</div><div class="shufei-ai-style-grid">';
+            for (var k in styles) {
+                if (!styles.hasOwnProperty(k)) continue;
+                var cls = k === currentStyle ? ' active' : '';
+                styleHtml += '<div class="shufei-ai-style-opt' + cls + '" data-style="' + k + '">'
+                    + '<div>' + styles[k] + '</div>'
+                    + '<div class="shufei-ai-style-desc">' + (styleDescs[k] || '') + '</div>'
+                    + '</div>';
+            }
+            styleHtml += '</div>';
+            styleHtml += '<div class="shufei-ai-status" id="shufei-ai-status"></div>';
+            showModal('AI 美化文章', styleHtml,
+                '<button type="button" class="shufei-ai-btn" id="shufei-ai-cancel">取消</button>' +
+                '<button type="button" class="shufei-ai-btn beautify" id="shufei-ai-run">开始美化</button>');
+
+            // 风格选择
+            $('.shufei-ai-style-opt').on('click', function () {
+                $('.shufei-ai-style-opt').removeClass('active');
+                $(this).addClass('active');
+                currentStyle = $(this).data('style');
+            });
+            $('#shufei-ai-cancel').on('click', closeModal);
+            $('#shufei-ai-run').on('click', function () {
+                callAi('beautify', { content: content, style: currentStyle }, function (resp) {
+                    showResultEditor(resp.content, '美化结果', true);
+                });
+            });
+        }
+
+        // 续写弹窗
+        function openContinue() {
+            var content = getContent();
+            if (!content.trim()) { alert('请先输入文章内容，AI 将基于已有内容续写'); return; }
+            lastAction = 'continue';
+            var html = '<div class="shufei-ai-select-wrap">续写字数：' +
+                '<input type="number" class="shufei-ai-len-input" id="shufei-ai-len" value="300" min="100" max="2000" step="50"> 字（建议 100-2000）</div>' +
+                '<div class="shufei-ai-meta">AI 将基于当前内容（或选区）自然续写，续写内容将追加到原文末尾。</div>' +
+                '<div class="shufei-ai-status" id="shufei-ai-status"></div>';
+            showModal('AI 续写文章', html,
+                '<button type="button" class="shufei-ai-btn" id="shufei-ai-cancel">取消</button>' +
+                '<button type="button" class="shufei-ai-btn continue" id="shufei-ai-run">开始续写</button>');
+            $('#shufei-ai-cancel').on('click', closeModal);
+            $('#shufei-ai-run').on('click', function () {
+                var len = parseInt($('#shufei-ai-len').val(), 10) || 300;
+                callAi('continue', { content: content, length: len }, function (resp) {
+                    showResultEditor(resp.content, '续写结果', true);
+                });
+            });
+        }
+
+        // 检查弹窗
+        function openCheck() {
+            var content = getContent();
+            if (!content.trim()) { alert('请先输入文章内容'); return; }
+            lastAction = 'check';
+            showModal('AI 文章检查', '<div class="shufei-ai-meta">AI 将检查文章的错别字、语法、逻辑等问题并给出修改建议。</div><div class="shufei-ai-status" id="shufei-ai-status"></div>',
+                '<button type="button" class="shufei-ai-btn" id="shufei-ai-cancel">取消</button>' +
+                '<button type="button" class="shufei-ai-btn check" id="shufei-ai-run">开始检查</button>');
+            $('#shufei-ai-cancel').on('click', closeModal);
+            $('#shufei-ai-run').on('click', function () {
+                callAi('check', { content: content }, function (resp) {
+                    // 检查结果只读展示
+                    showResultViewer(resp.content, '检查结果');
+                });
+            });
+        }
+
+        // 显示可编辑结果（美化/续写）
+        function showResultEditor(result, title, canApply) {
+            var footer = '<button type="button" class="shufei-ai-btn" id="shufei-ai-cancel">关闭</button>';
+            if (canApply) {
+                footer = '<button type="button" class="shufei-ai-btn" id="shufei-ai-copy">复制结果</button>' +
+                    '<button type="button" class="shufei-ai-btn beautify" id="shufei-ai-apply">应用到文章</button>' +
+                    '<button type="button" class="shufei-ai-btn" id="shufei-ai-cancel">关闭</button>';
+            }
+            var body = '<div class="shufei-ai-meta">可在此预览/编辑 AI 生成结果，确认后点击「应用到文章」。</div>' +
+                '<textarea class="shufei-ai-result" id="shufei-ai-result-text">' + $('<div>').text(result).html() + '</textarea>' +
+                '<div class="shufei-ai-meta">字数：' + result.length + '</div>';
+            showModal(title, body, footer);
+            $('#shufei-ai-cancel').on('click', closeModal);
+            if (canApply) {
+                $('#shufei-ai-copy').on('click', function () {
+                    var txt = $('#shufei-ai-result-text').val();
+                    if (navigator.clipboard) {
+                        navigator.clipboard.writeText(txt);
+                    } else {
+                        var $tmp = $('<textarea>').val(txt).appendTo('body').select();
+                        document.execCommand('copy'); $tmp.remove();
+                    }
+                    $(this).text('已复制').prop('disabled', true);
+                });
+                $('#shufei-ai-apply').on('click', function () {
+                    applyResult($('#shufei-ai-result-text').val());
+                    closeModal();
+                });
+            }
+        }
+
+        // 显示只读结果（检查）
+        function showResultViewer(result, title) {
+            // 简单 Markdown 渲染（标题、列表、加粗、代码）
+            function esc(s) { return $('<div>').text(s).html(); }
+            var html = esc(result);
+            html = html.replace(/^### (.+)$/gm, '<h4>$1</h4>');
+            html = html.replace(/^## (.+)$/gm, '<h3>$1</h3>');
+            html = html.replace(/^# (.+)$/gm, '<h2>$1</h2>');
+            html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+            html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
+            html = html.replace(/(<li>[\s\S]+?<\/li>)/g, '<ul>$1</ul>');
+            html = html.replace(/\n\n/g, '</p><p>');
+            html = '<div style="font-size:14px;line-height:1.8;color:#333;"><p>' + html + '</p></div>';
+            var footer = '<button type="button" class="shufei-ai-btn" id="shufei-ai-copy">复制结果</button>' +
+                '<button type="button" class="shufei-ai-btn" id="shufei-ai-cancel">关闭</button>';
+            showModal(title, html, footer);
+            $('#shufei-ai-cancel').on('click', closeModal);
+            $('#shufei-ai-copy').on('click', function () {
+                if (navigator.clipboard) {
+                    navigator.clipboard.writeText(result);
+                } else {
+                    var $tmp = $('<textarea>').val(result).appendTo('body').select();
+                    document.execCommand('copy'); $tmp.remove();
+                }
+                $(this).text('已复制').prop('disabled', true);
+            });
+        }
+
+        // 工具栏按钮事件
+        $(document).on('click', '.shufei-ai-btn[data-ai-action]', function (e) {
+            e.preventDefault();
+            var action = $(this).data('ai-action');
+            if (action === 'beautify') openBeautify();
+            else if (action === 'continue') openContinue();
+            else if (action === 'check') openCheck();
+        });
+
+        // 关闭事件
+        $('#shufei-ai-close, #shufei-ai-mask').on('click', closeModal);
+        $(document).on('keydown', function (e) {
+            if (e.key === 'Escape') closeModal();
+        });
+    });
+})(jQuery);
+</script>
+<?php
 }

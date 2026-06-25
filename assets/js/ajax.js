@@ -104,16 +104,20 @@
             .then(function(response) { return response.json(); })
             .then(function(data) {
                 if (data.html) {
-                    // 插入新内容
+                    // 使用 DOMParser 安全解析并注入内容，避免直接 innerHTML 导致的 XSS
                     var temp = document.createElement('div');
-                    temp.innerHTML = data.html;
+                    temp.appendChild(sanitizeHtml(data.html));
                     while (temp.firstChild) {
                         postList.appendChild(temp.firstChild);
                     }
                     
                     // 更新分页导航
                     if (data.pageNav) {
-                        pageNav.innerHTML = data.pageNav;
+                        // 清空现有内容后再注入净化后的 HTML
+                        while (pageNav.firstChild) {
+                            pageNav.removeChild(pageNav.firstChild);
+                        }
+                        pageNav.appendChild(sanitizeHtml(data.pageNav));
                         var nextLink = pageNav.querySelector('.next');
                         hasMore = !!nextLink;
                     }
@@ -139,6 +143,43 @@
                 loadMoreBtn.style.display = 'block';
                 loadMoreBtn.innerHTML = '<i class="fa fa-exclamation-triangle"></i> 加载失败，点击重试';
             });
+    }
+
+    /**
+     * 安全解析 HTML 字符串并返回经过净化的 DocumentFragment
+     * 移除 <script>、<iframe>、on* 事件属性、javascript: 协议等危险内容
+     *
+     * @param {string} html 原始 HTML 字符串
+     * @return {DocumentFragment} 净化后的 DocumentFragment
+     */
+    function sanitizeHtml(html) {
+        var doc = new DOMParser().parseFromString(html, 'text/html');
+        // 移除危险标签
+        var dangerousTags = ['script', 'iframe', 'object', 'embed', 'base', 'form'];
+        dangerousTags.forEach(function(tagName) {
+            var nodes = doc.querySelectorAll(tagName);
+            nodes.forEach(function(node) { node.remove(); });
+        });
+        // 移除所有 on* 事件属性
+        var allElements = doc.querySelectorAll('*');
+        allElements.forEach(function(el) {
+            var attrs = el.attributes;
+            for (var i = attrs.length - 1; i >= 0; i--) {
+                var attrName = attrs[i].name.toLowerCase();
+                var attrValue = attrs[i].value;
+                if (attrName.indexOf('on') === 0) {
+                    el.removeAttribute(attrs[i].name);
+                } else if ((attrName === 'href' || attrName === 'src') &&
+                    /^\s*javascript:/i.test(attrValue)) {
+                    el.removeAttribute(attrs[i].name);
+                }
+            }
+        });
+        var fragment = document.createDocumentFragment();
+        while (doc.body.firstChild) {
+            fragment.appendChild(doc.body.firstChild);
+        }
+        return fragment;
     }
     
     // 初始化

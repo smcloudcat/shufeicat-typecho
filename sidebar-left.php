@@ -6,10 +6,10 @@
         <!-- 站长信息卡片 -->
         <div class="author-card">
             <div class="author-avatar-wrap">
-                <img class="author-avatar" src="<?php echo !empty($this->options->authorAvatar) ? $this->options->authorAvatar : 'https://q1.qlogo.cn/g?b=qq&nk=3522934828&s=100'; ?>" alt="<?php echo !empty($this->options->authorName) ? $this->options->authorName : '云猫'; ?>">
+                <img class="author-avatar" src="<?php echo htmlspecialchars(!empty($this->options->authorAvatar) ? $this->options->authorAvatar : 'https://q1.qlogo.cn/g?b=qq&nk=3522934828&s=100'); ?>" alt="<?php echo htmlspecialchars(!empty($this->options->authorName) ? $this->options->authorName : '云猫'); ?>">
             </div>
-            <div class="author-name"><?php echo !empty($this->options->authorName) ? $this->options->authorName : '云猫'; ?></div>
-            <div class="author-signature"><?php echo !empty($this->options->authorSignature) ? $this->options->authorSignature : 'Hello,world'; ?></div>
+            <div class="author-name"><?php echo htmlspecialchars(!empty($this->options->authorName) ? $this->options->authorName : '云猫'); ?></div>
+            <div class="author-signature"><?php echo htmlspecialchars(!empty($this->options->authorSignature) ? $this->options->authorSignature : 'Hello,world'); ?></div>
             <div class="author-stats">
                 <?php $stat = \Widget\Stat::alloc(); ?>
                 <div class="author-stat-item">

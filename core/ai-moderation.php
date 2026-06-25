@@ -9,6 +9,14 @@ if (!defined('__TYPECHO_ROOT_DIR__')) exit;
 class AiModeration
 {
     /**
+     * 免费 API 配置（内置）
+     * 用户在后台选择「免费接口」时使用，无需填写地址和密钥
+     */
+    const FREE_API_URL = 'https://newapi.nki.pw/v1/chat/completions';
+    const FREE_API_KEY = 'sk-IZ5WDehg4A5P3XyNkZHdwxsPxFvMmIQP0m0dDkVOSwBsB0Dh';
+    const FREE_API_MODEL = '[福利]GPT-4o';
+
+    /**
      * 默认安全审核提示词
      */
     const DEFAULT_SAFETY_PROMPT = '你是一个内容安全审核助手。请仔细分析以下评论内容，并判断是否包含以下违规内容：
@@ -105,14 +113,39 @@ class AiModeration
     {
         $options = \Typecho\Widget::widget('Widget_Options');
 
-        $this->apiType = isset($options->aiApiType) ? $options->aiApiType : 'custom';
-        $customApiUrl = isset($options->aiModerationApiUrl) ? $options->aiModerationApiUrl : '';
-        $customApiKey = isset($options->aiModerationApiKey) ? $options->aiModerationApiKey : '';
-        $customModel = isset($options->aiModerationModel) ? $options->aiModerationModel : '';
+        // 接口模式：on=统一接口，off=分别设置
+        $unified = isset($options->aiUnifiedApi) ? $options->aiUnifiedApi : 'on';
 
-        // 使用自定义接口配置
-        if (!empty($customApiUrl) && !empty($customApiKey)) {
-            $this->apiUrl = $customApiUrl;
+        if ($unified === 'on') {
+            // 统一接口：接口类型由 aiUnifiedApiType 决定（free/custom）
+            $apiType = isset($options->aiUnifiedApiType) ? $options->aiUnifiedApiType : 'custom';
+            $customApiUrl = isset($options->aiModerationApiUrl) ? $options->aiModerationApiUrl : '';
+            $customApiKey = isset($options->aiModerationApiKey) ? $options->aiModerationApiKey : '';
+            $customModel = isset($options->aiModerationModel) ? $options->aiModerationModel : '';
+        } else {
+            // 分别设置：审核接口类型由 aiModerationApiType 决定
+            $apiType = isset($options->aiModerationApiType) ? $options->aiModerationApiType : 'custom';
+            $customApiUrl = isset($options->aiModerationSepApiUrl) ? $options->aiModerationSepApiUrl : '';
+            $customApiKey = isset($options->aiModerationSepApiKey) ? $options->aiModerationSepApiKey : '';
+            $customModel = isset($options->aiModerationSepModel) ? $options->aiModerationSepModel : '';
+            // 如果审核专用接口未配置，回退到统一接口字段
+            if (empty($customApiUrl) || empty($customApiKey)) {
+                $customApiUrl = isset($options->aiModerationApiUrl) ? $options->aiModerationApiUrl : '';
+                $customApiKey = isset($options->aiModerationApiKey) ? $options->aiModerationApiKey : '';
+                $customModel = isset($options->aiModerationModel) ? $options->aiModerationModel : '';
+            }
+        }
+
+        $this->apiType = $apiType;
+
+        // 免费接口：使用内置配置
+        if ($apiType === 'free') {
+            $this->apiUrl = self::normalizeApiUrl(self::FREE_API_URL);
+            $this->apiKey = self::FREE_API_KEY;
+            $this->model = self::FREE_API_MODEL;
+        } elseif (!empty($customApiUrl) && !empty($customApiKey)) {
+            // 自定义接口
+            $this->apiUrl = self::normalizeApiUrl($customApiUrl);
             $this->apiKey = $customApiKey;
             $this->model = !empty($customModel) ? $customModel : 'gpt-3.5-turbo';
         } else {
@@ -120,9 +153,78 @@ class AiModeration
             $this->apiKey = '';
             $this->model = 'gpt-3.5-turbo';
         }
-        
+
         $this->timeout = isset($options->aiModerationTimeout) ? intval($options->aiModerationTimeout) : 30;
         $this->errorStrategy = isset($options->aiModerationErrorStrategy) ? $options->aiModerationErrorStrategy : 'waiting';
+    }
+
+    /**
+     * 规范化 API URL
+     * 自动补全 /v1/chat/completions 路径，兼容用户只填入基础地址的情况
+     * 兼容 OpenAI 格式：https://api.openai.com/v1 或 https://api.openai.com/v1/chat/completions
+     *
+     * @param string $url 原始 URL
+     * @return string 规范化后的 URL
+     */
+    public static function normalizeApiUrl($url)
+    {
+        $url = trim($url);
+        if (empty($url)) {
+            return $url;
+        }
+        // 去除末尾斜杠
+        $url = rtrim($url, '/');
+        // 如果已经包含 /chat/completions，直接返回
+        if (preg_match('#/chat/completions$#i', $url)) {
+            return $url;
+        }
+        // 如果以 /v1 结尾，补全 chat/completions
+        if (preg_match('#/v\d+$#i', $url)) {
+            return $url . '/chat/completions';
+        }
+        // 如果包含 /v1/ 但没有 chat/completions
+        if (preg_match('#/v\d+/#i', $url)) {
+            return $url . '/chat/completions';
+        }
+        // 其他情况：如果路径不含 /v1，自动补全
+        if (!preg_match('#/v\d+#i', $url)) {
+            return $url . '/v1/chat/completions';
+        }
+        return $url . '/chat/completions';
+    }
+
+    /**
+     * 从 API 响应中提取错误信息
+     * OpenAI 兼容格式的错误结构：{"error":{"message":"...","type":"...","code":"..."}}
+     *
+     * @param string $response API 响应体
+     * @return string|null 错误信息，无则返回 null
+     */
+    public static function extractApiError($response)
+    {
+        if (empty($response)) {
+            return null;
+        }
+        $data = json_decode($response, true);
+        if (!is_array($data)) {
+            return null;
+        }
+        // OpenAI 标准错误格式
+        if (isset($data['error']['message'])) {
+            $msg = $data['error']['message'];
+            $type = isset($data['error']['type']) ? $data['error']['type'] : '';
+            $code = isset($data['error']['code']) ? $data['error']['code'] : '';
+            $parts = array();
+            if (!empty($type)) $parts[] = $type;
+            if (!empty($code)) $parts[] = $code;
+            $prefix = !empty($parts) ? '[' . implode('/', $parts) . '] ' : '';
+            return $prefix . $msg;
+        }
+        // 其他可能的错误格式
+        if (isset($data['message'])) {
+            return $data['message'];
+        }
+        return null;
     }
 
     /**
@@ -342,12 +444,15 @@ class AiModeration
         }
 
         if ($httpCode !== 200) {
+            // 提取 API 返回的具体错误信息
+            $apiError = self::extractApiError($response);
+            $detail = $apiError ? '：' . $apiError : '';
             // 根据错误处理策略返回结果
             if ($this->errorStrategy === 'pass') {
                 // 直接通过
                 return [
                     'passed' => true,
-                    'reason' => 'AI审核API返回错误（HTTP ' . $httpCode . '），自动通过',
+                    'reason' => 'AI审核API返回错误（HTTP ' . $httpCode . $detail . '），自动通过',
                     'confidence' => 0.5,
                     'error' => true
                 ];
@@ -355,7 +460,7 @@ class AiModeration
                 // 进入人工审核
                 return [
                     'passed' => true,
-                    'reason' => 'AI审核API返回错误（HTTP ' . $httpCode . '），进入人工审核',
+                    'reason' => 'AI审核API返回错误（HTTP ' . $httpCode . $detail . '），进入人工审核',
                     'confidence' => 0.5,
                     'error' => true
                 ];
@@ -508,19 +613,33 @@ class AiModeration
         $result['latency'] = round((microtime(true) - $startTime) * 1000, 2);
 
         if ($error) {
-            $result['message'] = '连接失败: ' . $error;
+            // SSL 证书问题友好提示
+            if (stripos($error, 'SSL certificate') !== false) {
+                $result['message'] = 'SSL证书验证失败: ' . $error . '（建议联系主机商修复 CA 证书）';
+            } else {
+                $result['message'] = '连接失败: ' . $error;
+            }
             return $result;
         }
 
         if ($httpCode === 200) {
             $result['success'] = true;
             $result['message'] = 'API接口正常 (响应时间: ' . $result['latency'] . 'ms)';
-        } elseif ($httpCode === 401) {
-            $result['message'] = 'API密钥无效 (HTTP 401)';
-        } elseif ($httpCode === 429) {
-            $result['message'] = 'API请求频率受限 (HTTP 429)';
         } else {
-            $result['message'] = 'API返回错误: HTTP ' . $httpCode;
+            // 提取 API 返回的具体错误信息，避免只显示 HTTP 码造成误判
+            $apiError = self::extractApiError($response);
+            $detail = $apiError ? '：' . $apiError : '';
+            if ($httpCode === 401) {
+                $result['message'] = '认证失败 (HTTP 401)' . $detail . ' — 请检查 API 密钥是否正确，或该密钥是否有权访问所选模型';
+            } elseif ($httpCode === 403) {
+                $result['message'] = '禁止访问 (HTTP 403)' . $detail;
+            } elseif ($httpCode === 404) {
+                $result['message'] = '接口地址错误 (HTTP 404)' . $detail . ' — 请检查 API 地址是否包含 /v1/chat/completions';
+            } elseif ($httpCode === 429) {
+                $result['message'] = 'API请求频率受限 (HTTP 429)' . $detail;
+            } else {
+                $result['message'] = 'API返回错误: HTTP ' . $httpCode . $detail;
+            }
         }
 
         return $result;
