@@ -44,11 +44,14 @@
 ### 移动端界面
 
 **移动端首页预览**
-<img src="https://img-cf.czzu.cn/1780233163301_ca0zv8n1.png" width="50%" alt="移动端首页">
-<img src="https://img-cf.czzu.cn/1780233205253_dqftuekp.png" width="50%" alt="移动端首页2">
+
+<img src="https://img-cf.czzu.cn/1780233163301_ca0zv8n1.png" width="300" alt="移动端首页">
+
+<img src="https://img-cf.czzu.cn/1780233205253_dqftuekp.png" width="300" alt="移动端首页2">
 
 **移动端文章页面**
-<img src="https://img-cf.czzu.cn/1780233244375_q6cwmbsh.png" width="50%" alt="移动端文章">
+
+<img src="https://img-cf.czzu.cn/1780233244375_q6cwmbsh.png" width="300" alt="移动端文章">
 
 ### 特色功能
 
