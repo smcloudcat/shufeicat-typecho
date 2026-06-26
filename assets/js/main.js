@@ -1180,9 +1180,17 @@ function _startBatchLoad(container, priorityTab) {
                     setTimeout(loadNextBatch, 50);
                 }
             }
+            // 检查 data-src 是否存在，避免多个批处理任务并发时
+            // 重复处理同一图片导致 src 被设置为 "null"
+            var src = img.getAttribute('data-src');
+            if (!src) {
+                // 已被其他批处理任务处理过，直接跳过
+                onDone();
+                return;
+            }
             img.onload = onDone;
             img.onerror = onDone;
-            img.src = img.getAttribute('data-src');
+            img.src = src;
             img.removeAttribute('data-src');
         });
     }
