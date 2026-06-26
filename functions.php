@@ -147,6 +147,7 @@ function themeConfig($form)
                     '<li data-id="cat-seo">SEO 设置</li>' .
                     '<li data-id="cat-mail">评论邮件通知</li>' .
                     '<li data-id="cat-ai">AI 助手</li>' .
+                    '<li data-id="cat-storage">图片存储</li>' .
                     '<li data-id="cat-verify">人机验证</li>' .
                     '<li data-id="cat-enhance">功能增强</li>' .
                     '<li data-id="cat-nav">导航增强</li>' .
@@ -166,7 +167,7 @@ function themeConfig($form)
             'var c = document.getElementById("cat-tpl").querySelector(".cat-config-container");' .
             'var pWrap = c.querySelector("#cat-panes");' .
             'f.insertBefore(c, f.firstChild);' .
-            'var ids = ["cat-basic", "cat-avatar", "cat-appearance", "cat-pjax", "cat-resource", "cat-article", "cat-stats", "cat-seo", "cat-mail", "cat-ai", "cat-verify", "cat-enhance", "cat-nav", "cat-data"];' .
+            'var ids = ["cat-basic", "cat-avatar", "cat-appearance", "cat-pjax", "cat-resource", "cat-article", "cat-stats", "cat-seo", "cat-mail", "cat-ai", "cat-storage", "cat-verify", "cat-enhance", "cat-nav", "cat-data"];' .
             'ids.forEach(function(id) {' .
                 'var p = document.createElement("div");' .
                 'p.id = id; p.className = "cat-pane" + (id === "cat-basic" ? " active" : "");' .
@@ -1553,6 +1554,775 @@ HTML;
     );
     $githubSelectedRepos->setAttribute('class', 'typecho-option cat-group-nav');
     $form->addInput($githubSelectedRepos);
+
+    /* ==================== 图片存储设置 ==================== */
+    $storageEnabled = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'shufeiStorageEnabled',
+        array('on' => _t('启用'), 'off' => _t('关闭')),
+        'off',
+        _t('图片存储功能'),
+        _t('开启后，文章编辑器中的图片上传将通过下方配置的存储后端处理；非图片文件仍走 Typecho 原生逻辑。')
+    );
+    $storageEnabled->setAttribute('class', 'typecho-option cat-group-storage');
+    $form->addInput($storageEnabled);
+
+    $storageProfiles = new \Typecho\Widget\Helper\Form\Element\Textarea(
+        'shufeiStorageProfiles',
+        null,
+        '[]',
+        _t('存储 Profile 配置（JSON）'),
+        _t('此字段由下方可视化管理界面自动维护，请勿手动修改。')
+    );
+    $storageProfiles->setAttribute('class', 'typecho-option cat-group-storage shufei-storage-profiles-field');
+    $form->addInput($storageProfiles);
+
+    $storageActive = new \Typecho\Widget\Helper\Form\Element\Text(
+        'shufeiStorageActiveProfile',
+        null,
+        '',
+        _t('当前激活的 Profile ID'),
+        _t('点击下方 Profile 卡片上的"设为激活"按钮自动填充。')
+    );
+    $storageActive->setAttribute('class', 'typecho-option cat-group-storage shufei-storage-active-field');
+    $form->addInput($storageActive);
+
+    // 图片处理：压缩
+    $storageCompress = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'shufeiStorageCompress',
+        array('on' => _t('启用'), 'off' => _t('关闭')),
+        'off',
+        _t('图片压缩'),
+        _t('上传时自动有损压缩 JPEG/PNG，可显著减小文件体积。')
+    );
+    $storageCompress->setAttribute('class', 'typecho-option cat-group-storage');
+    $form->addInput($storageCompress);
+
+    $storageCompressQuality = new \Typecho\Widget\Helper\Form\Element\Text(
+        'shufeiStorageCompressQuality',
+        null,
+        '80',
+        _t('压缩质量 (1-100)'),
+        _t('JPEG 质量，推荐 75-85。WebP 也会使用此质量参数。')
+    );
+    $storageCompressQuality->setAttribute('class', 'typecho-option cat-group-storage');
+    $form->addInput($storageCompressQuality);
+
+    // 图片处理：WebP
+    $storageWebp = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'shufeiStorageWebp',
+        array('on' => _t('启用'), 'off' => _t('关闭')),
+        'off',
+        _t('自动转 WebP'),
+        _t('上传 JPEG/PNG 时自动转为 WebP 格式（需服务器 GD 库支持 WebP）。')
+    );
+    $storageWebp->setAttribute('class', 'typecho-option cat-group-storage');
+    $form->addInput($storageWebp);
+
+    // 图片处理：水印
+    $storageWatermark = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'shufeiStorageWatermark',
+        array('on' => _t('启用'), 'off' => _t('关闭')),
+        'off',
+        _t('图片水印'),
+        _t('上传时自动添加水印（支持文字或图片水印）。仅对 JPEG/PNG 生效，GIF/WEBP 不加水印。')
+    );
+    $storageWatermark->setAttribute('class', 'typecho-option cat-group-storage');
+    $form->addInput($storageWatermark);
+
+    $storageWatermarkType = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'shufeiStorageWatermarkType',
+        array('text' => _t('文字水印'), 'image' => _t('图片水印')),
+        'text',
+        _t('水印类型'),
+        _t('文字水印使用 GD 内置字体或 TTF 字体；图片水印需提供水印图片路径。')
+    );
+    $storageWatermarkType->setAttribute('class', 'typecho-option cat-group-storage shufei-storage-wm-type');
+    $form->addInput($storageWatermarkType);
+
+    $storageWatermarkText = new \Typecho\Widget\Helper\Form\Element\Text(
+        'shufeiStorageWatermarkText',
+        null,
+        '',
+        _t('水印文字内容'),
+        _t('支持中英文，建议不超过 20 字。')
+    );
+    $storageWatermarkText->setAttribute('class', 'typecho-option cat-group-storage shufei-storage-wm-text');
+    $form->addInput($storageWatermarkText);
+
+    $storageWatermarkImage = new \Typecho\Widget\Helper\Form\Element\Text(
+        'shufeiStorageWatermarkImage',
+        null,
+        '',
+        _t('水印图片路径'),
+        _t('PNG 图片路径，相对网站根目录（如 usr/themes/ShuFeiCat/static/wm.png）或绝对路径。建议使用带透明度的 PNG。')
+    );
+    $storageWatermarkImage->setAttribute('class', 'typecho-option cat-group-storage shufei-storage-wm-image');
+    $form->addInput($storageWatermarkImage);
+
+    $storageWatermarkPosition = new \Typecho\Widget\Helper\Form\Element\Select(
+        'shufeiStorageWatermarkPosition',
+        array(
+            'tl' => _t('左上角'), 'tc' => _t('顶部居中'), 'tr' => _t('右上角'),
+            'ml' => _t('左侧居中'), 'mc' => _t('正中'), 'mr' => _t('右侧居中'),
+            'bl' => _t('左下角'), 'bc' => _t('底部居中'), 'br' => _t('右下角'),
+        ),
+        'br',
+        _t('水印位置'),
+        _t('水印在图片上的位置。')
+    );
+    $storageWatermarkPosition->setAttribute('class', 'typecho-option cat-group-storage shufei-storage-wm-position');
+    $form->addInput($storageWatermarkPosition);
+
+    $storageWatermarkOpacity = new \Typecho\Widget\Helper\Form\Element\Text(
+        'shufeiStorageWatermarkOpacity',
+        null,
+        '50',
+        _t('水印透明度 (0-100)'),
+        _t('0 完全透明，100 完全不透明。仅对图片水印生效。')
+    );
+    $storageWatermarkOpacity->setAttribute('class', 'typecho-option cat-group-storage shufei-storage-wm-opacity');
+    $form->addInput($storageWatermarkOpacity);
+
+    $storageWatermarkSize = new \Typecho\Widget\Helper\Form\Element\Text(
+        'shufeiStorageWatermarkSize',
+        null,
+        '16',
+        _t('水印字体大小 (px)'),
+        _t('文字水印的字体大小。需配合 TTF 字体使用。')
+    );
+    $storageWatermarkSize->setAttribute('class', 'typecho-option cat-group-storage shufei-storage-wm-size');
+    $form->addInput($storageWatermarkSize);
+
+    $storageWatermarkColor = new \Typecho\Widget\Helper\Form\Element\Text(
+        'shufeiStorageWatermarkColor',
+        null,
+        '#FFFFFF',
+        _t('水印颜色'),
+        _t('十六进制颜色值，如 #FFFFFF（白）或 #000000（黑）。需配合 TTF 字体使用。')
+    );
+    $storageWatermarkColor->setAttribute('class', 'typecho-option cat-group-storage shufei-storage-wm-color');
+    $form->addInput($storageWatermarkColor);
+
+    $storageWatermarkFont = new \Typecho\Widget\Helper\Form\Element\Text(
+        'shufeiStorageWatermarkFont',
+        null,
+        '',
+        _t('水印 TTF 字体路径（可选）'),
+        _t('留空则使用 GD 内置位图字体（不支持中文）。中文字体可填如 usr/themes/ShuFeiCat/static/msyh.ttf。')
+    );
+    $storageWatermarkFont->setAttribute('class', 'typecho-option cat-group-storage shufei-storage-wm-font');
+    $form->addInput($storageWatermarkFont);
+
+    // 输出 Profile 管理 UI
+    shufei_render_storage_profile_ui();
+    // 输出图片管理 UI
+    shufei_render_storage_images_ui();
+}
+
+/**
+ * 渲染图片存储 Profile 可视化管理界面（HTML + JS）
+ *
+ * - 隐藏的 textarea (shufeiStorageProfiles) 与 text (shufeiStorageActiveProfile) 由本界面读写
+ * - 提供：新增 / 编辑 / 删除 / 测试连接 / 设为激活
+ */
+function shufei_render_storage_profile_ui()
+{
+    $options = \Typecho\Widget::widget('Widget_Options');
+    $ajaxUrl = \Typecho\Common::url('usr/themes/ShuFeiCat/core/storage-ajax.php', $options->siteUrl);
+    $drivers = ShufeiStorageDriver::driverList();
+
+    // 字段定义（用于动态渲染配置表单）
+    $driverFields = array();
+    foreach ($drivers as $id => $name) {
+        $drv = ShufeiStorageDriver::factory($id);
+        if ($drv) {
+            $driverFields[$id] = $drv->configFields();
+        }
+    }
+    $driversJson = json_encode($drivers);
+    $fieldsJson = json_encode($driverFields);
+    ?>
+<style>
+.shufei-storage-wrap { padding: 0; }
+.shufei-storage-card {
+    border: 1px solid #e5e5e5; border-radius: 8px; padding: 14px 16px; margin-bottom: 12px;
+    background: #fafbfc; transition: all .2s;
+}
+.shufei-storage-card.active { border-color: #52c41a; background: #f6ffed; }
+.shufei-storage-card-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+.shufei-storage-card-title { font-weight:bold; color:#333; font-size:14px; }
+.shufei-storage-card-driver { color:#888; font-size:12px; margin-left:8px; }
+.shufei-storage-card-actions { display:flex; gap:6px; flex-wrap:wrap; }
+.shufei-storage-btn {
+    display:inline-block; padding:4px 10px; font-size:12px; border-radius:4px; cursor:pointer;
+    border:1px solid #d9d9d9; background:#fff; color:#595959; transition:all .2s;
+}
+.shufei-storage-btn:hover { border-color:#467B96; color:#467B96; }
+.shufei-storage-btn.primary { background:#467B96; color:#fff; border-color:#467B96; }
+.shufei-storage-btn.primary:hover { background:#3a6478; }
+.shufei-storage-btn.danger { background:#fff; color:#cf1322; border-color:#ffa39e; }
+.shufei-storage-btn.danger:hover { background:#fff1f0; }
+.shufei-storage-btn.success { background:#52c41a; color:#fff; border-color:#52c41a; }
+.shufei-storage-btn.success:hover { background:#389e0d; }
+.shufei-storage-badge { display:inline-block; padding:2px 8px; font-size:11px; border-radius:10px; background:#52c41a; color:#fff; margin-left:6px; }
+.shufei-storage-add-btn {
+    padding:8px 20px; background:#467B96; color:#fff; border:none; border-radius:6px; cursor:pointer;
+    font-size:13px; font-weight:600; transition:all .2s;
+}
+.shufei-storage-add-btn:hover { background:#3a6478; transform:translateY(-1px); }
+.shufei-storage-modal-mask {
+    position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.45); z-index:10000; display:none;
+}
+.shufei-storage-modal {
+    position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+    width:640px; max-width:92vw; max-height:85vh; background:#fff; border-radius:8px;
+    box-shadow:0 8px 32px rgba(0,0,0,0.25); z-index:10001; display:none; flex-direction:column; overflow:hidden;
+}
+.shufei-storage-modal.show, .shufei-storage-modal-mask.show { display:flex; }
+.shufei-storage-modal-header {
+    padding:12px 16px; background:#467B96; color:#fff; font-weight:bold; font-size:14px;
+    display:flex; justify-content:space-between; align-items:center;
+}
+.shufei-storage-modal-close { cursor:pointer; font-size:18px; line-height:1; }
+.shufei-storage-modal-body { padding:16px 20px; overflow-y:auto; flex:1; }
+.shufei-storage-modal-footer { padding:12px 16px; border-top:1px solid #f0f0f0; text-align:right; }
+.shufei-storage-field { margin-bottom:14px; }
+.shufei-storage-field label { display:block; font-weight:bold; margin-bottom:6px; color:#333; font-size:13px; }
+.shufei-storage-field input, .shufei-storage-field select, .shufei-storage-field textarea {
+    width:100%; padding:8px 10px; border:1px solid #ddd; border-radius:4px; box-sizing:border-box; font-size:13px;
+}
+.shufei-storage-field .desc { color:#999; font-size:12px; margin-top:4px; line-height:1.6; }
+.shufei-storage-test-status {
+    margin-top:10px; padding:10px 12px; border-radius:4px; font-size:12px; display:none; line-height:1.6;
+}
+.shufei-storage-test-status.show { display:block; }
+.shufei-storage-test-status.success { background:#f6ffed; border:1px solid #b7eb8f; color:#389e0d; }
+.shufei-storage-test-status.error { background:#fff2f0; border:1px solid #ffccc7; color:#cf1322; }
+.shufei-storage-wm-image-field, .shufei-storage-wm-text-field { display:none; }
+</style>
+
+<div class="typecho-option cat-group-storage shufei-storage-wrap">
+    <div style="margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+        <div style="font-weight:bold; color:#333; font-size:14px;">存储 Profile 列表</div>
+        <button type="button" class="shufei-storage-add-btn" id="shufei-storage-add-btn">+ 新建 Profile</button>
+    </div>
+    <div id="shufei-storage-list"></div>
+    <div id="shufei-storage-empty" style="text-align:center; padding:30px 0; color:#999; font-size:13px; display:none;">
+        暂无存储 Profile，点击右上角"新建 Profile"添加。
+    </div>
+</div>
+
+<div class="shufei-storage-modal-mask" id="shufei-storage-mask"></div>
+<div class="shufei-storage-modal" id="shufei-storage-modal">
+    <div class="shufei-storage-modal-header">
+        <span id="shufei-storage-modal-title">新建 Profile</span>
+        <span class="shufei-storage-modal-close" id="shufei-storage-modal-close">×</span>
+    </div>
+    <div class="shufei-storage-modal-body">
+        <div class="shufei-storage-field">
+            <label>Profile 名称</label>
+            <input type="text" id="shufei-storage-profile-name" placeholder="例如：阿里云OSS-主站">
+            <div class="desc">便于识别的名称，可重复。</div>
+        </div>
+        <div class="shufei-storage-field">
+            <label>存储驱动</label>
+            <select id="shufei-storage-profile-driver"></select>
+            <div class="desc" id="shufei-storage-driver-desc"></div>
+        </div>
+        <div id="shufei-storage-config-fields"></div>
+        <div class="shufei-storage-test-status" id="shufei-storage-test-status"></div>
+    </div>
+    <div class="shufei-storage-modal-footer">
+        <button type="button" class="shufei-storage-btn" id="shufei-storage-test-btn">测试并上传</button>
+        <button type="button" class="shufei-storage-btn primary" id="shufei-storage-save-btn">保存</button>
+        <button type="button" class="shufei-storage-btn" id="shufei-storage-cancel-btn">取消</button>
+    </div>
+</div>
+
+<script>
+(function(){
+    if (window.__shufeiStorageInit) return;
+    window.__shufeiStorageInit = true;
+
+    var DRIVERS = <?php echo $driversJson; ?>;
+    var DRIVER_FIELDS = <?php echo $fieldsJson; ?>;
+    var AJAX_URL = <?php echo json_encode($ajaxUrl); ?>;
+
+    function $(id){ return document.getElementById(id); }
+
+    function getProfiles(){
+        var ta = document.querySelector('.shufei-storage-profiles-field textarea');
+        if (!ta) return [];
+        try {
+            var v = JSON.parse(ta.value || '[]');
+            return Array.isArray(v) ? v : [];
+        } catch(e){ return []; }
+    }
+    function setProfiles(arr){
+        var ta = document.querySelector('.shufei-storage-profiles-field textarea');
+        if (ta) ta.value = JSON.stringify(arr, null, 2);
+    }
+    function getActiveId(){
+        var inp = document.querySelector('.shufei-storage-active-field input');
+        return inp ? inp.value : '';
+    }
+    function setActiveId(id){
+        var inp = document.querySelector('.shufei-storage-active-field input');
+        if (inp) inp.value = id;
+    }
+
+    function genId(){
+        return 'p_' + Date.now().toString(36) + '_' + Math.random().toString(36).substr(2,6);
+    }
+
+    function escapeHtml(s){
+        s = (s === null || s === undefined) ? '' : String(s);
+        return s.replace(/[&<>"']/g, function(c){
+            return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+        });
+    }
+
+    function renderList(){
+        var list = getProfiles();
+        var activeId = getActiveId();
+        var wrap = $('shufei-storage-list');
+        var empty = $('shufei-storage-empty');
+        wrap.innerHTML = '';
+        if (list.length === 0) {
+            empty.style.display = 'block';
+            return;
+        }
+        empty.style.display = 'none';
+        list.forEach(function(p){
+            var card = document.createElement('div');
+            card.className = 'shufei-storage-card' + (p.id === activeId ? ' active' : '');
+            var isActive = p.id === activeId;
+            var driverName = DRIVERS[p.driver] || p.driver;
+            var html = '<div class="shufei-storage-card-head">';
+            html += '<div><span class="shufei-storage-card-title">' + escapeHtml(p.name) + '</span>';
+            html += '<span class="shufei-storage-card-driver">' + escapeHtml(driverName) + '</span>';
+            if (isActive) html += '<span class="shufei-storage-badge">已激活</span>';
+            html += '</div>';
+            html += '<div class="shufei-storage-card-actions">';
+            if (!isActive) {
+                html += '<button type="button" class="shufei-storage-btn success" data-act="activate" data-id="' + escapeHtml(p.id) + '">设为激活</button>';
+            }
+            html += '<button type="button" class="shufei-storage-btn" data-act="edit" data-id="' + escapeHtml(p.id) + '">编辑</button>';
+            html += '<button type="button" class="shufei-storage-btn" data-act="test" data-id="' + escapeHtml(p.id) + '">测试</button>';
+            html += '<button type="button" class="shufei-storage-btn danger" data-act="delete" data-id="' + escapeHtml(p.id) + '">删除</button>';
+            html += '</div></div>';
+            card.innerHTML = html;
+            wrap.appendChild(card);
+        });
+    }
+
+    // 事件委托
+    $('shufei-storage-list').addEventListener('click', function(e){
+        var btn = e.target.closest('button[data-act]');
+        if (!btn) return;
+        var act = btn.getAttribute('data-act');
+        var id = btn.getAttribute('data-id');
+        var profiles = getProfiles();
+        var p = null;
+        for (var i = 0; i < profiles.length; i++) {
+            if (profiles[i].id === id) { p = profiles[i]; break; }
+        }
+        if (!p) return;
+        if (act === 'activate') {
+            setActiveId(id);
+            renderList();
+        } else if (act === 'edit') {
+            openModal(p);
+        } else if (act === 'delete') {
+            if (!confirm('确定删除 Profile "' + p.name + '" 吗？')) return;
+            var newArr = profiles.filter(function(x){ return x.id !== id; });
+            setProfiles(newArr);
+            if (getActiveId() === id) setActiveId('');
+            renderList();
+        } else if (act === 'test') {
+            testProfile(p);
+        }
+    });
+
+    // 模态框
+    var editingId = null;
+    function openModal(p){
+        editingId = p ? p.id : null;
+        $('shufei-storage-modal-title').textContent = p ? '编辑 Profile' : '新建 Profile';
+        $('shufei-storage-profile-name').value = p ? (p.name || '') : '';
+        var driverSel = $('shufei-storage-profile-driver');
+        driverSel.innerHTML = '';
+        for (var did in DRIVERS) {
+            var opt = document.createElement('option');
+            opt.value = did; opt.textContent = DRIVERS[did];
+            driverSel.appendChild(opt);
+        }
+        if (p && p.driver) driverSel.value = p.driver;
+        renderConfigFields(p ? (p.config || {}) : {});
+        $('shufei-storage-test-status').className = 'shufei-storage-test-status';
+        $('shufei-storage-test-status').textContent = '';
+        $('shufei-storage-mask').classList.add('show');
+        $('shufei-storage-modal').classList.add('show');
+        updateDriverDesc();
+    }
+    function closeModal(){
+        $('shufei-storage-mask').classList.remove('show');
+        $('shufei-storage-modal').classList.remove('show');
+        editingId = null;
+    }
+
+    function renderConfigFields(existingConfig){
+        var driverId = $('shufei-storage-profile-driver').value;
+        var fields = DRIVER_FIELDS[driverId] || [];
+        var wrap = $('shufei-storage-config-fields');
+        wrap.innerHTML = '';
+        fields.forEach(function(f){
+            var div = document.createElement('div');
+            div.className = 'shufei-storage-field';
+            var label = document.createElement('label');
+            label.textContent = f.label;
+            div.appendChild(label);
+            var input;
+            var val = (existingConfig && existingConfig[f.name] !== undefined) ? existingConfig[f.name] : (f.default || '');
+            if (f.type === 'select') {
+                input = document.createElement('select');
+                (f.options || []).forEach(function(opt){
+                    var o = document.createElement('option');
+                    o.value = opt.value; o.textContent = opt.label;
+                    if (String(val) === String(opt.value)) o.selected = true;
+                    input.appendChild(o);
+                });
+            } else if (f.type === 'password') {
+                input = document.createElement('input');
+                input.type = 'password';
+                input.value = val;
+            } else if (f.type === 'textarea') {
+                input = document.createElement('textarea');
+                input.rows = 3; input.value = val;
+            } else {
+                input = document.createElement('input');
+                input.type = 'text'; input.value = val;
+            }
+            input.name = 'cfg_' + f.name;
+            input.setAttribute('data-field', f.name);
+            div.appendChild(input);
+            if (f.desc) {
+                var d = document.createElement('div');
+                d.className = 'desc'; d.innerHTML = f.desc;
+                div.appendChild(d);
+            }
+            wrap.appendChild(div);
+        });
+    }
+
+    function updateDriverDesc(){
+        var driverId = $('shufei-storage-profile-driver').value;
+        var desc = {
+            local: '本地存储：图片保存至 usr/uploads/，遵循 Typecho 原生目录结构。',
+            lsky: 'Lsky Pro 兰空图床：支持 v1（/api/upload）与 v2（/api/v1/）接口。',
+            s3: 'AWS S3 兼容：AWS S3、MinIO、Cloudflare R2、阿里云 OSS（S3 兼容模式）。',
+            webdav: 'WebDAV：标准 WebDAV 协议，支持 Nextcloud / 坚果云 / 群晖等。',
+            aliyunoss: '阿里云 OSS：使用 V1 签名直传，需提供 Endpoint/Bucket/AccessKey。',
+            tencentcos: '腾讯云 COS：使用 COS V5 签名直传。',
+            qiniukodo: '七牛云 KODO：使用管理 AccessToken 签名直传。',
+            upyun: '又拍云 USS：使用 HMAC-SHA1 签名直传。',
+            catimg: '小猫咪图床：通过 X-API-Key 认证上传至 img.czzu.cn 或自建实例，支持 jpg/png/gif/webp/svg。'
+        };
+        $('shufei-storage-driver-desc').textContent = desc[driverId] || '';
+    }
+
+    $('shufei-storage-profile-driver').addEventListener('change', function(){
+        renderConfigFields({});
+        updateDriverDesc();
+    });
+    $('shufei-storage-add-btn').addEventListener('click', function(){ openModal(null); });
+    $('shufei-storage-modal-close').addEventListener('click', closeModal);
+    $('shufei-storage-cancel-btn').addEventListener('click', closeModal);
+    $('shufei-storage-mask').addEventListener('click', closeModal);
+
+    function collectConfig(){
+        var cfg = {};
+        var inputs = $('shufei-storage-config-fields').querySelectorAll('[data-field]');
+        inputs.forEach(function(el){
+            cfg[el.getAttribute('data-field')] = el.value;
+        });
+        return cfg;
+    }
+
+    $('shufei-storage-save-btn').addEventListener('click', function(){
+        var name = $('shufei-storage-profile-name').value.trim();
+        var driver = $('shufei-storage-profile-driver').value;
+        if (!name) { alert('请填写 Profile 名称'); return; }
+        var cfg = collectConfig();
+        var profiles = getProfiles();
+        if (editingId) {
+            for (var i = 0; i < profiles.length; i++) {
+                if (profiles[i].id === editingId) {
+                    profiles[i].name = name;
+                    profiles[i].driver = driver;
+                    profiles[i].config = cfg;
+                    break;
+                }
+            }
+        } else {
+            var newP = { id: genId(), name: name, driver: driver, config: cfg };
+            profiles.push(newP);
+            // 若是第一个，自动激活
+            if (profiles.length === 1) setActiveId(newP.id);
+        }
+        setProfiles(profiles);
+        renderList();
+        closeModal();
+    });
+
+    function showTestStatus(msg, type){
+        var el = $('shufei-storage-test-status');
+        el.className = 'shufei-storage-test-status show ' + type;
+        el.textContent = msg;
+    }
+
+    $('shufei-storage-test-btn').addEventListener('click', function(){
+        var driver = $('shufei-storage-profile-driver').value;
+        var cfg = collectConfig();
+        showTestStatus('正在测试连接并上传测试图片，请稍候...', '');
+        var fd = new FormData();
+        fd.append('action', 'test_connection');
+        fd.append('driver', driver);
+        fd.append('config', JSON.stringify(cfg));
+        fetch(AJAX_URL, { method:'POST', body:fd, credentials:'same-origin' })
+            .then(function(r){ return r.json(); })
+            .then(function(d){
+                if (d.success) {
+                    showTestStatus(d.message || '✓ 连接成功', 'success');
+                } else {
+                    showTestStatus(d.message || '连接失败', 'error');
+                }
+            })
+            .catch(function(e){ showTestStatus('请求失败: ' + e.message, 'error'); });
+    });
+
+    function testProfile(p){
+        if (!p) return;
+        if (!confirm('测试 Profile "' + p.name + '"？将上传一张测试图片并自动删除。')) return;
+        var fd = new FormData();
+        fd.append('action', 'test_connection');
+        fd.append('driver', p.driver);
+        fd.append('config', JSON.stringify(p.config || {}));
+        alert('正在测试 ' + p.name + '，请稍候...');
+        fetch(AJAX_URL, { method:'POST', body:fd, credentials:'same-origin' })
+            .then(function(r){ return r.json(); })
+            .then(function(d){
+                alert((d.success ? '✓ ' : '✗ ') + (d.message || (d.success ? '连接成功' : '连接失败')));
+            })
+            .catch(function(e){ alert('请求失败: ' + e.message); });
+    }
+
+    // 水印类型切换
+    function updateWatermarkFields(){
+        var wmOn = document.querySelector('input[name=shufeiStorageWatermark]:checked');
+        wmOn = wmOn && wmOn.value === 'on';
+        var wmType = document.querySelector('input[name=shufeiStorageWatermarkType]:checked');
+        wmType = wmType ? wmType.value : 'text';
+        document.querySelectorAll('.shufei-storage-wm-text, .shufei-storage-wm-image, .shufei-storage-wm-type, .shufei-storage-wm-color, .shufei-storage-wm-size, .shufei-storage-wm-font, .shufei-storage-wm-position, .shufei-storage-wm-opacity').forEach(function(el){
+            // 全部按水印总开关控制
+            if (!wmOn) { el.style.display = 'none'; return; }
+            // 文字字段与图片字段按类型切换
+            if (el.classList.contains('shufei-storage-wm-image') && wmType !== 'image') { el.style.display = 'none'; return; }
+            if ((el.classList.contains('shufei-storage-wm-text') || el.classList.contains('shufei-storage-wm-color') || el.classList.contains('shufei-storage-wm-size') || el.classList.contains('shufei-storage-wm-font')) && wmType !== 'text') { el.style.display = 'none'; return; }
+            el.style.display = '';
+        });
+    }
+    document.querySelectorAll('input[name=shufeiStorageWatermark], input[name=shufeiStorageWatermarkType]').forEach(function(r){
+        r.addEventListener('change', updateWatermarkFields);
+    });
+
+    // 在页面加载完成后初始化（等待 Tab 渲染完成）
+    window.addEventListener('load', function(){
+        // 显示 storage 字段（cat-group-storage 已被 Tab 系统处理）
+        updateWatermarkFields();
+        renderList();
+    })();
+})();
+</script>
+    <?php
+}
+
+/**
+ * 渲染图片存储「图片管理」面板（分页列表 + 删除）
+ * 在后台设置页 Profile 管理 UI 之后输出
+ */
+function shufei_render_storage_images_ui()
+{
+    $options = \Typecho\Widget::widget('Widget_Options');
+    $ajaxUrl = \Typecho\Common::url('usr/themes/ShuFeiCat/core/storage-ajax.php', $options->siteUrl);
+
+    // 当前已保存的 Profile 列表（用于下拉选择）
+    $profilesJson = isset($options->shufeiStorageProfiles) ? $options->shufeiStorageProfiles : '';
+    $profiles = $profilesJson ? @json_decode($profilesJson, true) : array();
+    if (!is_array($profiles)) $profiles = array();
+    $activeId = isset($options->shufeiStorageActiveProfile) ? $options->shufeiStorageActiveProfile : '';
+
+    $drivers = ShufeiStorageDriver::driverList();
+    ?>
+<div class="typecho-option cat-group-storage" style="margin-top:25px;border-top:1px solid #eee;padding-top:20px;">
+    <section class="typecho-page-title">
+        <h2>图片管理</h2>
+        <p class="description">查看已上传到各存储 Profile 的图片，支持删除。注意：删除操作不可恢复。</p>
+    </section>
+
+    <div style="display:flex;align-items:center;gap:10px;margin:15px 0;flex-wrap:wrap;">
+        <label>选择 Profile：</label>
+        <select id="shufei-img-profile" style="min-width:240px;padding:5px 8px;">
+            <?php foreach ($profiles as $p): ?>
+                <option value="<?php echo htmlspecialchars($p['id']); ?>" <?php if ($p['id'] === $activeId) echo 'selected'; ?>>
+                    <?php echo htmlspecialchars($p['name'] . ' [' . (isset($drivers[$p['driver']]) ? $drivers[$p['driver']] : $p['driver']) . ']'); ?>
+                </option>
+            <?php endforeach; ?>
+        </select>
+        <button type="button" id="shufei-img-refresh" class="btn primary">加载图片</button>
+        <span id="shufei-img-status" style="color:#999;font-size:13px;"></span>
+    </div>
+
+    <div id="shufei-img-toolbar" style="display:flex;align-items:center;gap:10px;margin:10px 0;">
+        <button type="button" id="shufei-img-prev" class="btn">&laquo; 上一页</button>
+        <span id="shufei-img-page-info" style="font-size:13px;color:#666;">-</span>
+        <button type="button" id="shufei-img-next" class="btn">下一页 &raquo;</button>
+        <span style="margin-left:auto;font-size:12px;color:#999;">点击图片复制 URL；点击右上角 &times; 删除</span>
+    </div>
+
+    <div id="shufei-img-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;min-height:120px;">
+        <div style="grid-column:1/-1;color:#999;text-align:center;padding:30px;">请点击「加载图片」查看</div>
+    </div>
+</div>
+
+<script>
+(function(){
+    var ajaxUrl = <?php echo json_encode($ajaxUrl); ?>;
+    var grid = document.getElementById('shufei-img-grid');
+    var sel = document.getElementById('shufei-img-profile');
+    var statusEl = document.getElementById('shufei-img-status');
+    var pageInfo = document.getElementById('shufei-img-page-info');
+    var prevBtn = document.getElementById('shufei-img-prev');
+    var nextBtn = document.getElementById('shufei-img-next');
+    var page = 1, limit = 24, total = 0;
+
+    function status(msg, color){
+        statusEl.textContent = msg;
+        statusEl.style.color = color || '#999';
+    }
+
+    function humanSize(b){
+        if (!b) return '0 B';
+        if (b < 1024) return b + ' B';
+        if (b < 1024*1024) return (b/1024).toFixed(1) + ' KB';
+        return (b/1024/1024).toFixed(2) + ' MB';
+    }
+
+    function load(){
+        var pid = sel.value;
+        if (!pid){ status('请先创建并选择 Profile', '#c00'); return; }
+        status('加载中...', '#999');
+        grid.innerHTML = '<div style="grid-column:1/-1;color:#999;text-align:center;padding:30px;">加载中...</div>';
+        var fd = new FormData();
+        fd.append('action', 'list_images');
+        fd.append('profile_id', pid);
+        fd.append('page', page);
+        fd.append('limit', limit);
+        fetch(ajaxUrl, {method:'POST', body:fd, credentials:'same-origin'})
+            .then(function(r){return r.json();})
+            .then(function(res){
+                if (!res || !res.success){
+                    status(res && res.message ? res.message : '加载失败', '#c00');
+                    grid.innerHTML = '<div style="grid-column:1/-1;color:#c00;text-align:center;padding:30px;">'+(res&&res.message?res.message:'加载失败')+'</div>';
+                    return;
+                }
+                var data = res.data || {};
+                total = data.total || 0;
+                var list = data.list || [];
+                status('共 ' + total + ' 张图片', '#080');
+                pageInfo.textContent = '第 ' + page + '/' + Math.max(1, Math.ceil(total/limit)) + ' 页';
+                if (!list.length){
+                    grid.innerHTML = '<div style="grid-column:1/-1;color:#999;text-align:center;padding:30px;">暂无图片</div>';
+                    return;
+                }
+                grid.innerHTML = '';
+                list.forEach(function(item){
+                    var cell = document.createElement('div');
+                    cell.style.cssText = 'position:relative;border:1px solid #e5e5e5;border-radius:6px;overflow:hidden;background:#fafafa;';
+                    var img = document.createElement('img');
+                    img.src = item.url;
+                    img.loading = 'lazy';
+                    img.style.cssText = 'width:100%;height:140px;object-fit:cover;cursor:pointer;display:block;background:#fff;';
+                    img.title = '点击复制 URL';
+                    img.onerror = function(){ img.style.display='none'; cell.querySelector('.shufei-ph').style.display='flex'; };
+                    img.onclick = function(){
+                        if (navigator.clipboard){
+                            navigator.clipboard.writeText(item.url).then(function(){ status('已复制 URL', '#080'); });
+                        } else {
+                            var ta = document.createElement('textarea'); ta.value = item.url; document.body.appendChild(ta); ta.select();
+                            try { document.execCommand('copy'); status('已复制 URL', '#080'); } catch(e){ status('复制失败', '#c00'); }
+                            document.body.removeChild(ta);
+                        }
+                    };
+                    var ph = document.createElement('div');
+                    ph.className = 'shufei-ph';
+                    ph.style.cssText = 'width:100%;height:140px;display:none;align-items:center;justify-content:center;color:#999;font-size:12px;background:#f0f0f0;';
+                    ph.textContent = '图片加载失败';
+                    var del = document.createElement('div');
+                    del.innerHTML = '&times;';
+                    del.style.cssText = 'position:absolute;top:2px;right:4px;width:22px;height:22px;line-height:20px;text-align:center;background:rgba(0,0,0,0.55);color:#fff;border-radius:50%;cursor:pointer;font-size:16px;';
+                    del.title = '删除该图片';
+                    del.onclick = function(e){
+                        e.stopPropagation();
+                        if (!confirm('确定删除这张图片吗？此操作不可恢复。\n\n' + item.name)) return;
+                        del.style.background = 'rgba(0,0,0,0.3)';
+                        del.textContent = '...';
+                        var fd2 = new FormData();
+                        fd2.append('action', 'delete_image');
+                        fd2.append('profile_id', pid);
+                        if (item.id) fd2.append('image_id', item.id);
+                        if (item.key) fd2.append('key', item.key);
+                        if (item.url) fd2.append('url', item.url);
+                        fetch(ajaxUrl, {method:'POST', body:fd2, credentials:'same-origin'})
+                            .then(function(r){return r.json();})
+                            .then(function(res2){
+                                if (res2 && res2.success){
+                                    status('已删除', '#080');
+                                    cell.style.transition='opacity .3s'; cell.style.opacity='0';
+                                    setTimeout(function(){ cell.remove(); total--; status('共 ' + total + ' 张图片', '#080'); }, 300);
+                                } else {
+                                    status(res2 && res2.message ? res2.message : '删除失败', '#c00');
+                                    del.style.background = 'rgba(0,0,0,0.55)'; del.innerHTML='&times;';
+                                }
+                            })
+                            .catch(function(err){
+                                status('网络错误: ' + err.message, '#c00');
+                                del.style.background = 'rgba(0,0,0,0.55)'; del.innerHTML='&times;';
+                            });
+                    };
+                    var info = document.createElement('div');
+                    info.style.cssText = 'padding:6px 8px;font-size:11px;color:#666;border-top:1px solid #eee;background:#fff;';
+                    info.innerHTML = '<div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="'+(item.name||'').replace(/"/g,'&quot;')+'">'+(item.name||'')+'</div><div style="color:#999;margin-top:2px;">'+humanSize(item.size)+(item.time?' · '+item.time:'')+'</div>';
+                    cell.appendChild(img);
+                    cell.appendChild(ph);
+                    cell.appendChild(del);
+                    cell.appendChild(info);
+                    grid.appendChild(cell);
+                });
+            })
+            .catch(function(err){
+                status('网络错误: ' + err.message, '#c00');
+                grid.innerHTML = '<div style="grid-column:1/-1;color:#c00;text-align:center;padding:30px;">网络错误</div>';
+            });
+    }
+
+    document.getElementById('shufei-img-refresh').onclick = function(){ page = 1; load(); };
+    prevBtn.onclick = function(){ if (page > 1){ page--; load(); } };
+    nextBtn.onclick = function(){ if (page * limit < total){ page++; load(); } };
+    sel.onchange = function(){ page = 1; };
+})();
+</script>
+    <?php
 }
 
 /**
@@ -1609,6 +2379,9 @@ $_coreLibs = array(
     dirname(__FILE__) . '/core/ai-moderation.php',
     dirname(__FILE__) . '/core/ai-writer.php',
     dirname(__FILE__) . '/core/post-stats.php',
+    dirname(__FILE__) . '/core/image-processor.php',
+    dirname(__FILE__) . '/core/storage-drivers.php',
+    dirname(__FILE__) . '/core/storage-hooks.php',
 );
 foreach ($_coreLibs as $_lib) {
     if (file_exists($_lib)) {
@@ -4967,6 +5740,612 @@ function shufei_ai_writer_editor_ui($post)
         });
     });
 })(jQuery);
+</script>
+<?php
+}
+
+/**
+ * ===== 图片存储编辑器集成 =====
+ * 在后台文章/页面编辑器中注入「图片上传」按钮与 Profile 切换下拉框
+ * 仅当图片存储功能开启且存在已激活 Profile 时显示
+ */
+
+// 注册图片存储后台编辑器钩子（文章 + 页面）
+\Typecho\Plugin::factory('admin/write-post.php')->bottom = 'shufei_storage_editor_ui';
+\Typecho\Plugin::factory('admin/write-page.php')->bottom = 'shufei_storage_editor_ui';
+
+/**
+ * 输出图片存储编辑器 UI（工具栏按钮 + Profile 切换 + 上传弹窗）
+ *
+ * @param mixed $post 文章/页面对象（由钩子传入，此处未使用）
+ */
+function shufei_storage_editor_ui($post)
+{
+    $options = \Typecho\Widget::widget('Widget_Options');
+
+    // 仅当存储功能开启时注入
+    $enabled = isset($options->shufeiStorageEnabled) ? $options->shufeiStorageEnabled : 'off';
+    if ($enabled !== 'on') {
+        return;
+    }
+
+    $ajaxUrl = \Typecho\Common::url('usr/themes/ShuFeiCat/core/storage-ajax.php', $options->siteUrl);
+    ?>
+<style>
+/* ===== 图片存储编辑器 UI ===== */
+.shufei-storage-editor-toolbar {
+    display: flex; gap: 8px; align-items: center; padding: 6px 8px;
+    margin: 4px 0 8px; background: linear-gradient(135deg, #f0fff4 0%, #f0f7ff 100%);
+    border: 1px solid #b7eb8f; border-radius: 6px; flex-wrap: wrap;
+}
+.shufei-storage-editor-toolbar .se-label {
+    font-weight: bold; color: #389e0d; font-size: 13px; margin-right: 4px;
+}
+.shufei-storage-editor-toolbar select {
+    padding: 4px 8px; border: 1px solid #d9d9d9; border-radius: 4px;
+    font-size: 12px; background: #fff; max-width: 220px;
+}
+.shufei-storage-upload-btn {
+    display: inline-block; padding: 4px 14px; font-size: 12px; color: #fff;
+    background: #52c41a; border: 1px solid #52c41a; border-radius: 4px;
+    cursor: pointer; transition: all 0.2s; line-height: 1.6;
+}
+.shufei-storage-upload-btn:hover {
+    background: #389e0d; border-color: #389e0d;
+    transform: translateY(-1px); box-shadow: 0 2px 6px rgba(82, 196, 26, 0.35);
+}
+.shufei-storage-status-tip { color: #888; font-size: 12px; margin-left: auto; }
+
+/* 上传弹窗 */
+.shufei-storage-up-modal-mask {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.45); z-index: 10010; display: none;
+}
+.shufei-storage-up-modal {
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    width: 640px; max-width: 92vw; max-height: 85vh; background: #fff;
+    border-radius: 8px; box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+    z-index: 10011; display: none; flex-direction: column; overflow: hidden;
+}
+.shufei-storage-up-modal.show, .shufei-storage-up-modal-mask.show { display: flex; }
+.shufei-storage-up-modal-header {
+    padding: 12px 16px; background: #52c41a; color: #fff;
+    font-weight: bold; font-size: 14px; display: flex;
+    justify-content: space-between; align-items: center;
+}
+.shufei-storage-up-modal-close { cursor: pointer; font-size: 18px; line-height: 1; }
+.shufei-storage-up-modal-body { padding: 16px 20px; overflow-y: auto; flex: 1; }
+.shufei-storage-up-modal-footer {
+    padding: 12px 16px; border-top: 1px solid #f0f0f0; text-align: right;
+}
+.shufei-storage-dropzone {
+    border: 2px dashed #b7eb8f; border-radius: 8px; padding: 30px 20px;
+    text-align: center; color: #888; cursor: pointer; transition: all .2s;
+    background: #fafafa;
+}
+.shufei-storage-dropzone:hover, .shufei-storage-dropzone.dragover {
+    border-color: #52c41a; background: #f6ffed; color: #389e0d;
+}
+.shufei-storage-dropzone .dz-icon { font-size: 32px; margin-bottom: 8px; }
+.shufei-storage-dropzone .dz-text { font-size: 13px; }
+.shufei-storage-dropzone .dz-hint { font-size: 11px; color: #bbb; margin-top: 6px; }
+.shufei-storage-up-list { margin-top: 12px; max-height: 280px; overflow-y: auto; }
+.shufei-storage-up-item {
+    display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+    border: 1px solid #f0f0f0; border-radius: 4px; margin-bottom: 6px; font-size: 12px;
+}
+.shufei-storage-up-item .up-name { flex: 1; color: #333; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.shufei-storage-up-item .up-status { font-size: 11px; padding: 2px 8px; border-radius: 10px; }
+.shufei-storage-up-item .up-status.pending { background: #fff7e6; color: #d48806; }
+.shufei-storage-up-item .up-status.uploading { background: #e6f7ff; color: #096dd9; }
+.shufei-storage-up-item .up-status.success { background: #f6ffed; color: #389e0d; }
+.shufei-storage-up-item .up-status.error { background: #fff2f0; color: #cf1322; }
+.shufei-storage-up-item .up-thumb { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; }
+.shufei-storage-up-options { margin-top: 12px; padding: 10px; background: #fafafa; border-radius: 4px; font-size: 12px; color: #666; }
+.shufei-storage-up-options label { margin-right: 12px; cursor: pointer; }
+
+/* 历史图片按钮 */
+.shufei-storage-history-btn {
+    display: inline-block; padding: 4px 14px; font-size: 12px; color: #fff;
+    background: #1890ff; border: 1px solid #1890ff; border-radius: 4px;
+    cursor: pointer; transition: all 0.2s; line-height: 1.6;
+}
+.shufei-storage-history-btn:hover {
+    background: #096dd9; border-color: #096dd9;
+    transform: translateY(-1px); box-shadow: 0 2px 6px rgba(24, 144, 255, 0.35);
+}
+
+/* 历史图片弹窗 */
+.shufei-storage-hist-modal-mask {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.45); z-index: 10012; display: none;
+}
+.shufei-storage-hist-modal {
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    width: 880px; max-width: 94vw; max-height: 85vh; background: #fff;
+    border-radius: 8px; box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+    z-index: 10013; display: none; flex-direction: column; overflow: hidden;
+}
+.shufei-storage-hist-modal.show, .shufei-storage-hist-modal-mask.show { display: flex; }
+.shufei-storage-hist-modal-header {
+    padding: 12px 16px; background: #1890ff; color: #fff;
+    font-weight: bold; font-size: 14px; display: flex;
+    justify-content: space-between; align-items: center;
+}
+.shufei-storage-hist-modal-close { cursor: pointer; font-size: 18px; line-height: 1; }
+.shufei-storage-hist-modal-body { padding: 12px 16px; overflow-y: auto; flex: 1; }
+.shufei-storage-hist-toolbar {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-size: 12px;
+}
+.shufei-storage-hist-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px;
+}
+.shufei-storage-hist-cell {
+    position: relative; border: 1px solid #e5e5e5; border-radius: 6px; overflow: hidden; background: #fafafa;
+}
+.shufei-storage-hist-cell img {
+    width: 100%; height: 120px; object-fit: cover; cursor: pointer; display: block; background: #fff;
+}
+.shufei-storage-hist-cell .hist-ph {
+    width: 100%; height: 120px; display: none; align-items: center; justify-content: center;
+    color: #999; font-size: 11px; background: #f0f0f0;
+}
+.shufei-storage-hist-cell .hist-del {
+    position: absolute; top: 2px; right: 4px; width: 22px; height: 22px; line-height: 20px;
+    text-align: center; background: rgba(0,0,0,0.55); color: #fff; border-radius: 50%; cursor: pointer; font-size: 16px;
+}
+.shufei-storage-hist-cell .hist-insert {
+    position: absolute; bottom: 32px; left: 4px; right: 4px; padding: 3px 0;
+    background: rgba(24,144,255,0.9); color: #fff; font-size: 11px; text-align: center;
+    cursor: pointer; opacity: 0; transition: opacity .2s;
+}
+.shufei-storage-hist-cell:hover .hist-insert { opacity: 1; }
+.shufei-storage-hist-cell .hist-info {
+    padding: 4px 6px; font-size: 10px; color: #666; border-top: 1px solid #eee; background: #fff;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.shufei-storage-hist-empty { color: #999; text-align: center; padding: 40px; grid-column: 1/-1; }
+</style>
+
+<div class="shufei-storage-editor-toolbar" id="shufei-storage-editor-toolbar" style="display:none;">
+    <span class="se-label">图片存储</span>
+    <select id="shufei-storage-profile-select" title="切换存储 Profile"></select>
+    <button type="button" class="shufei-storage-upload-btn" id="shufei-storage-open-upload-btn">上传图片</button>
+    <button type="button" class="shufei-storage-history-btn" id="shufei-storage-open-history-btn">历史图片</button>
+    <span class="shufei-storage-status-tip" id="shufei-storage-status-tip"></span>
+</div>
+
+<div class="shufei-storage-up-modal-mask" id="shufei-storage-up-mask"></div>
+<div class="shufei-storage-up-modal" id="shufei-storage-up-modal">
+    <div class="shufei-storage-up-modal-header">
+        <span>上传图片到存储</span>
+        <span class="shufei-storage-up-modal-close" id="shufei-storage-up-close">×</span>
+    </div>
+    <div class="shufei-storage-up-modal-body">
+        <div class="shufei-storage-up-options">
+            <label><input type="checkbox" id="shufei-up-insert-markdown" checked> 上传后插入 Markdown</label>
+            <label><input type="checkbox" id="shufei-up-insert-newline" checked> 每张图独占一行</label>
+        </div>
+        <div class="shufei-storage-dropzone" id="shufei-storage-dropzone">
+            <div class="dz-icon">📁</div>
+            <div class="dz-text">点击选择图片，或将图片拖拽到此处</div>
+            <div class="dz-hint">支持 JPG / PNG / GIF / WEBP / BMP，可多选</div>
+            <input type="file" id="shufei-storage-file-input" accept="image/*" multiple style="display:none;">
+        </div>
+        <div class="shufei-storage-up-list" id="shufei-storage-up-list"></div>
+    </div>
+    <div class="shufei-storage-up-modal-footer">
+        <button type="button" class="shufei-storage-upload-btn" id="shufei-storage-start-upload-btn" style="background:#597ef7;border-color:#597ef7;">开始上传</button>
+        <button type="button" id="shufei-storage-up-cancel-btn"
+            style="padding:4px 14px;font-size:12px;color:#595959;background:#fff;border:1px solid #d9d9d9;border-radius:4px;cursor:pointer;">关闭</button>
+    </div>
+</div>
+
+<!-- 历史图片弹窗 -->
+<div class="shufei-storage-hist-modal-mask" id="shufei-storage-hist-mask"></div>
+<div class="shufei-storage-hist-modal" id="shufei-storage-hist-modal">
+    <div class="shufei-storage-hist-modal-header">
+        <span>历史图片 — 点击图片插入 Markdown / 点击右上角 &times; 删除</span>
+        <span class="shufei-storage-hist-modal-close" id="shufei-storage-hist-close">×</span>
+    </div>
+    <div class="shufei-storage-hist-modal-body">
+        <div class="shufei-storage-hist-toolbar">
+            <button type="button" id="shufei-hist-prev" class="btn" style="padding:3px 10px;font-size:12px;">&laquo; 上一页</button>
+            <span id="shufei-hist-page" style="color:#666;">-</span>
+            <button type="button" id="shufei-hist-next" class="btn" style="padding:3px 10px;font-size:12px;">下一页 &raquo;</button>
+            <button type="button" id="shufei-hist-refresh" class="btn primary" style="padding:3px 10px;font-size:12px;">刷新</button>
+            <span id="shufei-hist-status" style="margin-left:auto;color:#999;"></span>
+        </div>
+        <div class="shufei-storage-hist-grid" id="shufei-storage-hist-grid">
+            <div class="shufei-storage-hist-empty">点击「刷新」加载已上传图片</div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function(){
+    if (window.__shufeiStorageEditorInit) return;
+    window.__shufeiStorageEditorInit = true;
+
+    var AJAX_URL = <?php echo json_encode($ajaxUrl); ?>;
+    var pendingFiles = [];
+    var uploadResults = [];
+
+    function $(id){ return document.getElementById(id); }
+
+    function insertTextToEditor(text){
+        var ta = document.getElementById('text') || document.querySelector('textarea[name=text]');
+        if (!ta) { alert('未找到编辑器文本框'); return; }
+        if (document.selection) {
+            ta.focus();
+            var sel = document.selection.createRange();
+            sel.text = text;
+            ta.focus();
+        } else if (ta.selectionStart || ta.selectionStart === 0) {
+            var startPos = ta.selectionStart;
+            var endPos = ta.selectionEnd;
+            var scrollTop = ta.scrollTop;
+            ta.value = ta.value.substring(0, startPos) + text + ta.value.substring(endPos, ta.value.length);
+            ta.focus();
+            ta.selectionStart = startPos + text.length;
+            ta.selectionEnd = startPos + text.length;
+            ta.scrollTop = scrollTop;
+        } else {
+            ta.value += text;
+            ta.focus();
+        }
+        // 触发 input 事件以便编辑器预览同步
+        if (typeof Event !== 'undefined') {
+            var ev = new Event('input', { bubbles: true });
+            ta.dispatchEvent(ev);
+        }
+    }
+
+    // 加载 Profile 列表
+    function loadProfiles(){
+        var fd = new FormData();
+        fd.append('action', 'list_profiles');
+        fetch(AJAX_URL, { method:'POST', body:fd, credentials:'same-origin' })
+            .then(function(r){ return r.json(); })
+            .then(function(d){
+                if (!d.success) {
+                    $('shufei-storage-status-tip').textContent = d.message || '加载失败';
+                    return;
+                }
+                if (!d.enabled) { return; }
+                if (!d.profiles || d.profiles.length === 0) {
+                    $('shufei-storage-status-tip').textContent = '尚未配置任何 Profile，请到主题设置中添加';
+                    $('shufei-storage-editor-toolbar').style.display = 'flex';
+                    return;
+                }
+                var sel = $('shufei-storage-profile-select');
+                sel.innerHTML = '';
+                d.profiles.forEach(function(p){
+                    var opt = document.createElement('option');
+                    opt.value = p.id;
+                    opt.textContent = p.name + '（' + (p.driverName || p.driver) + '）';
+                    if (p.id === d.activeProfileId) opt.selected = true;
+                    sel.appendChild(opt);
+                });
+                // 处理选项提示
+                var tips = [];
+                if (d.processing && d.processing.compress === 'on') tips.push('压缩');
+                if (d.processing && d.processing.webp === 'on') tips.push('WebP');
+                if (d.processing && d.processing.watermark === 'on') tips.push('水印');
+                $('shufei-storage-status-tip').textContent = tips.length ? '已启用：' + tips.join(' / ') : '';
+                $('shufei-storage-editor-toolbar').style.display = 'flex';
+            })
+            .catch(function(e){
+                $('shufei-storage-status-tip').textContent = '加载失败: ' + e.message;
+            });
+    }
+
+    // 切换 Profile
+    $('shufei-storage-profile-select').addEventListener('change', function(){
+        var pid = this.value;
+        if (!pid) return;
+        var fd = new FormData();
+        fd.append('action', 'switch_profile');
+        fd.append('profile_id', pid);
+        fetch(AJAX_URL, { method:'POST', body:fd, credentials:'same-origin' })
+            .then(function(r){ return r.json(); })
+            .then(function(d){
+                $('shufei-storage-status-tip').textContent = d.message || (d.success ? '已切换' : '切换失败');
+            })
+            .catch(function(e){ $('shufei-storage-status-tip').textContent = '切换失败: ' + e.message; });
+    });
+
+    // 上传弹窗
+    function openUploadModal(){
+        pendingFiles = [];
+        uploadResults = [];
+        $('shufei-storage-up-list').innerHTML = '';
+        $('shufei-storage-up-mask').classList.add('show');
+        $('shufei-storage-up-modal').classList.add('show');
+    }
+    function closeUploadModal(){
+        $('shufei-storage-up-mask').classList.remove('show');
+        $('shufei-storage-up-modal').classList.remove('show');
+    }
+
+    // ===== 历史图片 =====
+    var histPage = 1, histLimit = 30, histTotal = 0;
+    function histStatus(msg, color){
+        var el = $('shufei-hist-status');
+        el.textContent = msg || '';
+        el.style.color = color || '#999';
+    }
+    function humanSize(b){
+        if (!b) return '0 B';
+        if (b < 1024) return b + ' B';
+        if (b < 1024*1024) return (b/1024).toFixed(1) + ' KB';
+        return (b/1024/1024).toFixed(2) + ' MB';
+    }
+    function openHistoryModal(){
+        $('shufei-storage-hist-mask').classList.add('show');
+        $('shufei-storage-hist-modal').classList.add('show');
+        if (!histTotal) loadHistory();
+    }
+    function closeHistoryModal(){
+        $('shufei-storage-hist-mask').classList.remove('show');
+        $('shufei-storage-hist-modal').classList.remove('show');
+    }
+    function loadHistory(){
+        var sel = $('shufei-storage-profile-select');
+        var pid = sel ? sel.value : '';
+        if (!pid){ histStatus('请先选择 Profile', '#c00'); return; }
+        histStatus('加载中...', '#999');
+        var grid = $('shufei-storage-hist-grid');
+        grid.innerHTML = '<div class="shufei-storage-hist-empty">加载中...</div>';
+        var fd = new FormData();
+        fd.append('action', 'list_images');
+        fd.append('profile_id', pid);
+        fd.append('page', histPage);
+        fd.append('limit', histLimit);
+        fetch(AJAX_URL, {method:'POST', body:fd, credentials:'same-origin'})
+            .then(function(r){return r.json();})
+            .then(function(res){
+                if (!res || !res.success){
+                    histStatus(res && res.message ? res.message : '加载失败', '#c00');
+                    grid.innerHTML = '<div class="shufei-storage-hist-empty">'+(res&&res.message?res.message:'加载失败')+'</div>';
+                    return;
+                }
+                var data = res.data || {};
+                histTotal = data.total || 0;
+                var list = data.list || [];
+                histStatus('共 ' + histTotal + ' 张', '#080');
+                $('shufei-hist-page').textContent = '第 ' + histPage + '/' + Math.max(1, Math.ceil(histTotal/histLimit)) + ' 页';
+                if (!list.length){
+                    grid.innerHTML = '<div class="shufei-storage-hist-empty">暂无图片</div>';
+                    return;
+                }
+                grid.innerHTML = '';
+                list.forEach(function(item){
+                    var cell = document.createElement('div');
+                    cell.className = 'shufei-storage-hist-cell';
+                    var img = document.createElement('img');
+                    img.src = item.url; img.loading = 'lazy';
+                    img.title = '点击插入 ' + (item.name||'');
+                    img.onerror = function(){ img.style.display='none'; cell.querySelector('.hist-ph').style.display='flex'; };
+                    img.onclick = function(){ insertImageMarkdown(item.url, item.name||''); closeHistoryModal(); };
+                    var ph = document.createElement('div');
+                    ph.className = 'hist-ph';
+                    ph.textContent = '图片加载失败';
+                    var ins = document.createElement('div');
+                    ins.className = 'hist-insert';
+                    ins.textContent = '插入';
+                    ins.onclick = function(e){ e.stopPropagation(); insertImageMarkdown(item.url, item.name||''); closeHistoryModal(); };
+                    var del = document.createElement('div');
+                    del.className = 'hist-del';
+                    del.innerHTML = '&times;';
+                    del.title = '删除该图片';
+                    del.onclick = function(e){
+                        e.stopPropagation();
+                        if (!confirm('确定删除这张图片吗？此操作不可恢复。\n\n' + (item.name||''))) return;
+                        del.textContent = '...';
+                        var fd2 = new FormData();
+                        fd2.append('action', 'delete_image');
+                        fd2.append('profile_id', pid);
+                        if (item.id) fd2.append('image_id', item.id);
+                        if (item.key) fd2.append('key', item.key);
+                        if (item.url) fd2.append('url', item.url);
+                        fetch(AJAX_URL, {method:'POST', body:fd2, credentials:'same-origin'})
+                            .then(function(r){return r.json();})
+                            .then(function(res2){
+                                if (res2 && res2.success){
+                                    histStatus('已删除', '#080');
+                                    cell.style.transition='opacity .3s'; cell.style.opacity='0';
+                                    setTimeout(function(){ cell.remove(); histTotal--; histStatus('共 ' + histTotal + ' 张', '#080'); }, 300);
+                                } else {
+                                    histStatus(res2 && res2.message ? res2.message : '删除失败', '#c00');
+                                    del.innerHTML = '&times;';
+                                }
+                            })
+                            .catch(function(err){
+                                histStatus('网络错误: ' + err.message, '#c00');
+                                del.innerHTML = '&times;';
+                            });
+                    };
+                    var info = document.createElement('div');
+                    info.className = 'hist-info';
+                    info.title = item.name||'';
+                    info.textContent = (item.name||'') + ' · ' + humanSize(item.size);
+                    cell.appendChild(img);
+                    cell.appendChild(ph);
+                    cell.appendChild(ins);
+                    cell.appendChild(del);
+                    cell.appendChild(info);
+                    grid.appendChild(cell);
+                });
+            })
+            .catch(function(err){
+                histStatus('网络错误: ' + err.message, '#c00');
+                grid.innerHTML = '<div class="shufei-storage-hist-empty">网络错误</div>';
+            });
+    }
+    function insertImageMarkdown(url, name){
+        var md = '![' + (name||'') + '](' + url + ')\n';
+        insertTextToEditor(md);
+        histStatus('已插入: ' + (name||'图片'), '#080');
+    }
+
+    $('shufei-storage-open-upload-btn').addEventListener('click', openUploadModal);
+    $('shufei-storage-up-close').addEventListener('click', closeUploadModal);
+    $('shufei-storage-up-cancel-btn').addEventListener('click', closeUploadModal);
+    $('shufei-storage-up-mask').addEventListener('click', closeUploadModal);
+
+    $('shufei-storage-open-history-btn').addEventListener('click', openHistoryModal);
+    $('shufei-storage-hist-close').addEventListener('click', closeHistoryModal);
+    $('shufei-storage-hist-mask').addEventListener('click', closeHistoryModal);
+    $('shufei-hist-refresh').addEventListener('click', function(){ histPage = 1; loadHistory(); });
+    $('shufei-hist-prev').addEventListener('click', function(){ if (histPage > 1){ histPage--; loadHistory(); } });
+    $('shufei-hist-next').addEventListener('click', function(){ if (histPage * histLimit < histTotal){ histPage++; loadHistory(); } });
+
+    // 文件选择
+    var dropzone = $('shufei-storage-dropzone');
+    var fileInput = $('shufei-storage-file-input');
+    dropzone.addEventListener('click', function(){ fileInput.click(); });
+    fileInput.addEventListener('change', function(){
+        if (this.files && this.files.length) addFiles(this.files);
+        this.value = '';
+    });
+    ['dragenter','dragover'].forEach(function(ev){
+        dropzone.addEventListener(ev, function(e){ e.preventDefault(); dropzone.classList.add('dragover'); });
+    });
+    ['dragleave','drop'].forEach(function(ev){
+        dropzone.addEventListener(ev, function(e){ e.preventDefault(); dropzone.classList.remove('dragover'); });
+    });
+    dropzone.addEventListener('drop', function(e){
+        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
+            addFiles(e.dataTransfer.files);
+        }
+    });
+
+    function addFiles(fileList){
+        for (var i = 0; i < fileList.length; i++) {
+            var f = fileList[i];
+            if (!f.type.startsWith('image/')) continue;
+            pendingFiles.push({ file: f, status: 'pending', url: '', error: '' });
+        }
+        renderList();
+    }
+
+    function renderList(){
+        var list = $('shufei-storage-up-list');
+        list.innerHTML = '';
+        pendingFiles.forEach(function(item, idx){
+            var div = document.createElement('div');
+            div.className = 'shufei-storage-up-item';
+            var statusText = { pending: '待上传', uploading: '上传中', success: '成功', error: '失败' }[item.status] || item.status;
+            var html = '';
+            if (item.url) {
+                html += '<img class="up-thumb" src="' + escapeAttr(item.url) + '">';
+            } else if (item.file.type.startsWith('image/')) {
+                html += '<img class="up-thumb" src="' + escapeAttr(URL.createObjectURL(item.file)) + '">';
+            }
+            html += '<span class="up-name">' + escapeHtml(item.file.name) + ' (' + formatSize(item.file.size) + ')</span>';
+            html += '<span class="up-status ' + item.status + '">' + statusText + (item.error ? ': ' + escapeHtml(item.error) : '') + '</span>';
+            div.innerHTML = html;
+            list.appendChild(div);
+        });
+    }
+
+    function escapeHtml(s){
+        s = (s === null || s === undefined) ? '' : String(s);
+        return s.replace(/[&<>"']/g, function(c){
+            return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+        });
+    }
+    function escapeAttr(s){ return escapeHtml(s).replace(/"/g, '&quot;'); }
+    function formatSize(b){
+        if (b < 1024) return b + 'B';
+        if (b < 1024*1024) return (b/1024).toFixed(1) + 'KB';
+        return (b/1024/1024).toFixed(2) + 'MB';
+    }
+
+    // 上传逻辑：逐个串行上传
+    $('shufei-storage-start-upload-btn').addEventListener('click', function(){
+        if (pendingFiles.length === 0) { alert('请先选择图片'); return; }
+        var profileId = $('shufei-storage-profile-select').value;
+        if (!profileId) { alert('请先选择存储 Profile'); return; }
+        var insertMd = $('shufei-up-insert-markdown').checked;
+        var insertNewline = $('shufei-up-insert-newline').checked;
+        var mdText = '';
+
+        var idx = 0;
+        function next(){
+            if (idx >= pendingFiles.length) {
+                // 全部完成，插入 Markdown
+                if (insertMd && mdText) {
+                    insertTextToEditor(mdText);
+                }
+                var ok = pendingFiles.filter(function(x){ return x.status === 'success'; }).length;
+                var fail = pendingFiles.filter(function(x){ return x.status === 'error'; }).length;
+                alert('上传完成：成功 ' + ok + ' 个' + (fail ? '，失败 ' + fail + ' 个' : ''));
+                if (fail === 0) {
+                    closeUploadModal();
+                }
+                return;
+            }
+            var item = pendingFiles[idx];
+            if (item.status === 'success') { idx++; next(); return; }
+            item.status = 'uploading';
+            renderList();
+
+            var fd = new FormData();
+            fd.append('action', 'upload_image');
+            fd.append('profile_id', profileId);
+            fd.append('file', item.file, item.file.name);
+
+            fetch(AJAX_URL, { method:'POST', body:fd, credentials:'same-origin' })
+                .then(function(r){ return r.json(); })
+                .then(function(d){
+                    if (d.success) {
+                        item.status = 'success';
+                        item.url = d.url;
+                        if (insertMd) {
+                            mdText += '![](' + d.url + ')';
+                            if (insertNewline) mdText += '\n\n';
+                        }
+                    } else {
+                        item.status = 'error';
+                        item.error = d.message || '上传失败';
+                    }
+                    renderList();
+                    idx++; next();
+                })
+                .catch(function(e){
+                    item.status = 'error';
+                    item.error = e.message;
+                    renderList();
+                    idx++; next();
+                });
+        }
+        next();
+    });
+
+    // ESC 关闭
+    document.addEventListener('keydown', function(e){
+        if (e.key === 'Escape') closeUploadModal();
+    });
+
+    // 等编辑器加载完成后初始化
+    if (document.readyState === 'complete') {
+        init();
+    } else {
+        window.addEventListener('load', init);
+    }
+
+    function init(){
+        // 将工具条移动到编辑器 textarea 上方（紧贴标题下方、内容区上方）
+        var toolbar = $('shufei-storage-editor-toolbar');
+        var ta = document.getElementById('text');
+        if (ta && ta.parentNode) {
+            ta.parentNode.insertBefore(toolbar, ta);
+        }
+        loadProfiles();
+    }
+})();
 </script>
 <?php
 }
