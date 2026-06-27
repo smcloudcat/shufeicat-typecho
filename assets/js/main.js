@@ -521,9 +521,11 @@ window.initPostLike = function() {
                             btn.disabled = true;
                             if (likeText) likeText.textContent = '已点赞';
 
-                            // 更新点赞盒子中的点赞数
-                            var metaLikes = document.querySelector('.post-likes-count[data-cid="' + cid + '"]');
-                            if (metaLikes) metaLikes.textContent = data.likes;
+                            // 更新所有点赞数显示（文章meta和点赞盒子）
+                            var metaLikesList = document.querySelectorAll('.post-likes-count[data-cid="' + cid + '"]');
+                            metaLikesList.forEach(function(el) {
+                                el.textContent = data.likes;
+                            });
                         } else {
                             window.showToast(data.message || '点赞失败', 'error');
                         }
