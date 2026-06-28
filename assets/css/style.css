@@ -4147,7 +4147,12 @@ pre[class*="language-"].line-numbers > code {
     opacity: 1;
 }
 
-/* Lightbox2 自定义样式覆�?*/
+/* Lightbox2 自定义样式覆盖 */
+#lightbox {
+    /* 让 top 变化平滑过渡，避免居中调整时的跳变 */
+    transition: top 0.2s ease-out;
+}
+
 .lb-dataContainer {
     max-width: 100%;
 }

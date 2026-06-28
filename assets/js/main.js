@@ -273,6 +273,38 @@ window.initLightbox = function(retryCount) {
             'fitImagesInViewport': true,
             'positionFromTop': 50
         });
+
+        // 覆盖默认的紧贴顶部定位，让灯箱在视口中垂直居中
+        function centerLightbox() {
+            if (!lightbox.$lightbox || !lightbox.$lightbox.is(':visible')) return;
+            var windowHeight = $(window).height();
+            var lbHeight = lightbox.$lightbox.outerHeight();
+            var scrollTop = $(window).scrollTop();
+            var newTop = scrollTop + Math.max(0, (windowHeight - lbHeight) / 2);
+            lightbox.$lightbox.css('top', newTop + 'px');
+        }
+
+        // 仅包装一次，避免 pjax 切换时重复包装导致嵌套
+        if (!lightbox._centered) {
+            lightbox._centered = true;
+
+            // 包装 start：灯箱打开后立即居中（此时显示 loading）
+            var originalStart = lightbox.start;
+            lightbox.start = function($link) {
+                originalStart.apply(this, arguments);
+                setTimeout(centerLightbox, 0);
+            };
+
+            // 包装 showImage：图片显示后再次居中（图片尺寸已确定）
+            var originalShowImage = lightbox.showImage;
+            lightbox.showImage = function() {
+                originalShowImage.apply(this, arguments);
+                setTimeout(centerLightbox, 0);
+            };
+
+            // 窗口尺寸变化时重新居中
+            $(window).on('resize', centerLightbox);
+        }
     }
 };
 
