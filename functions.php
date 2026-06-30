@@ -656,7 +656,7 @@ GITHUBJS;
         '.shufei-update-btn{background:#467B96;color:#fff;border:none;border-radius:6px;padding:9px 20px;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;font-family:inherit;}' .
         '.shufei-update-btn:hover{opacity:.9;transform:translateY(-1px);}' .
         '.shufei-update-btn:disabled{opacity:.5;cursor:not-allowed;transform:none;}' .
-        '.shufei-update-select{padding:9px 12px;border:1px solid #ddd;border-radius:6px;font-size:13px;background:#fafafa;font-family:inherit;}' .
+        '.shufei-update-select{height:auto !important;padding:8px 30px 8px 12px !important;line-height:normal !important;box-sizing:border-box;border:1px solid #ddd;border-radius:6px;font-size:13px;background:#fafafa;font-family:inherit;vertical-align:middle;}' .
         '.shufei-update-status{margin-top:12px;padding:12px 14px;border-radius:6px;font-size:13px;line-height:1.7;display:none;border:1px solid transparent;}' .
         '.shufei-update-status.show{display:block;}' .
         '.shufei-update-status.success{background:#f6ffed;border-color:#b7eb8f;color:#389e0d;}' .
@@ -687,66 +687,13 @@ GITHUBJS;
             echo '<div class="shufei-update-notice latest">当前已是最新版本</div>';
         }
     } elseif ($updateChannel === 'manual') {
-        echo '<div class="shufei-update-notice info">已切换为手动检查模式，点击下方按钮获取最新版本信息（不会自动请求网络）</div>';
+        echo '<div class="shufei-update-notice info">已切换为手动检查模式，请前往"更新设置"分类中手动检查更新（不会自动请求网络）</div>';
     } else {
         $msg = ($updateResult && isset($updateResult['msg'])) ? $updateResult['msg'] : '检测失败，请稍后重试';
         echo '<div class="shufei-update-notice error">' . htmlspecialchars($msg) . '</div>';
     }
 
-    echo '<div class="shufei-update-actions">';
-    echo '<select class="shufei-update-select" id="shufei-check-channel">';
-    echo '<option value="stable"' . ($updateChannel === 'stable' ? ' selected' : '') . '>检查正式版</option>';
-    echo '<option value="dev"' . ($updateChannel === 'dev' ? ' selected' : '') . '>检查开发版</option>';
-    echo '</select>';
-    echo '<button type="button" class="shufei-update-btn" id="shufei-check-btn" data-api="' . htmlspecialchars($updateApiUrlVal) . '" data-owner="' . htmlspecialchars($updateOwnerVal) . '" data-repo="' . htmlspecialchars($updateRepoVal) . '" data-version="' . htmlspecialchars($currentVersion) . '">立即检查更新</button>';
-    echo '<span class="shufei-update-ver" style="margin-left:auto">点击按钮直连更新接口强制检查（跨域已开启）</span>';
     echo '</div>';
-    echo '<div class="shufei-update-status" id="shufei-check-status"></div>';
-    echo '</div>';
-
-    $updateJs = <<<'UPDATEJS'
-<script>
-(function(){
-    var btn = document.getElementById("shufei-check-btn");
-    if (!btn) return;
-    var status = document.getElementById("shufei-check-status");
-    var chSel = document.getElementById("shufei-check-channel");
-    function esc(s){
-        return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
-            return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
-        });
-    }
-    btn.addEventListener("click", function(){
-        var ch = chSel.value;
-        var api = btn.getAttribute("data-api");
-        var sep = api.indexOf("?") === -1 ? "?" : "&";
-        var url = api + sep + "owner=" + encodeURIComponent(btn.getAttribute("data-owner"))
-            + "&repo=" + encodeURIComponent(btn.getAttribute("data-repo"))
-            + "&version=" + encodeURIComponent(btn.getAttribute("data-version"))
-            + "&channel=" + encodeURIComponent(ch);
-        status.className = "shufei-update-status show info";
-        status.innerHTML = "正在检查更新...";
-        btn.disabled = true;
-        fetch(url).then(function(r){ return r.json(); }).then(function(d){
-            if (d.code == 1 && d.version) {
-                var h = "<b>发现新版本：v" + esc(d.version) + "</b>";
-                if (d.url) h += "<br>下载链接：<a href=\"" + esc(d.url) + "\" target=\"_blank\" rel=\"noopener\">" + esc(d.url) + "</a>";
-                if (d.msg) h += "<br>更新内容：" + esc(d.msg);
-                status.className = "shufei-update-status show success";
-                status.innerHTML = h;
-            } else {
-                status.className = "shufei-update-status show info";
-                status.innerHTML = esc(d.msg || "当前已是最新版本");
-            }
-        }).catch(function(e){
-            status.className = "shufei-update-status show error";
-            status.innerHTML = "检查失败：" + esc(e.message);
-        }).finally(function(){ btn.disabled = false; });
-    });
-})();
-</script>
-UPDATEJS;
-    echo $updateJs;
     
     $logoUrl = new \Typecho\Widget\Helper\Form\Element\Text(
         'logoUrl',
@@ -838,7 +785,7 @@ UPDATEJS;
         ),
         'stable',
         _t('更新通道'),
-        _t('介绍：选择主题更新检查的方式与通道<br><b>正式版</b>：仅自动检查正式版（Stable）更新，稳定优先<br><b>开发版</b>：自动检查开发版（rc/beta 等预发布）更新，体验新功能<br><b>手动检查</b>：不自动请求网络，仅在顶部"主题更新检查"面板点击"立即检查更新"按钮手动获取')
+        _t('介绍：选择主题更新检查的方式与通道<br><b>正式版</b>：仅自动检查正式版（Stable）更新，稳定优先<br><b>开发版</b>：自动检查开发版（rc/beta 等预发布）更新，体验新功能<br><b>手动检查</b>：不自动请求网络，仅在下方"立即检查更新"区域手动获取')
     );
     $updateChannelField->setAttribute('class', 'typecho-option cat-group-update');
     $form->addInput($updateChannelField);
@@ -862,6 +809,64 @@ UPDATEJS;
     );
     $updateRepoField->setAttribute('class', 'typecho-option cat-group-update');
     $form->addInput($updateRepoField);
+
+    // ===== 立即检查更新（手动触发） =====
+    echo '<div class="typecho-option cat-group-update" style="margin-bottom:20px">';
+    echo '<label class="typecho-label">立即检查更新</label>';
+    echo '<p class="typecho-option-description" style="color:#999;font-size:12px;margin:0 0 12px">介绍：直连更新接口强制检查最新版本（跨域已开启），可临时切换正式版/开发版通道</p>';
+    echo '<div class="shufei-update-actions">';
+    echo '<select class="shufei-update-select" id="shufei-check-channel">';
+    echo '<option value="stable"' . ($updateChannel === 'stable' ? ' selected' : '') . '>检查正式版</option>';
+    echo '<option value="dev"' . ($updateChannel === 'dev' ? ' selected' : '') . '>检查开发版</option>';
+    echo '</select>';
+    echo '<button type="button" class="shufei-update-btn" id="shufei-check-btn" data-api="' . htmlspecialchars($updateApiUrlVal) . '" data-owner="' . htmlspecialchars($updateOwnerVal) . '" data-repo="' . htmlspecialchars($updateRepoVal) . '" data-version="' . htmlspecialchars($currentVersion) . '">立即检查更新</button>';
+    echo '</div>';
+    echo '<div class="shufei-update-status" id="shufei-check-status"></div>';
+    echo '</div>';
+
+    $updateJs = <<<'UPDATEJS'
+<script>
+(function(){
+    var btn = document.getElementById("shufei-check-btn");
+    if (!btn) return;
+    var status = document.getElementById("shufei-check-status");
+    var chSel = document.getElementById("shufei-check-channel");
+    function esc(s){
+        return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+            return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+        });
+    }
+    btn.addEventListener("click", function(){
+        var ch = chSel.value;
+        var api = btn.getAttribute("data-api");
+        var sep = api.indexOf("?") === -1 ? "?" : "&";
+        var url = api + sep + "owner=" + encodeURIComponent(btn.getAttribute("data-owner"))
+            + "&repo=" + encodeURIComponent(btn.getAttribute("data-repo"))
+            + "&version=" + encodeURIComponent(btn.getAttribute("data-version"))
+            + "&channel=" + encodeURIComponent(ch);
+        status.className = "shufei-update-status show info";
+        status.innerHTML = "正在检查更新...";
+        btn.disabled = true;
+        fetch(url).then(function(r){ return r.json(); }).then(function(d){
+            if (d.code == 1 && d.version) {
+                var h = "<b>发现新版本：v" + esc(d.version) + "</b>";
+                if (d.url) h += "<br>下载链接：<a href=\"" + esc(d.url) + "\" target=\"_blank\" rel=\"noopener\">" + esc(d.url) + "</a>";
+                if (d.msg) h += "<br>更新内容：" + esc(d.msg);
+                status.className = "shufei-update-status show success";
+                status.innerHTML = h;
+            } else {
+                status.className = "shufei-update-status show info";
+                status.innerHTML = esc(d.msg || "当前已是最新版本");
+            }
+        }).catch(function(e){
+            status.className = "shufei-update-status show error";
+            status.innerHTML = "检查失败：" + esc(e.message);
+        }).finally(function(){ btn.disabled = false; });
+    });
+})();
+</script>
+UPDATEJS;
+    echo $updateJs;
 
     $sidebarBlock = new \Typecho\Widget\Helper\Form\Element\Checkbox(
         'sidebarBlock',
@@ -929,6 +934,36 @@ UPDATEJS;
     );
     $footerGonganNumber->setAttribute('class', 'typecho-option cat-group-basic');
     $form->addInput($footerGonganNumber);
+
+    $footerGonganLink = new \Typecho\Widget\Helper\Form\Element\Text(
+        'footerGonganLink',
+        null,
+        'https://beian.mps.gov.cn/',
+        _t('公安备案链接'),
+        _t('介绍：公安备案号的跳转链接地址<br>默认：https://beian.mps.gov.cn/')
+    );
+    $footerGonganLink->setAttribute('class', 'typecho-option cat-group-basic');
+    $form->addInput($footerGonganLink->addRule('url', _t('请填写一个合法的URL地址')));
+
+    $footerGonganIcon = new \Typecho\Widget\Helper\Form\Element\Text(
+        'footerGonganIcon',
+        null,
+        '{themeUrl}/assets/image/foot-logo.png',
+        _t('公安备案图标'),
+        _t('介绍：公安备案号前显示的图标图片地址<br>默认：{themeUrl}/assets/image/foot-logo.png（自动指向主题资源目录）<br>留空则不显示图标<br>可使用 {themeUrl} 占位符表示主题URL，也可填写完整URL')
+    );
+    $footerGonganIcon->setAttribute('class', 'typecho-option cat-group-basic');
+    $form->addInput($footerGonganIcon);
+
+    $footerBeianLayout = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'footerBeianLayout',
+        array('newline' => _t('分行显示'), 'inline' => _t('同行显示')),
+        'newline',
+        _t('备案号布局'),
+        _t('介绍：ICP备案号与公安备案号的显示方式<br>分行显示：公安备案号单独一行<br>同行显示：公安备案号与ICP备案号显示在同一行')
+    );
+    $footerBeianLayout->setAttribute('class', 'typecho-option cat-group-basic');
+    $form->addInput($footerBeianLayout);
 
     $footerCustomText = new \Typecho\Widget\Helper\Form\Element\Textarea(
         'footerCustomText',
@@ -2029,6 +2064,7 @@ function shufei_render_storage_profile_ui()
 .shufei-storage-field input, .shufei-storage-field select, .shufei-storage-field textarea {
     width:100%; padding:8px 10px; border:1px solid #ddd; border-radius:4px; box-sizing:border-box; font-size:13px;
 }
+.shufei-storage-field select { height:auto !important; padding-right:30px !important; line-height:normal !important; }
 .shufei-storage-field .desc { color:#999; font-size:12px; margin-top:4px; line-height:1.6; }
 .shufei-storage-test-status {
     margin-top:10px; padding:10px 12px; border-radius:4px; font-size:12px; display:none; line-height:1.6;
@@ -2410,7 +2446,7 @@ function shufei_render_storage_images_ui()
 
     <div style="display:flex;align-items:center;gap:10px;margin:15px 0;flex-wrap:wrap;">
         <label>选择 Profile：</label>
-        <select id="shufei-img-profile" style="min-width:240px;padding:5px 8px;">
+        <select id="shufei-img-profile" style="min-width:240px;height:auto !important;padding:8px 30px 8px 12px !important;line-height:normal !important;box-sizing:border-box;">
             <?php foreach ($profiles as $p): ?>
                 <option value="<?php echo htmlspecialchars($p['id']); ?>" <?php if ($p['id'] === $activeId) echo 'selected'; ?>>
                     <?php echo htmlspecialchars($p['name'] . ' [' . (isset($drivers[$p['driver']]) ? $drivers[$p['driver']] : $p['driver']) . ']'); ?>
