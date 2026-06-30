@@ -2244,6 +2244,11 @@ pre[class*="language-"].line-numbers > code {
     border-left: 2px solid color-mix(in srgb, var(--primary-color) 15%, var(--border-color));
 }
 
+/* 超过 3 层嵌套后不再缩进，避免评论盒子越来越窄 */
+.comment-children .comment-children .comment-children .comment-children {
+    padding-left: 0;
+}
+
 .comment-children > li {
     margin-top: 10px;
     padding: 14px;
@@ -2330,6 +2335,26 @@ pre[class*="language-"].line-numbers > code {
 
 .comment-author-name a:hover {
     color: var(--primary-color);
+}
+
+.comment-reply-to {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.comment-reply-to a {
+    color: var(--primary-color);
+    font-weight: 600;
+    text-decoration: none;
+    transition: var(--transition-fast);
+}
+
+.comment-reply-to a:hover {
+    text-decoration: underline;
+    opacity: 0.85;
 }
 
 .comment-by-author .comment-author-name::after {

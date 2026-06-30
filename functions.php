@@ -8,27 +8,85 @@
 if (!defined('__TYPECHO_ROOT_DIR__')) exit;
 
 /**
- * 检测主题更新
- * 
- * @return array 更新检测结果
+ * 获取更新检查相关配置
+ *
+ * @return array 配置项：api_url / channel / owner / repo
  */
-function shufei_check_theme_update()
+function shufei_get_update_config()
 {
-    $currentVersion = '1.4.0-rc.9';
-    $cacheKey = 'shufei_update_check';
-    $cacheTime = 3600; // 缓存1小时
+    $options = \Typecho\Widget::widget('Widget_Options');
 
-    // 尝试从缓存读取
-    $cacheFile = dirname(__FILE__) . '/cache/update_check.json';
-    if (file_exists($cacheFile)) {
-        $cache = @json_decode(file_get_contents($cacheFile), true);
+    $apiUrl = isset($options->shufeiUpdateApiUrl) ? trim($options->shufeiUpdateApiUrl) : '';
+    if ($apiUrl === '') {
+        $apiUrl = 'https://githubver.czzu.cn/';
+    }
+
+    $channel = isset($options->shufeiUpdateChannel) ? $options->shufeiUpdateChannel : 'stable';
+    if (!in_array($channel, array('stable', 'dev', 'manual'), true)) {
+        $channel = 'stable';
+    }
+
+    $owner = isset($options->shufeiUpdateOwner) ? trim($options->shufeiUpdateOwner) : '';
+    if ($owner === '') {
+        $owner = 'smcloudcat';
+    }
+
+    $repo = isset($options->shufeiUpdateRepo) ? trim($options->shufeiUpdateRepo) : '';
+    if ($repo === '') {
+        $repo = 'shufeicat-typecho';
+    }
+
+    return compact('apiUrl', 'channel', 'owner', 'repo');
+}
+
+/**
+ * 检测主题更新（重构版）
+ *
+ * 支持三种通道：
+ *  - stable : 仅自动获取正式版（Stable）
+ *  - dev    : 自动获取开发版（含 rc/beta 等预发布）
+ *  - manual : 手动检查，不自动请求网络（仅当 $force=true 时发起）
+ *
+ * @param bool   $force   是否强制刷新（忽略缓存，且 manual 模式下才会真正发起请求）
+ * @param string $channel 指定通道覆盖配置（stable/dev），仅用于手动检查时
+ * @return array 更新检测结果：code(1有更新/0无更新或失败) / msg / version / url / channel / from_cache
+ */
+function shufei_check_theme_update($force = false, $channel = null)
+{
+    $currentVersion = shufei_get_theme_version();
+    $cfg = shufei_get_update_config();
+    $configChannel = $cfg['channel'];
+
+    // 解析本次实际使用的通道
+    if ($channel !== null && in_array($channel, array('stable', 'dev'), true)) {
+        $requestChannel = $channel;
+    } else {
+        $requestChannel = ($configChannel === 'manual') ? 'stable' : $configChannel;
+    }
+
+    // 手动模式且未强制：不发起任何网络请求
+    if ($configChannel === 'manual' && !$force) {
+        return array(
+            'code'    => 0,
+            'msg'     => '已切换为手动检查模式，点击"立即检查更新"按钮获取最新版本信息',
+            'channel' => 'manual',
+        );
+    }
+
+    // 缓存（按通道分别缓存）
+    $cacheTime = 3600;
+    $cacheFile = dirname(__FILE__) . '/cache/update_check_' . $requestChannel . '.json';
+    if (!$force && file_exists($cacheFile)) {
+        $cache = @json_decode(@file_get_contents($cacheFile), true);
         if ($cache && isset($cache['timestamp']) && (time() - $cache['timestamp']) < $cacheTime) {
-            return $cache['result'];
+            $cached = is_array($cache['result']) ? $cache['result'] : array('code' => 0, 'msg' => '无缓存数据');
+            $cached['from_cache'] = true;
+            return $cached;
         }
     }
 
+    // 构造博客地址（用于统计）
     $blogUrl = '';
-
     if (defined('__TYPECHO_SITE_URL__')) {
         $blogUrl = constant('__TYPECHO_SITE_URL__');
     } elseif (isset($_SERVER['HTTP_HOST'])) {
@@ -36,33 +94,61 @@ function shufei_check_theme_update()
         $blogUrl = $protocol . $_SERVER['HTTP_HOST'];
     }
 
-    $updateUrl = 'https://githubver.czzu.cn/?owner=smcloudcat&repo=lottery&version=' . $currentVersion . '&blogurl=' . urlencode($blogUrl);
+    $query = http_build_query(array(
+        'owner'   => $cfg['owner'],
+        'repo'    => $cfg['repo'],
+        'version' => $currentVersion,
+        'channel' => $requestChannel,
+        'blogurl' => $blogUrl,
+    ));
+    $sep = (strpos($cfg['apiUrl'], '?') === false) ? '?' : '&';
+    $updateUrl = $cfg['apiUrl'] . $sep . $query;
 
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $updateUrl);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
+    $result = array('code' => 0, 'msg' => '检测失败，请稍后重试', 'channel' => $requestChannel);
+    $ua = 'ShuFeiCat-Theme/' . $currentVersion;
 
-    $result = array('code' => 0, 'msg' => '检测失败，请稍后重试');
-    if ($httpCode == 200 && $response) {
-        $decoded = json_decode($response, true);
-        if ($decoded && isset($decoded['code'])) {
-            $result = $decoded;
+    if (function_exists('curl_init')) {
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $updateUrl);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        curl_setopt($ch, CURLOPT_USERAGENT, $ua);
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err = curl_error($ch);
+        curl_close($ch);
+        if ($httpCode == 200 && $response) {
+            $decoded = json_decode($response, true);
+            if (is_array($decoded)) {
+                $result = $decoded;
+            }
+        } elseif ($err) {
+            $result['msg'] = '检测失败：' . $err;
+        }
+    } else {
+        $ctx = stream_context_create(array(
+            'http' => array('timeout' => 10, 'header' => 'User-Agent: ' . $ua),
+        ));
+        $response = @file_get_contents($updateUrl, false, $ctx);
+        if ($response) {
+            $decoded = json_decode($response, true);
+            if (is_array($decoded)) {
+                $result = $decoded;
+            }
         }
     }
 
-    // 写入缓存
+    $result['channel'] = $requestChannel;
+
+    // 写缓存
     $cacheDir = dirname($cacheFile);
     if (!is_dir($cacheDir)) {
         @mkdir($cacheDir, 0755, true);
     }
     @file_put_contents($cacheFile, json_encode(array(
         'timestamp' => time(),
-        'result' => $result
+        'result'    => $result,
     )));
 
     return $result;
@@ -152,6 +238,7 @@ function themeConfig($form)
                     '<li data-id="cat-enhance">功能增强</li>' .
                     '<li data-id="cat-nav">导航增强</li>' .
                     '<li data-id="cat-data">数据管理</li>' .
+                    '<li data-id="cat-update">更新设置</li>' .
                 '</ul>' .
             '</div>' .
             '<div class="cat-config-main" id="cat-panes"></div>' .
@@ -167,7 +254,7 @@ function themeConfig($form)
             'var c = document.getElementById("cat-tpl").querySelector(".cat-config-container");' .
             'var pWrap = c.querySelector("#cat-panes");' .
             'f.insertBefore(c, f.firstChild);' .
-            'var ids = ["cat-basic", "cat-avatar", "cat-appearance", "cat-pjax", "cat-resource", "cat-article", "cat-stats", "cat-seo", "cat-mail", "cat-ai", "cat-storage", "cat-verify", "cat-enhance", "cat-nav", "cat-data"];' .
+            'var ids = ["cat-basic", "cat-avatar", "cat-appearance", "cat-pjax", "cat-resource", "cat-article", "cat-stats", "cat-seo", "cat-mail", "cat-ai", "cat-storage", "cat-verify", "cat-enhance", "cat-nav", "cat-data", "cat-update"];' .
             'ids.forEach(function(id) {' .
                 'var p = document.createElement("div");' .
                 'p.id = id; p.className = "cat-pane" + (id === "cat-basic" ? " active" : "");' .
@@ -542,18 +629,124 @@ function themeConfig($form)
 GITHUBJS;
 
     $currentVersion = shufei_get_theme_version();
+    $updateCfg = shufei_get_update_config();
+    $updateChannel = $updateCfg['channel'];
+    $updateApiUrlVal = $updateCfg['apiUrl'];
+    $updateOwnerVal = $updateCfg['owner'];
+    $updateRepoVal = $updateCfg['repo'];
     $updateResult = shufei_check_theme_update();
-    if ($updateResult && isset($updateResult['code']) && $updateResult['code'] == 1) {
+    $channelLabels = array('stable' => '正式版', 'dev' => '开发版', 'manual' => '手动检查');
+    $chLabel = isset($channelLabels[$updateChannel]) ? $channelLabels[$updateChannel] : $updateChannel;
+
+    echo '<style>' .
+        '.shufei-update-box{padding:18px 20px;border-radius:8px;margin-bottom:25px;background:#fff;border:1px solid #e5e5e5;box-shadow:0 4px 15px rgba(0,0,0,0.04);font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;}' .
+        '.shufei-update-head{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;}' .
+        '.shufei-update-title{font-weight:bold;font-size:15px;color:#333;}' .
+        '.shufei-update-ver{font-size:13px;color:#666;}' .
+        '.shufei-update-badge{display:inline-block;padding:2px 10px;border-radius:12px;font-size:12px;color:#fff;background:#467B96;}' .
+        '.shufei-update-badge.dev{background:#e67e22;}' .
+        '.shufei-update-badge.manual{background:#95a5a6;}' .
+        '.shufei-update-notice{padding:12px 14px;border-radius:6px;font-size:13px;line-height:1.7;margin-bottom:14px;border:1px solid transparent;}' .
+        '.shufei-update-notice.has-update{background:#fffbe6;border-color:#ffe58f;color:#d48806;}' .
+        '.shufei-update-notice.latest{background:#f6ffed;border-color:#b7eb8f;color:#389e0d;}' .
+        '.shufei-update-notice.info{background:#e6f7ff;border-color:#91d5ff;color:#096dd9;}' .
+        '.shufei-update-notice.error{background:#fff2f0;border-color:#ffccc7;color:#cf1322;}' .
+        '.shufei-update-notice a{color:#467B96;}' .
+        '.shufei-update-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}' .
+        '.shufei-update-btn{background:#467B96;color:#fff;border:none;border-radius:6px;padding:9px 20px;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;font-family:inherit;}' .
+        '.shufei-update-btn:hover{opacity:.9;transform:translateY(-1px);}' .
+        '.shufei-update-btn:disabled{opacity:.5;cursor:not-allowed;transform:none;}' .
+        '.shufei-update-select{padding:9px 12px;border:1px solid #ddd;border-radius:6px;font-size:13px;background:#fafafa;font-family:inherit;}' .
+        '.shufei-update-status{margin-top:12px;padding:12px 14px;border-radius:6px;font-size:13px;line-height:1.7;display:none;border:1px solid transparent;}' .
+        '.shufei-update-status.show{display:block;}' .
+        '.shufei-update-status.success{background:#f6ffed;border-color:#b7eb8f;color:#389e0d;}' .
+        '.shufei-update-status.error{background:#fff2f0;border-color:#ffccc7;color:#cf1322;}' .
+        '.shufei-update-status.info{background:#e6f7ff;border-color:#91d5ff;color:#096dd9;}' .
+        '.shufei-update-status a{color:#467B96;}' .
+        '</style>';
+
+    echo '<div class="shufei-update-box">';
+    echo '<div class="shufei-update-head">';
+    echo '<span class="shufei-update-title">主题更新检查</span>';
+    echo '<span class="shufei-update-ver">当前版本：<b>v' . htmlspecialchars($currentVersion) . '</b></span>';
+    echo '<span class="shufei-update-badge ' . htmlspecialchars($updateChannel) . '">' . htmlspecialchars($chLabel) . '</span>';
+    echo '</div>';
+
+    if ($updateResult && isset($updateResult['code']) && $updateResult['code'] == 1 && !empty($updateResult['version'])) {
         $remoteVersion = $updateResult['version'];
         if (version_compare($remoteVersion, $currentVersion, '>')) {
-            echo '<div class="message notice"><p>检测到新版本：<b>' . htmlspecialchars($remoteVersion) . '</b></p><p>更新内容：' . htmlspecialchars($updateResult['msg']) . '</p><p>更新链接：<a href="' . htmlspecialchars($updateResult['url']) . '" target="_blank">' . htmlspecialchars($updateResult['url']) . '</a></p></div>';
-        } elseif (version_compare($remoteVersion, $currentVersion, '<')) {
-            echo '<div class="message notice"><p>该版本为测试版本，如果在使用过程中发现问题，请及时反馈。</p></div>';
+            $noticeMsg = '发现新版本 <b>v' . htmlspecialchars($remoteVersion) . '</b>';
+            if (!empty($updateResult['msg'])) {
+                $noticeMsg .= '<br>更新内容：' . htmlspecialchars($updateResult['msg']);
+            }
+            if (!empty($updateResult['url'])) {
+                $noticeMsg .= '<br>下载链接：<a href="' . htmlspecialchars($updateResult['url']) . '" target="_blank" rel="noopener">' . htmlspecialchars($updateResult['url']) . '</a>';
+            }
+            echo '<div class="shufei-update-notice has-update">' . $noticeMsg . '</div>';
+        } else {
+            echo '<div class="shufei-update-notice latest">当前已是最新版本</div>';
         }
+    } elseif ($updateChannel === 'manual') {
+        echo '<div class="shufei-update-notice info">已切换为手动检查模式，点击下方按钮获取最新版本信息（不会自动请求网络）</div>';
     } else {
-        $msg = isset($updateResult['msg']) ? $updateResult['msg'] : '检测失败';
-        echo '<div class="message notice"><p>' . htmlspecialchars($msg) . '</p></div>';
+        $msg = ($updateResult && isset($updateResult['msg'])) ? $updateResult['msg'] : '检测失败，请稍后重试';
+        echo '<div class="shufei-update-notice error">' . htmlspecialchars($msg) . '</div>';
     }
+
+    echo '<div class="shufei-update-actions">';
+    echo '<select class="shufei-update-select" id="shufei-check-channel">';
+    echo '<option value="stable"' . ($updateChannel === 'stable' ? ' selected' : '') . '>检查正式版</option>';
+    echo '<option value="dev"' . ($updateChannel === 'dev' ? ' selected' : '') . '>检查开发版</option>';
+    echo '</select>';
+    echo '<button type="button" class="shufei-update-btn" id="shufei-check-btn" data-api="' . htmlspecialchars($updateApiUrlVal) . '" data-owner="' . htmlspecialchars($updateOwnerVal) . '" data-repo="' . htmlspecialchars($updateRepoVal) . '" data-version="' . htmlspecialchars($currentVersion) . '">立即检查更新</button>';
+    echo '<span class="shufei-update-ver" style="margin-left:auto">点击按钮直连更新接口强制检查（跨域已开启）</span>';
+    echo '</div>';
+    echo '<div class="shufei-update-status" id="shufei-check-status"></div>';
+    echo '</div>';
+
+    $updateJs = <<<'UPDATEJS'
+<script>
+(function(){
+    var btn = document.getElementById("shufei-check-btn");
+    if (!btn) return;
+    var status = document.getElementById("shufei-check-status");
+    var chSel = document.getElementById("shufei-check-channel");
+    function esc(s){
+        return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+            return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+        });
+    }
+    btn.addEventListener("click", function(){
+        var ch = chSel.value;
+        var api = btn.getAttribute("data-api");
+        var sep = api.indexOf("?") === -1 ? "?" : "&";
+        var url = api + sep + "owner=" + encodeURIComponent(btn.getAttribute("data-owner"))
+            + "&repo=" + encodeURIComponent(btn.getAttribute("data-repo"))
+            + "&version=" + encodeURIComponent(btn.getAttribute("data-version"))
+            + "&channel=" + encodeURIComponent(ch);
+        status.className = "shufei-update-status show info";
+        status.innerHTML = "正在检查更新...";
+        btn.disabled = true;
+        fetch(url).then(function(r){ return r.json(); }).then(function(d){
+            if (d.code == 1 && d.version) {
+                var h = "<b>发现新版本：v" + esc(d.version) + "</b>";
+                if (d.url) h += "<br>下载链接：<a href=\"" + esc(d.url) + "\" target=\"_blank\" rel=\"noopener\">" + esc(d.url) + "</a>";
+                if (d.msg) h += "<br>更新内容：" + esc(d.msg);
+                status.className = "shufei-update-status show success";
+                status.innerHTML = h;
+            } else {
+                status.className = "shufei-update-status show info";
+                status.innerHTML = esc(d.msg || "当前已是最新版本");
+            }
+        }).catch(function(e){
+            status.className = "shufei-update-status show error";
+            status.innerHTML = "检查失败：" + esc(e.message);
+        }).finally(function(){ btn.disabled = false; });
+    });
+})();
+</script>
+UPDATEJS;
+    echo $updateJs;
     
     $logoUrl = new \Typecho\Widget\Helper\Form\Element\Text(
         'logoUrl',
@@ -624,6 +817,51 @@ GITHUBJS;
     );
     $authorQQ->setAttribute('class', 'typecho-option cat-group-basic');
     $form->addInput($authorQQ);
+
+    // ===== 更新设置 =====
+    $updateApiUrlField = new \Typecho\Widget\Helper\Form\Element\Text(
+        'shufeiUpdateApiUrl',
+        null,
+        'https://githubver.czzu.cn/',
+        _t('更新接口地址'),
+        _t('介绍：主题更新检查的 API 地址，默认为官方更新中心<br>如自建更新服务，请填写你部署的 api.php 完整地址（例如 https://your-domain.com/api.php）')
+    );
+    $updateApiUrlField->setAttribute('class', 'typecho-option cat-group-update');
+    $form->addInput($updateApiUrlField->addRule('url', _t('请填写一个合法的URL地址')));
+
+    $updateChannelField = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'shufeiUpdateChannel',
+        array(
+            'stable' => _t('正式版（自动）'),
+            'dev'    => _t('开发版（自动）'),
+            'manual' => _t('手动检查')
+        ),
+        'stable',
+        _t('更新通道'),
+        _t('介绍：选择主题更新检查的方式与通道<br><b>正式版</b>：仅自动检查正式版（Stable）更新，稳定优先<br><b>开发版</b>：自动检查开发版（rc/beta 等预发布）更新，体验新功能<br><b>手动检查</b>：不自动请求网络，仅在顶部"主题更新检查"面板点击"立即检查更新"按钮手动获取')
+    );
+    $updateChannelField->setAttribute('class', 'typecho-option cat-group-update');
+    $form->addInput($updateChannelField);
+
+    $updateOwnerField = new \Typecho\Widget\Helper\Form\Element\Text(
+        'shufeiUpdateOwner',
+        null,
+        'smcloudcat',
+        _t('GitHub 仓库 Owner'),
+        _t('介绍：用于更新检查时定位项目，对应 GitHub 仓库的所有者<br>该值需与更新服务后台中的项目 owner 一致')
+    );
+    $updateOwnerField->setAttribute('class', 'typecho-option cat-group-update');
+    $form->addInput($updateOwnerField);
+
+    $updateRepoField = new \Typecho\Widget\Helper\Form\Element\Text(
+        'shufeiUpdateRepo',
+        null,
+        'shufeicat-typecho',
+        _t('GitHub 仓库名'),
+        _t('介绍：用于更新检查时定位项目，对应 GitHub 仓库名称<br>该值需与更新服务后台中的项目 repo 一致')
+    );
+    $updateRepoField->setAttribute('class', 'typecho-option cat-group-update');
+    $form->addInput($updateRepoField);
 
     $sidebarBlock = new \Typecho\Widget\Helper\Form\Element\Checkbox(
         'sidebarBlock',
