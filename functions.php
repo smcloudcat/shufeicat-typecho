@@ -161,7 +161,7 @@ function shufei_check_theme_update($force = false, $channel = null)
  */
 function shufei_get_theme_version()
 {
-    return '1.4.0-rc.9';
+    return '1.4.0-rc.10';
 }
 
 /**
