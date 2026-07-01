@@ -273,6 +273,38 @@ window.initLightbox = function(retryCount) {
             'fitImagesInViewport': true,
             'positionFromTop': 50
         });
+
+        // 覆盖默认的紧贴顶部定位，让灯箱在视口中垂直居中
+        function centerLightbox() {
+            if (!lightbox.$lightbox || !lightbox.$lightbox.is(':visible')) return;
+            var windowHeight = $(window).height();
+            var lbHeight = lightbox.$lightbox.outerHeight();
+            var scrollTop = $(window).scrollTop();
+            var newTop = scrollTop + Math.max(0, (windowHeight - lbHeight) / 2);
+            lightbox.$lightbox.css('top', newTop + 'px');
+        }
+
+        // 仅包装一次，避免 pjax 切换时重复包装导致嵌套
+        if (!lightbox._centered) {
+            lightbox._centered = true;
+
+            // 包装 start：灯箱打开后立即居中（此时显示 loading）
+            var originalStart = lightbox.start;
+            lightbox.start = function($link) {
+                originalStart.apply(this, arguments);
+                setTimeout(centerLightbox, 0);
+            };
+
+            // 包装 showImage：图片显示后再次居中（图片尺寸已确定）
+            var originalShowImage = lightbox.showImage;
+            lightbox.showImage = function() {
+                originalShowImage.apply(this, arguments);
+                setTimeout(centerLightbox, 0);
+            };
+
+            // 窗口尺寸变化时重新居中
+            $(window).on('resize', centerLightbox);
+        }
     }
 };
 
@@ -521,9 +553,11 @@ window.initPostLike = function() {
                             btn.disabled = true;
                             if (likeText) likeText.textContent = '已点赞';
 
-                            // 更新点赞盒子中的点赞数
-                            var metaLikes = document.querySelector('.post-likes-count[data-cid="' + cid + '"]');
-                            if (metaLikes) metaLikes.textContent = data.likes;
+                            // 更新所有点赞数显示（文章meta和点赞盒子）
+                            var metaLikesList = document.querySelectorAll('.post-likes-count[data-cid="' + cid + '"]');
+                            metaLikesList.forEach(function(el) {
+                                el.textContent = data.likes;
+                            });
                         } else {
                             window.showToast(data.message || '点赞失败', 'error');
                         }
@@ -1180,9 +1214,17 @@ function _startBatchLoad(container, priorityTab) {
                     setTimeout(loadNextBatch, 50);
                 }
             }
+            // 检查 data-src 是否存在，避免多个批处理任务并发时
+            // 重复处理同一图片导致 src 被设置为 "null"
+            var src = img.getAttribute('data-src');
+            if (!src) {
+                // 已被其他批处理任务处理过，直接跳过
+                onDone();
+                return;
+            }
             img.onload = onDone;
             img.onerror = onDone;
-            img.src = img.getAttribute('data-src');
+            img.src = src;
             img.removeAttribute('data-src');
         });
     }

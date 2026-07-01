@@ -30,17 +30,51 @@
                         echo '<p class="footer-line footer-custom">' . $customText . '</p>';
                     }
                     
-                    // 输出网站备案号（如果设置）
-                    if (!empty($this->options->footerBeianNumber)) {
-                        $beianLink = $this->options->footerBeianLink ?: 'https://beian.miit.gov.cn/';
-                        $beianHtml = '<a href="' . $beianLink . '" target="_blank" rel="nofollow noopener noreferrer">' . 
-                                    htmlspecialchars($this->options->footerBeianNumber) . '</a>';
-                        echo '<p class="footer-line">' . $beianHtml . '</p>';
-                    }
-                    
-                    // 输出公安备案号（如果设置）
-                    if (!empty($this->options->footerGonganNumber)) {
-                        echo '<p class="footer-line">' . htmlspecialchars($this->options->footerGonganNumber) . '</p>';
+                    // 输出备案号信息（ICP + 公安，支持同行/分行显示）
+                    $beianNumber = !empty($this->options->footerBeianNumber) ? $this->options->footerBeianNumber : '';
+                    $gonganNumber = !empty($this->options->footerGonganNumber) ? $this->options->footerGonganNumber : '';
+                    $beianLayout = !empty($this->options->footerBeianLayout) ? $this->options->footerBeianLayout : 'newline';
+
+                    if ($beianNumber || $gonganNumber) {
+                        // 构建 ICP 备案号 HTML
+                        $icpHtml = '';
+                        if ($beianNumber) {
+                            $beianLink = $this->options->footerBeianLink ?: 'https://beian.miit.gov.cn/';
+                            $icpHtml = '<a href="' . $beianLink . '" target="_blank" rel="nofollow noopener noreferrer">' .
+                                       htmlspecialchars($beianNumber) . '</a>';
+                        }
+
+                        // 构建公安备案号 HTML（含图标和链接）
+                        $gonganHtml = '';
+                        if ($gonganNumber) {
+                            $gonganLink = $this->options->footerGonganLink ?: 'https://beian.mps.gov.cn/';
+                            $gonganIcon = !empty($this->options->footerGonganIcon) ? $this->options->footerGonganIcon : '';
+                            // 替换 {themeUrl} 占位符为真实主题URL
+                            if ($gonganIcon) {
+                                $themeUrl = rtrim($this->options->themeUrl, '/') . '/';
+                                $gonganIcon = str_replace('{themeUrl}', $themeUrl, $gonganIcon);
+                            }
+                            $gonganHtml = '';
+                            if ($gonganIcon) {
+                                $gonganHtml .= '<img class="footer-beian-icon" src="' . htmlspecialchars($gonganIcon) . '" alt="" width="20" height="20" />';
+                            }
+                            $gonganHtml .= '<a href="' . $gonganLink . '" target="_blank" rel="noreferrer noopener">' .
+                                          htmlspecialchars($gonganNumber) . '</a>';
+                        }
+
+                        // 根据布局选项输出
+                        if ($beianLayout === 'inline' && $icpHtml && $gonganHtml) {
+                            // 同行显示：ICP 与公安备案号在同一行，中间用分隔符
+                            echo '<p class="footer-line footer-beian-inline">' . $icpHtml . '<span class="footer-beian-sep"> | </span>' . $gonganHtml . '</p>';
+                        } else {
+                            // 分行显示
+                            if ($icpHtml) {
+                                echo '<p class="footer-line">' . $icpHtml . '</p>';
+                            }
+                            if ($gonganHtml) {
+                                echo '<p class="footer-line footer-beian-gongan">' . $gonganHtml . '</p>';
+                            }
+                        }
                     }
                     ?>
                 <?php else: ?>

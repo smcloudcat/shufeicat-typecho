@@ -229,4 +229,32 @@
             <p>Theme by ShuFeiCat</p>
         </div>
     </div>
+    <script>
+    (function() {
+        try {
+            var sidebar = document.getElementById('left-sidebar');
+            if (!sidebar) return;
+            var toggles = sidebar.querySelectorAll('.collapsible-toggle');
+            for (var i = 0; i < toggles.length; i++) {
+                var widget = toggles[i].closest('.collapsible-widget');
+                if (!widget) continue;
+                var classes = widget.className.split(' ');
+                var specificClass = '';
+                for (var j = 0; j < classes.length; j++) {
+                    if (classes[j] !== 'widget' && classes[j] !== 'collapsible-widget' && classes[j] !== 'collapsed') {
+                        specificClass = classes[j];
+                        break;
+                    }
+                }
+                var key = 'sidebar_state_' + (specificClass || 'unknown');
+                var state = localStorage.getItem(key);
+                if (state === 'expanded') {
+                    widget.classList.remove('collapsed');
+                } else {
+                    widget.classList.add('collapsed');
+                }
+            }
+        } catch (e) {}
+    })();
+    </script>
 </div>

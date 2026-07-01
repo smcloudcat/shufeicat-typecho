@@ -2,6 +2,13 @@
 
 <?php
 function threadedComments($comments, $options) {
+    // 缓存评论作者，用于在深层回复中显示 @提及
+    static $commentAuthors = [];
+    $commentAuthors[$comments->coid] = $comments->author;
+
+    // 超过此层级后不再缩进，改用 @提及 保留上下文
+    $maxVisualDepth = 3;
+
     $commentClass = 'comment-body';
     if ($comments->levels > 0) {
         $commentClass .= ' comment-child';
@@ -9,6 +16,16 @@ function threadedComments($comments, $options) {
     } else {
         $commentClass .= ' comment-parent';
     }
+
+    // 超过最大缩进层级的评论平铺显示，并添加 @回复对象 提及
+    $parentAuthor = '';
+    if ($comments->levels > $maxVisualDepth) {
+        $commentClass .= ' comment-flat';
+        if ($comments->parent && isset($commentAuthors[$comments->parent])) {
+            $parentAuthor = $commentAuthors[$comments->parent];
+        }
+    }
+
     $commentClass .= ($comments->sequence % 2 == 0) ? ' comment-even' : ' comment-odd';
     if ($comments->authorId && $comments->authorId == $comments->ownerId) {
         $commentClass .= ' comment-by-author';
@@ -16,6 +33,7 @@ function threadedComments($comments, $options) {
 
     $avatarUrl = shufei_get_gravatar_url($comments->mail, 40);
     $authorName = htmlspecialchars($comments->author);
+    $parentAuthorName = $parentAuthor ? htmlspecialchars($parentAuthor) : '';
 ?>
     <li itemscope itemtype="http://schema.org/UserComments" id="<?php $comments->theId(); ?>" class="<?php echo $commentClass; ?>">
         <div class="comment-avatar">
@@ -26,6 +44,12 @@ function threadedComments($comments, $options) {
                 <span class="comment-author-name" itemprop="creator" itemscope itemtype="http://schema.org/Person">
                     <span itemprop="name"><?php $comments->author(); ?></span>
                 </span>
+                <?php if ($parentAuthorName): ?>
+                <span class="comment-reply-to">
+                    <i class="fa fa-arrow-right"></i>
+                    <a href="#<?php echo 'comment-' . $comments->parent; ?>">@<?php echo $parentAuthorName; ?></a>
+                </span>
+                <?php endif; ?>
                 <span class="comment-time">
                     <?php if ($comments->levels <= 0): ?>
                     <a href="<?php $comments->permalink(); ?>">

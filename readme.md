@@ -44,11 +44,14 @@
 ### 移动端界面
 
 **移动端首页预览**
-<img src="https://img-cf.czzu.cn/1780233163301_ca0zv8n1.png" width="50%" alt="移动端首页">
-<img src="https://img-cf.czzu.cn/1780233205253_dqftuekp.png" width="50%" alt="移动端首页2">
+
+<img src="https://img-cf.czzu.cn/1780233163301_ca0zv8n1.png" width="300" alt="移动端首页">
+
+<img src="https://img-cf.czzu.cn/1780233205253_dqftuekp.png" width="300" alt="移动端首页2">
 
 **移动端文章页面**
-<img src="https://img-cf.czzu.cn/1780233244375_q6cwmbsh.png" width="50%" alt="移动端文章">
+
+<img src="https://img-cf.czzu.cn/1780233244375_q6cwmbsh.png" width="300" alt="移动端文章">
 
 ### 特色功能
 
@@ -258,3 +261,16 @@ shufeicat-typecho/
 - 调整评论验证逻辑，实现fail-closed安全策略
 - 优化侧边栏作者信息样式，添加颜色增强和阴影效果
 - 删除旧的ajax.php文件，将功能整合到核心AJAX处理逻辑中
+
+### 版本 1.4.0-rc.10
+- 新增图片处理与多存储后端功能
+- 修复批量加载图片时重复处理的问题
+- 重构侧边栏折叠状态本地存储记忆功能
+- 重构点赞数更新逻辑，支持同时更新多个同文章点赞计数元素
+- 将csrfToken变量注入从内联script块移至header底部输出
+- 修复灯箱定位问题，添加平滑过渡动画
+- 优化评论区展示
+- 重构更新检查功能
+- 重构页脚备案号逻辑，支持ICP与公安备案同行/分行显示，规范公安备案展示
+- 调整页脚与移动端样式间距，优化备案相关CSS样式
+- 修复部分表单元素样式适配问题

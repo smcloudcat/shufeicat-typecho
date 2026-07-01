@@ -2244,6 +2244,11 @@ pre[class*="language-"].line-numbers > code {
     border-left: 2px solid color-mix(in srgb, var(--primary-color) 15%, var(--border-color));
 }
 
+/* 超过 3 层嵌套后不再缩进，避免评论盒子越来越窄 */
+.comment-children .comment-children .comment-children .comment-children {
+    padding-left: 0;
+}
+
 .comment-children > li {
     margin-top: 10px;
     padding: 14px;
@@ -2330,6 +2335,26 @@ pre[class*="language-"].line-numbers > code {
 
 .comment-author-name a:hover {
     color: var(--primary-color);
+}
+
+.comment-reply-to {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.comment-reply-to a {
+    color: var(--primary-color);
+    font-weight: 600;
+    text-decoration: none;
+    transition: var(--transition-fast);
+}
+
+.comment-reply-to a:hover {
+    text-decoration: underline;
+    opacity: 0.85;
 }
 
 .comment-by-author .comment-author-name::after {
@@ -2738,7 +2763,7 @@ pre[class*="language-"].line-numbers > code {
 #footer {
     background: #ffffff;
     border-top: 1px solid var(--border-color);
-    padding: 30px;
+    padding: 12px 30px;
     text-align: center;
     color: var(--text-secondary);
     font-size: 13px;
@@ -4147,7 +4172,12 @@ pre[class*="language-"].line-numbers > code {
     opacity: 1;
 }
 
-/* Lightbox2 自定义样式覆�?*/
+/* Lightbox2 自定义样式覆盖 */
+#lightbox {
+    /* 让 top 变化平滑过渡，避免居中调整时的跳变 */
+    transition: top 0.2s ease-out;
+}
+
 .lb-dataContainer {
     max-width: 100%;
 }
@@ -4213,7 +4243,7 @@ pre[class*="language-"].line-numbers > code {
 
 .footer-powered {
     width: 100%;
-    padding: 15px 0;
+    padding: 4px 0;
     text-align: center;
     color: var(--text-secondary);
     font-size: 13px;
@@ -4221,8 +4251,8 @@ pre[class*="language-"].line-numbers > code {
 }
 
 .footer-line {
-    margin: 5px 0;
-    padding: 3px 0;
+    margin: 2px 0;
+    padding: 0;
     line-height: 1.5;
 }
 
@@ -4256,6 +4286,48 @@ pre[class*="language-"].line-numbers > code {
 
 .footer-line a[rel="nofollow"]:hover {
     color: var(--primary-color);
+}
+
+/* 公安备案图标样式 */
+.footer-beian-icon {
+    width: 20px;
+    height: 20px;
+    vertical-align: middle;
+    margin-right: 5px;
+    border: 0;
+}
+
+/* 公安备案号链接样式 */
+.footer-beian-gongan a,
+.footer-beian-inline a {
+    color: var(--text-secondary);
+    text-decoration: none;
+    transition: var(--transition-fast);
+    vertical-align: middle;
+}
+
+.footer-beian-gongan a:hover,
+.footer-beian-inline a:hover {
+    color: var(--primary-color);
+    text-decoration: underline;
+}
+
+/* 同行显示备案号样式 */
+.footer-beian-inline {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0;
+}
+
+.footer-beian-inline .footer-beian-icon {
+    margin-right: 5px;
+}
+
+.footer-beian-sep {
+    color: #ccc;
+    margin: 0 8px;
 }
 
 /* ============================================
@@ -4589,18 +4661,18 @@ pre[class*="language-"].line-numbers > code {
     #footer {
         margin-left: 0;
         margin-right: 0;
-        padding: 20px 15px;
+        padding: 10px 15px;
     }
 
     .footer-powered {
         font-size: 12px;
         line-height: 1.5;
-        padding: 10px 0;
+        padding: 3px 0;
     }
 
     .footer-line {
-        margin: 4px 0;
-        padding: 2px 0;
+        margin: 2px 0;
+        padding: 0;
         font-size: 12px;
     }
 }
