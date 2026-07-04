@@ -9,10 +9,14 @@
     <meta name="format-detection" content="telephone=no">
     <meta http-equiv="X-UA-Compatible" content="IE=edge, chrome=1">
 
-    <?php if (!empty($this->options->faviconUrl)): ?>
-    <link rel="icon" href="<?php echo htmlspecialchars($this->options->faviconUrl); ?>" type="image/x-icon">
-    <link rel="shortcut icon" href="<?php echo htmlspecialchars($this->options->faviconUrl); ?>" type="image/x-icon">
-    <?php endif; ?>
+    <?php
+    // 优先使用用户配置的 Favicon，未配置时回退到主题自带的 favicon.ico
+    $faviconUrl = !empty($this->options->faviconUrl)
+        ? $this->options->faviconUrl
+        : rtrim($this->options->themeUrl, '/') . '/favicon.ico';
+    ?>
+    <link rel="icon" href="<?php echo htmlspecialchars($faviconUrl); ?>" type="image/x-icon">
+    <link rel="shortcut icon" href="<?php echo htmlspecialchars($faviconUrl); ?>" type="image/x-icon">
 
     <?php
     // SEO 优化：根据页面类型输出完整的标题、描述、关键词
