@@ -705,6 +705,16 @@ GITHUBJS;
     $logoUrl->setAttribute('class', 'typecho-option cat-group-basic');
     $form->addInput($logoUrl->addRule('url', _t('请填写一个合法的URL地址')));
 
+    $faviconUrl = new \Typecho\Widget\Helper\Form\Element\Text(
+        'faviconUrl',
+        null,
+        null,
+        _t('站点 Favicon 地址'),
+        _t('在这里填入 favicon 图标的 URL 地址（支持 .ico / .png / .svg 等格式），将显示在浏览器标签页上<br>可填写完整 URL（如 https://example.com/favicon.ico）或相对路径（如 /favicon.ico）<br>留空则不输出 favicon 标签')
+    );
+    $faviconUrl->setAttribute('class', 'typecho-option cat-group-basic');
+    $form->addInput($faviconUrl);
+
     $authorAvatar = new \Typecho\Widget\Helper\Form\Element\Text(
         'authorAvatar',
         null,
@@ -3340,10 +3350,10 @@ function shufei_get_seo_keywords()
     }
 
     if (empty($keywords)) {
-        $keywords = $options->title;
+        $keywords = $options->title ?? '';
     }
 
-    return htmlspecialchars(trim($keywords, ' ,'));
+    return htmlspecialchars(trim((string)$keywords, ' ,'));
 }
 
 /**
@@ -3381,7 +3391,7 @@ function shufei_get_seo_description()
     }
 
     if (empty($description)) {
-        $description = htmlspecialchars($options->title, ENT_QUOTES, 'UTF-8');
+        $description = htmlspecialchars($options->title ?? '', ENT_QUOTES, 'UTF-8');
     }
 
     return $description;
@@ -3396,22 +3406,24 @@ function shufei_get_seo_title()
 {
     $options = \Typecho\Widget::widget('Widget_Options');
     $archive = shufei_get_archive();
-    $siteTitle = htmlspecialchars($options->title, ENT_QUOTES, 'UTF-8');
+    $siteTitle = htmlspecialchars($options->title ?? '', ENT_QUOTES, 'UTF-8');
 
     if (shufei_is_post() && $archive) {
-        return htmlspecialchars($archive->title, ENT_QUOTES, 'UTF-8') . ' - ' . $siteTitle;
+        return htmlspecialchars($archive->title ?? '', ENT_QUOTES, 'UTF-8') . ' - ' . $siteTitle;
     }
 
     if (shufei_is_page() && $archive) {
-        return htmlspecialchars($archive->title, ENT_QUOTES, 'UTF-8') . ' - ' . $siteTitle;
+        return htmlspecialchars($archive->title ?? '', ENT_QUOTES, 'UTF-8') . ' - ' . $siteTitle;
     }
 
     if (shufei_is_category() && $archive) {
-        return sprintf(_t('分类 %s 下的文章'), htmlspecialchars($archive->name, ENT_QUOTES, 'UTF-8')) . ' - ' . $siteTitle;
+        $categoryName = $archive->name ?? ($archive->title ?? '');
+        return sprintf(_t('分类 %s 下的文章'), htmlspecialchars($categoryName, ENT_QUOTES, 'UTF-8')) . ' - ' . $siteTitle;
     }
 
     if (shufei_is_tag() && $archive) {
-        return sprintf(_t('标签 %s 下的文章'), htmlspecialchars($archive->name, ENT_QUOTES, 'UTF-8')) . ' - ' . $siteTitle;
+        $tagName = $archive->name ?? ($archive->title ?? '');
+        return sprintf(_t('标签 %s 下的文章'), htmlspecialchars($tagName, ENT_QUOTES, 'UTF-8')) . ' - ' . $siteTitle;
     }
 
     if (shufei_is_search()) {

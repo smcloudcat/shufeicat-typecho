@@ -8,7 +8,12 @@
     <meta name="theme-color" content="<?php echo !empty($this->options->themeColor) ? htmlspecialchars($this->options->themeColor) : '#FF6B6B'; ?>">
     <meta name="format-detection" content="telephone=no">
     <meta http-equiv="X-UA-Compatible" content="IE=edge, chrome=1">
-    
+
+    <?php if (!empty($this->options->faviconUrl)): ?>
+    <link rel="icon" href="<?php echo htmlspecialchars($this->options->faviconUrl); ?>" type="image/x-icon">
+    <link rel="shortcut icon" href="<?php echo htmlspecialchars($this->options->faviconUrl); ?>" type="image/x-icon">
+    <?php endif; ?>
+
     <?php
     // SEO 优化：根据页面类型输出完整的标题、描述、关键词
     $seoTitle = shufei_get_seo_title();
@@ -291,6 +296,117 @@
     <?php endif; ?>
 
     <?php $this->header(); ?>
+
+    <?php
+    // 全站注入 TypechoComment 实现（兼容 PJAX）
+    // 原生 TypechoComment 仅在 single 页面由 $this->header() 输出，且 respondId 硬编码，
+    // 通过 PJAX 从非文章页进入文章时未定义，或文章间切换时 respondId 失效，导致点击回复触发页面跳转。
+    // 此处在 <head> 末尾覆盖，动态查找 respondId，保证全站可用。
+    ?>
+    <script>
+    (function () {
+        window.TypechoComment = {
+            dom: function (sel) {
+                return document.querySelector(sel);
+            },
+            visiable: function (el, show) {
+                if (el) el.style.display = show ? '' : 'none';
+            },
+            create: function (tag, attr) {
+                var el = document.createElement(tag);
+                for (var key in attr) {
+                    if (Object.prototype.hasOwnProperty.call(attr, key)) {
+                        el.setAttribute(key, attr[key]);
+                    }
+                }
+                return el;
+            },
+            inputParent: function (response, coid) {
+                var form = 'form' === response.tagName ? response : response.querySelector('form');
+                if (!form) return;
+                var input = form.querySelector('input[name=parent]');
+                if (null == input && coid) {
+                    input = this.create('input', { 'type': 'hidden', 'name': 'parent' });
+                    form.appendChild(input);
+                }
+                if (coid) {
+                    input.setAttribute('value', coid);
+                } else if (input) {
+                    input.parentNode.removeChild(input);
+                }
+            },
+            getChild: function (root, node) {
+                var parentNode = node.parentNode;
+                if (parentNode === null) return null;
+                if (parentNode === root) return node;
+                return this.getChild(root, parentNode);
+            },
+            // 动态定位当前页面的 respond 容器 id（respond-post-XX / respond-page-XX）
+            getRespondId: function () {
+                var form = document.getElementById('comment-form');
+                if (form) {
+                    var respondEl = form.closest('[id^="respond-"]');
+                    if (respondEl && respondEl.id) return respondEl.id;
+                }
+                var fallback = document.querySelector('[id^="respond-post-"], [id^="respond-page-"]');
+                return fallback ? fallback.id : null;
+            },
+            reply: function (htmlId, coid, btn) {
+                var respondId = this.getRespondId();
+                if (!respondId) return true;
+
+                var response = this.dom('#' + respondId);
+                if (!response) return true;
+
+                var comment = this.dom('#' + htmlId);
+                if (!comment) return true;
+
+                var child = this.getChild(comment, btn);
+
+                this.inputParent(response, coid);
+
+                if (this.dom('#' + respondId + '-holder') === null) {
+                    var holder = this.create('div', { 'id': respondId + '-holder' });
+                    response.parentNode.insertBefore(holder, response);
+                }
+
+                if (child) {
+                    comment.insertBefore(response, child.nextSibling);
+                } else {
+                    comment.appendChild(response);
+                }
+
+                this.visiable(this.dom('#cancel-comment-reply-link'), true);
+
+                var textarea = response.querySelector('textarea[name=text]');
+                if (null != textarea) {
+                    textarea.focus();
+                }
+
+                return false;
+            },
+            cancelReply: function () {
+                var respondId = this.getRespondId();
+                if (!respondId) return true;
+
+                var response = this.dom('#' + respondId);
+                if (!response) return true;
+
+                var holder = this.dom('#' + respondId + '-holder');
+
+                this.inputParent(response, false);
+
+                if (null === holder) {
+                    return true;
+                }
+
+                this.visiable(this.dom('#cancel-comment-reply-link'), false);
+                holder.parentNode.insertBefore(response, holder);
+                return false;
+            }
+        };
+    })();
+    </script>
 </head>
 <body>
 
