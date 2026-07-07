@@ -455,7 +455,7 @@
             </button>
         </div>
     </div>
-    <script>window.csrfToken = '<?php echo $this->security->getToken($this->request->getRequestUrl()); ?>';</script>
+    <script>window.csrfToken = '<?php echo $this->security->getToken('shufei_ajax'); ?>';</script>
 </header><!-- end #header -->
 
 <div id="body">
