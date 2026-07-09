@@ -11,6 +11,10 @@ class ShuFeiCat_Email
     {
         // 使用正确的选项名
         $options = \Typecho\Widget::widget('Widget_Options');
+
+        if (!isset($options->commentMailEnabled) || $options->commentMailEnabled !== 'on') {
+            return;
+        }
         
         // 包含本地PHPMailer文件
         require_once(dirname(__FILE__) . '/phpmailer.php');
@@ -39,22 +43,9 @@ class ShuFeiCat_Email
             // 处理画图模式
             $text = preg_replace('/\{!\{([^\"]*)\}!\}/', '<img style="max-width: 100%;vertical-align: middle;" src="$1"/>', $text);
             
-            // 获取邮件样式设置（使用默认值）
-            $mailStyle = 'simple';
-            $mailBgColor = '#f8f9fa';
-            $mailAccentColor = '#3498db';
-            $mailTextColor = '#333333';
-            
-            // 根据选择的样式生成不同的邮件模板
-            if ($mailStyle === 'modern') {
-                $html = self::getModernStyle($mailBgColor, $mailAccentColor, $mailTextColor);
-            } elseif ($mailStyle === 'elegant') {
-                $html = self::getElegantStyle($mailBgColor, $mailAccentColor, $mailTextColor);
-            } elseif ($mailStyle === 'cute') {
-                $html = self::getCuteStyle($mailBgColor, $mailAccentColor, $mailTextColor);
-            } else {
-                $html = self::getSimpleStyle($mailBgColor, $mailAccentColor, $mailTextColor);
-            }
+            $mailAccentColor = self::sanitizeColor(isset($options->commentMailAccentColor) ? $options->commentMailAccentColor : '#3498db', '#3498db');
+            $articleUrl = self::getArticleUrl($comment->permalink);
+            $html = self::getTemplate($options);
             
             /* 如果是博主发的评论 */
             if ($comment->authorId == $comment->ownerId) {
@@ -65,18 +56,11 @@ class ShuFeiCat_Email
                     $parentMail = $parentInfo['mail'];
                     /* 被回复的人不是自己时，发送邮件 */
                     if ($parentMail != $comment->mail) {
-                        $mail->Body = strtr(
-                            $html,
-                            array(
-                                "{title}" => '您在 [' . $comment->title . '] 的评论有了新的回复！',
-                                "{subtitle}" => '博主：[ ' . $comment->author . ' ] 在《 <a style="color: ' . $mailAccentColor . ';text-decoration: none;" href="' . substr($comment->permalink, 0, strrpos($comment->permalink, "#")) . '" target="_blank">' . $comment->title . '</a> 》上回复了您:',
-                                "{content}" => $text,
-                                "{siteName}" => $options->title,
-                                "{permalink}" => substr($comment->permalink, 0, strrpos($comment->permalink, "#")),
-                            )
-                        );
+                        $title = self::renderSubject($options, 'reply', '您在 [{postTitle}] 的评论有了新的回复！', $comment, $articleUrl);
+                        $subtitle = '博主：[ ' . $comment->author . ' ] 在《 <a style="color: ' . $mailAccentColor . ';text-decoration: none;" href="' . $articleUrl . '" target="_blank">' . $comment->title . '</a> 》上回复了您:';
+                        $mail->Body = self::renderTemplate($html, self::buildVars($options, $comment, $title, $subtitle, $text, $articleUrl));
                         $mail->addAddress($parentMail);
-                        $mail->Subject = '您在 [' . $comment->title . '] 的评论有了新的回复！';
+                        $mail->Subject = $title;
                         $mail->send();
                     }
                 }
@@ -87,18 +71,11 @@ class ShuFeiCat_Email
                     $authoInfo = $db->fetchRow($db->select()->from('table.users')->where('uid = ?', $comment->ownerId));
                     $authorMail = $authoInfo['mail'];
                     if ($authorMail) {
-                        $mail->Body = strtr(
-                            $html,
-                            array(
-                                "{title}" => '您的文章 [' . $comment->title . '] 收到一条新的评论！',
-                                "{subtitle}" => $comment->author . ' [' . $comment->ip . '] 在您的《 <a style="color: ' . $mailAccentColor . ';text-decoration: none;" href="' . substr($comment->permalink, 0, strrpos($comment->permalink, "#")) . '" target="_blank">' . $comment->title . '</a> 》上发表评论:',
-                                "{content}" => $text,
-                                "{siteName}" => $options->title,
-                                "{permalink}" => substr($comment->permalink, 0, strrpos($comment->permalink, "#")),
-                            )
-                        );
+                        $title = self::renderSubject($options, 'new', '您的文章 [{postTitle}] 收到一条新的评论！', $comment, $articleUrl);
+                        $subtitle = $comment->author . ' [' . $comment->ip . '] 在您的《 <a style="color: ' . $mailAccentColor . ';text-decoration: none;" href="' . $articleUrl . '" target="_blank">' . $comment->title . '</a> 》上发表评论:';
+                        $mail->Body = self::renderTemplate($html, self::buildVars($options, $comment, $title, $subtitle, $text, $articleUrl));
                         $mail->addAddress($authorMail);
-                        $mail->Subject = '您的文章 [' . $comment->title . '] 收到一条新的评论！';
+                        $mail->Subject = $title;
                         $mail->send();
                     }
                 } else {
@@ -108,18 +85,11 @@ class ShuFeiCat_Email
                     $parentMail = $parentInfo['mail'];
                     /* 被回复的人不是自己时，发送邮件 */
                     if ($parentMail != $comment->mail) {
-                        $mail->Body = strtr(
-                            $html,
-                            array(
-                                "{title}" => '您在 [' . $comment->title . '] 的评论有了新的回复！',
-                                "{subtitle}" => $comment->author . ' 在《 <a style="color: ' . $mailAccentColor . ';text-decoration: none;" href="' . substr($comment->permalink, 0, strrpos($comment->permalink, "#")) . '" target="_blank">' . $comment->title . '</a> 》上回复了您:',
-                                "{content}" => $text,
-                                "{siteName}" => $options->title,
-                                "{permalink}" => substr($comment->permalink, 0, strrpos($comment->permalink, "#")),
-                            )
-                        );
+                        $title = self::renderSubject($options, 'reply', '您在 [{postTitle}] 的评论有了新的回复！', $comment, $articleUrl);
+                        $subtitle = $comment->author . ' 在《 <a style="color: ' . $mailAccentColor . ';text-decoration: none;" href="' . $articleUrl . '" target="_blank">' . $comment->title . '</a> 》上回复了您:';
+                        $mail->Body = self::renderTemplate($html, self::buildVars($options, $comment, $title, $subtitle, $text, $articleUrl));
                         $mail->addAddress($parentMail);
-                        $mail->Subject = '您在 [' . $comment->title . '] 的评论有了新的回复！';
+                        $mail->Subject = $title;
                         $mail->send();
                     }
                 }
@@ -128,6 +98,80 @@ class ShuFeiCat_Email
             // 记录错误但不中断流程
             error_log('邮件发送失败: ' . $e->getMessage());
         }
+    }
+
+    private static function getTemplate($options)
+    {
+        $mode = isset($options->commentMailTemplateMode) ? $options->commentMailTemplateMode : 'builtin';
+        $customTemplate = isset($options->commentMailCustomTemplate) ? trim($options->commentMailCustomTemplate) : '';
+        if ($mode === 'custom' && $customTemplate !== '') {
+            return $customTemplate;
+        }
+
+        $mailStyle = isset($options->commentMailStyle) ? $options->commentMailStyle : 'simple';
+        $mailBgColor = self::sanitizeColor(isset($options->commentMailBgColor) ? $options->commentMailBgColor : '#f8f9fa', '#f8f9fa');
+        $mailAccentColor = self::sanitizeColor(isset($options->commentMailAccentColor) ? $options->commentMailAccentColor : '#3498db', '#3498db');
+        $mailTextColor = self::sanitizeColor(isset($options->commentMailTextColor) ? $options->commentMailTextColor : '#333333', '#333333');
+
+        if ($mailStyle === 'modern') {
+            return self::getModernStyle($mailBgColor, $mailAccentColor, $mailTextColor);
+        } elseif ($mailStyle === 'elegant') {
+            return self::getElegantStyle($mailBgColor, $mailAccentColor, $mailTextColor);
+        } elseif ($mailStyle === 'cute') {
+            return self::getCuteStyle($mailBgColor, $mailAccentColor, $mailTextColor);
+        }
+
+        return self::getSimpleStyle($mailBgColor, $mailAccentColor, $mailTextColor);
+    }
+
+    private static function renderSubject($options, $type, $default, $comment, $articleUrl)
+    {
+        $tpl = $default;
+        if ($type === 'new' && isset($options->commentMailNewSubject) && trim($options->commentMailNewSubject) !== '') {
+            $tpl = trim($options->commentMailNewSubject);
+        } elseif ($type === 'reply' && isset($options->commentMailReplySubject) && trim($options->commentMailReplySubject) !== '') {
+            $tpl = trim($options->commentMailReplySubject);
+        }
+
+        return strip_tags(self::renderTemplate($tpl, self::buildVars($options, $comment, '', '', '', $articleUrl)));
+    }
+
+    private static function buildVars($options, $comment, $title, $subtitle, $content, $articleUrl)
+    {
+        return array(
+            '{title}' => $title,
+            '{noticeTitle}' => $title,
+            '{subtitle}' => $subtitle,
+            '{content}' => $content,
+            '{commentContent}' => $content,
+            '{siteName}' => $options->title,
+            '{siteUrl}' => $options->siteUrl,
+            '{postTitle}' => $comment->title,
+            '{commentAuthor}' => $comment->author,
+            '{commentMail}' => $comment->mail,
+            '{commentIp}' => $comment->ip,
+            '{permalink}' => $articleUrl,
+            '{postLink}' => $articleUrl,
+            '{commentLink}' => $comment->permalink,
+            '{year}' => date('Y'),
+        );
+    }
+
+    private static function renderTemplate($template, $vars)
+    {
+        return strtr($template, $vars);
+    }
+
+    private static function getArticleUrl($permalink)
+    {
+        $pos = strrpos($permalink, '#');
+        return $pos === false ? $permalink : substr($permalink, 0, $pos);
+    }
+
+    private static function sanitizeColor($color, $default)
+    {
+        $color = trim((string)$color);
+        return preg_match('/^#[0-9a-fA-F]{6}$/', $color) ? $color : $default;
     }
     
     /**

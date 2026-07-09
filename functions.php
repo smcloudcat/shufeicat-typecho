@@ -161,7 +161,7 @@ function shufei_check_theme_update($force = false, $channel = null)
  */
 function shufei_get_theme_version()
 {
-    return '1.4.0-rc.10';
+    return '1.4.0';
 }
 
 /**
@@ -704,6 +704,16 @@ GITHUBJS;
     );
     $logoUrl->setAttribute('class', 'typecho-option cat-group-basic');
     $form->addInput($logoUrl->addRule('url', _t('请填写一个合法的URL地址')));
+
+    $faviconUrl = new \Typecho\Widget\Helper\Form\Element\Text(
+        'faviconUrl',
+        null,
+        null,
+        _t('站点 Favicon 地址'),
+        _t('在这里填入 favicon 图标的 URL 地址（支持 .ico / .png / .svg 等格式），将显示在浏览器标签页上<br>可填写完整 URL（如 https://example.com/favicon.ico）或相对路径（如 /favicon.ico）<br>留空则不输出 favicon 标签')
+    );
+    $faviconUrl->setAttribute('class', 'typecho-option cat-group-basic');
+    $form->addInput($faviconUrl);
 
     $authorAvatar = new \Typecho\Widget\Helper\Form\Element\Text(
         'authorAvatar',
@@ -1274,6 +1284,91 @@ UPDATEJS;
     );
     $commentMailPassword->setAttribute('class', 'typecho-option cat-group-mail');
     $form->addInput($commentMailPassword);
+
+    $commentMailTemplateMode = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'commentMailTemplateMode',
+        array('builtin' => _t('使用内置模板'), 'custom' => _t('使用自定义 HTML 模板')),
+        'builtin',
+        _t('邮件模板模式'),
+        _t('介绍：选择「自定义 HTML 模板」后，将使用下方填写的 HTML 作为邮件正文；留空或缺少必要占位符时会自动回退到内置模板')
+    );
+    $commentMailTemplateMode->setAttribute('class', 'typecho-option cat-group-mail');
+    $form->addInput($commentMailTemplateMode);
+
+    $commentMailStyle = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'commentMailStyle',
+        array(
+            'simple'  => _t('简约'),
+            'modern'  => _t('现代'),
+            'elegant' => _t('优雅'),
+            'cute'    => _t('可爱')
+        ),
+        'simple',
+        _t('内置邮件样式'),
+        _t('介绍：当模板模式为「使用内置模板」或自定义模板为空时生效')
+    );
+    $commentMailStyle->setAttribute('class', 'typecho-option cat-group-mail');
+    $form->addInput($commentMailStyle);
+
+    $commentMailBgColor = new \Typecho\Widget\Helper\Form\Element\Text(
+        'commentMailBgColor',
+        null,
+        '#f8f9fa',
+        _t('邮件背景色'),
+        _t('介绍：内置模板背景色，填写 HEX 颜色值，例如 #f8f9fa')
+    );
+    $commentMailBgColor->setAttribute('class', 'typecho-option cat-group-mail');
+    $form->addInput($commentMailBgColor);
+
+    $commentMailAccentColor = new \Typecho\Widget\Helper\Form\Element\Text(
+        'commentMailAccentColor',
+        null,
+        '#3498db',
+        _t('邮件主题色'),
+        _t('介绍：内置模板按钮、标题栏等强调色，填写 HEX 颜色值，例如 #3498db')
+    );
+    $commentMailAccentColor->setAttribute('class', 'typecho-option cat-group-mail');
+    $form->addInput($commentMailAccentColor);
+
+    $commentMailTextColor = new \Typecho\Widget\Helper\Form\Element\Text(
+        'commentMailTextColor',
+        null,
+        '#333333',
+        _t('邮件文字色'),
+        _t('介绍：内置模板主要文字颜色，填写 HEX 颜色值，例如 #333333')
+    );
+    $commentMailTextColor->setAttribute('class', 'typecho-option cat-group-mail');
+    $form->addInput($commentMailTextColor);
+
+    $commentMailNewSubject = new \Typecho\Widget\Helper\Form\Element\Text(
+        'commentMailNewSubject',
+        null,
+        '您的文章 [{postTitle}] 收到一条新的评论！',
+        _t('新评论邮件标题模板'),
+        _t('介绍：发送给博主的新评论通知标题。可用占位符：{siteName}、{postTitle}、{commentAuthor}、{commentIp}')
+    );
+    $commentMailNewSubject->setAttribute('class', 'typecho-option cat-group-mail');
+    $form->addInput($commentMailNewSubject);
+
+    $commentMailReplySubject = new \Typecho\Widget\Helper\Form\Element\Text(
+        'commentMailReplySubject',
+        null,
+        '您在 [{postTitle}] 的评论有了新的回复！',
+        _t('回复通知邮件标题模板'),
+        _t('介绍：发送给被回复用户的邮件标题。可用占位符：{siteName}、{postTitle}、{commentAuthor}')
+    );
+    $commentMailReplySubject->setAttribute('class', 'typecho-option cat-group-mail');
+    $form->addInput($commentMailReplySubject);
+
+    $commentMailCustomTemplate = new \Typecho\Widget\Helper\Form\Element\Textarea(
+        'commentMailCustomTemplate',
+        null,
+        null,
+        _t('自定义邮件 HTML 模板'),
+        _t('介绍：支持完整 HTML。常用占位符：{title}=通知标题、{subtitle}=通知说明、{content}=评论内容、{siteName}=站点名称、{postTitle}=文章标题、{commentAuthor}=评论作者、{commentIp}=评论 IP、{permalink}=文章链接、{commentLink}=评论链接、{year}=当前年份<br>示例：&lt;h2&gt;{title}&lt;/h2&gt;&lt;p&gt;{subtitle}&lt;/p&gt;&lt;div&gt;{content}&lt;/div&gt;&lt;a href=&quot;{commentLink}&quot;&gt;查看评论&lt;/a&gt;')
+    );
+    $commentMailCustomTemplate->setAttribute('class', 'typecho-option cat-group-mail');
+    $form->addInput($commentMailCustomTemplate);
 
     // ===== AI 助手配置 =====
     $aiWriterEnabled = new \Typecho\Widget\Helper\Form\Element\Radio(
@@ -3340,10 +3435,10 @@ function shufei_get_seo_keywords()
     }
 
     if (empty($keywords)) {
-        $keywords = $options->title;
+        $keywords = $options->title ?? '';
     }
 
-    return htmlspecialchars(trim($keywords, ' ,'));
+    return htmlspecialchars(trim((string)$keywords, ' ,'));
 }
 
 /**
@@ -3381,7 +3476,7 @@ function shufei_get_seo_description()
     }
 
     if (empty($description)) {
-        $description = htmlspecialchars($options->title, ENT_QUOTES, 'UTF-8');
+        $description = htmlspecialchars($options->title ?? '', ENT_QUOTES, 'UTF-8');
     }
 
     return $description;
@@ -3396,22 +3491,24 @@ function shufei_get_seo_title()
 {
     $options = \Typecho\Widget::widget('Widget_Options');
     $archive = shufei_get_archive();
-    $siteTitle = htmlspecialchars($options->title, ENT_QUOTES, 'UTF-8');
+    $siteTitle = htmlspecialchars($options->title ?? '', ENT_QUOTES, 'UTF-8');
 
     if (shufei_is_post() && $archive) {
-        return htmlspecialchars($archive->title, ENT_QUOTES, 'UTF-8') . ' - ' . $siteTitle;
+        return htmlspecialchars($archive->title ?? '', ENT_QUOTES, 'UTF-8') . ' - ' . $siteTitle;
     }
 
     if (shufei_is_page() && $archive) {
-        return htmlspecialchars($archive->title, ENT_QUOTES, 'UTF-8') . ' - ' . $siteTitle;
+        return htmlspecialchars($archive->title ?? '', ENT_QUOTES, 'UTF-8') . ' - ' . $siteTitle;
     }
 
     if (shufei_is_category() && $archive) {
-        return sprintf(_t('分类 %s 下的文章'), htmlspecialchars($archive->name, ENT_QUOTES, 'UTF-8')) . ' - ' . $siteTitle;
+        $categoryName = $archive->name ?? ($archive->title ?? '');
+        return sprintf(_t('分类 %s 下的文章'), htmlspecialchars($categoryName, ENT_QUOTES, 'UTF-8')) . ' - ' . $siteTitle;
     }
 
     if (shufei_is_tag() && $archive) {
-        return sprintf(_t('标签 %s 下的文章'), htmlspecialchars($archive->name, ENT_QUOTES, 'UTF-8')) . ' - ' . $siteTitle;
+        $tagName = $archive->name ?? ($archive->title ?? '');
+        return sprintf(_t('标签 %s 下的文章'), htmlspecialchars($tagName, ENT_QUOTES, 'UTF-8')) . ' - ' . $siteTitle;
     }
 
     if (shufei_is_search()) {

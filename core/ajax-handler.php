@@ -22,15 +22,14 @@ $action = isset($_GET['action']) ? $_GET['action'] : '';
 header('Content-Type: application/json');
 
 // CSRF 防护：校验 Typecho 安全 token
-// token 由后端使用当前请求 URL 作为 suffix 生成，前端通过 window.csrfToken 携带
+// 使用固定 suffix 生成 token，避免 PJAX 切换页面或 CDN/反代场景下
+// 前端 getRequestUrl() 与后端 HTTP_REFERER 不一致导致校验失败
 $csrfToken = isset($_POST['_']) ? $_POST['_'] : '';
 $expectedToken = '';
 if (class_exists('\Widget\Security')) {
     try {
         $security = \Widget\Security::alloc();
-        // 使用 Referer 作为 suffix（与 Typecho protect() 一致）
-        $referer = isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : '';
-        $expectedToken = $security->getToken($referer);
+        $expectedToken = $security->getToken('shufei_ajax');
     } catch (\Throwable $e) {
         // 安全组件初始化失败时拒绝所有请求
         echo json_encode(array('success' => false, 'message' => '安全校验失败'));
