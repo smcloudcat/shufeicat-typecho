@@ -387,6 +387,8 @@
                     textarea.focus();
                 }
 
+                this.refreshTurnstile();
+
                 return false;
             },
             cancelReply: function () {
@@ -406,7 +408,32 @@
 
                 this.visiable(this.dom('#cancel-comment-reply-link'), false);
                 holder.parentNode.insertBefore(response, holder);
+                this.refreshTurnstile();
                 return false;
+            },
+            // 回复/取消回复移动 DOM 后，已渲染的 Turnstile iframe 会失效，需移除后重新渲染
+            refreshTurnstile: function () {
+                var container = this.dom('#cf-turnstile');
+                if (!container) return;
+
+                var widgetId = container.getAttribute('data-turnstile-widget-id');
+                if (widgetId && typeof window.turnstile !== 'undefined') {
+                    try { window.turnstile.remove(widgetId); } catch (e) {}
+                }
+
+                container.innerHTML = '';
+                container.removeAttribute('data-turnstile-rendered');
+                container.removeAttribute('data-turnstile-widget-id');
+
+                if (typeof window.turnstile !== 'undefined') {
+                    try {
+                        var newWidgetId = window.turnstile.render('#cf-turnstile');
+                        if (newWidgetId) {
+                            container.setAttribute('data-turnstile-rendered', 'true');
+                            container.setAttribute('data-turnstile-widget-id', newWidgetId);
+                        }
+                    } catch (e) {}
+                }
             }
         };
     })();
