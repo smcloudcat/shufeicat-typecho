@@ -197,20 +197,11 @@
     <!-- Font Awesome 图标库 -->
     <link rel="stylesheet" href="<?php echo $cssUrls['fontawesome']; ?>">
     
-    <!-- Prism.js 代码高亮样式 -->
-    <?php if (empty($this->options->codeHighlightEnabled) || $this->options->codeHighlightEnabled !== 'off'): ?>
-    <link href="<?php echo $cssUrls['prism']; ?>" rel="stylesheet" />
-    <?php endif; ?>
+    <!-- Prism.js 代码高亮样式 - 按需加载（存在代码块时由 JS 动态注入） -->
     
-    <!-- Lightbox2 图片灯箱样式 - 文章/页面加载，开启Pjax时全站加载 -->
-    <?php if ($this->is('post') || $this->is('page') || (!empty($this->options->pjaxLoad) && $this->options->pjaxLoad === 'on')): ?>
-    <link href="<?php echo $cssUrls['lightbox']; ?>" rel="stylesheet" />
-    <?php endif; ?>
+    <!-- Lightbox2 图片灯箱样式 - 按需加载（存在图片时由 JS 动态注入） -->
     
-    <!-- KaTeX 数学公式样式 -->
-    <?php if (!empty($this->options->katexEnabled) && $this->options->katexEnabled === 'on'): ?>
-    <link href="<?php echo $cssUrls['katex']; ?>" rel="stylesheet" />
-    <?php endif; ?>
+    <!-- KaTeX 数学公式样式 - 按需加载（存在公式时由 JS 动态注入） -->
 
     <?php if (shufei_is_turnstile_enabled() && !empty(shufei_get_turnstile_site_key())): ?>
     <!-- Cloudflare Turnstile -->
@@ -228,6 +219,12 @@
     }
     ?>
     window.emojiAssetBase = '<?php echo $emojiAssetBase; ?>';
+    // 按需加载的 CSS 资源地址（仅在页面存在对应内容时由 JS 动态注入）
+    window.vendorCssUrls = {
+        prism: '<?php echo (empty($this->options->codeHighlightEnabled) || $this->options->codeHighlightEnabled !== "off") ? $cssUrls["prism"] : ""; ?>',
+        katex: '<?php echo (!empty($this->options->katexEnabled) && $this->options->katexEnabled === "on") ? $cssUrls["katex"] : ""; ?>',
+        lightbox: '<?php echo $cssUrls["lightbox"]; ?>'
+    };
     </script>
     
     <?php

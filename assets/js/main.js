@@ -49,6 +49,106 @@ function checkLib(libName, retryFn, retryCount, maxRetry) {
 }
 
 /**
+ * 动态加载脚本（仅加载一次，支持回调队列）
+ * - 已加载完成：立即回调
+ * - 加载中：排队等待回调
+ * - 加载失败：记录状态并触发已排队回调，不再重试（避免无限循环）
+ * @param {string} src - 脚本URL
+ * @param {function} [callback] - 加载完成回调（成功/失败均触发）
+ */
+window.loadScriptOnce = function(src, callback) {
+    if (!window._loadedScripts) window._loadedScripts = {};
+    var state = window._loadedScripts[src];
+    if (state === 'loaded') {
+        if (callback) { try { callback(); } catch (e) {} }
+        return;
+    }
+    if (state === 'loading') {
+        if (callback) {
+            (window._loadedScripts[src + '__cbs'] = window._loadedScripts[src + '__cbs'] || []).push(callback);
+        }
+        return;
+    }
+    if (state === 'error') {
+        // 加载失败后不再重试，避免循环
+        return;
+    }
+    // 开始加载
+    window._loadedScripts[src] = 'loading';
+    window._loadedScripts[src + '__cbs'] = callback ? [callback] : [];
+    var script = document.createElement('script');
+    script.src = src;
+    script.onload = function() {
+        window._loadedScripts[src] = 'loaded';
+        var cbs = window._loadedScripts[src + '__cbs'] || [];
+        delete window._loadedScripts[src + '__cbs'];
+        cbs.forEach(function(cb) { try { cb(); } catch (e) {} });
+    };
+    script.onerror = function() {
+        window._loadedScripts[src] = 'error';
+        var cbs = window._loadedScripts[src + '__cbs'] || [];
+        delete window._loadedScripts[src + '__cbs'];
+        cbs.forEach(function(cb) { try { cb(); } catch (e) {} });
+    };
+    document.head.appendChild(script);
+};
+
+/**
+ * 动态加载样式（仅加载一次）
+ * @param {string} href - 样式URL
+ */
+window.loadStyleOnce = function(href) {
+    if (!window._loadedStyles) window._loadedStyles = {};
+    if (window._loadedStyles[href]) return;
+    window._loadedStyles[href] = true;
+    var link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = href;
+    document.head.appendChild(link);
+};
+
+/**
+ * 内容检测 helper：判断页面是否需要加载对应库
+ * 只有页面实际包含对应内容时才触发加载，避免首页等无内容页面加载重型库
+ */
+window.hasPrismContent = function() {
+    return document.querySelectorAll('.post-content pre code, .comment-content pre code').length > 0;
+};
+window.hasMermaidContent = function() {
+    return document.querySelectorAll(
+        '.post-content pre code.language-mermaid, .post-content pre code.lang-mermaid, ' +
+        '.comment-content pre code.language-mermaid, .comment-content pre code.lang-mermaid'
+    ).length > 0;
+};
+window.hasEChartsContent = function() {
+    return document.querySelectorAll(
+        '.post-content pre code.language-echarts, .post-content pre code.lang-echarts, ' +
+        '.comment-content pre code.language-echarts, .comment-content pre code.lang-echarts'
+    ).length > 0;
+};
+window.hasKaTeXContent = function() {
+    // PHP 过滤器生成的 .math-tex 元素（主路径）
+    if (document.querySelectorAll('.post-content .math-tex, .comment-content .math-tex').length > 0) return true;
+    // 回退：检测 auto-render 定界符（当 PHP 过滤器未生成 .math-tex，如评论区）
+    var targets = document.querySelectorAll('.post-content, .comment-content');
+    for (var i = 0; i < targets.length; i++) {
+        var text = targets[i].textContent || '';
+        if (text.indexOf('$$') !== -1 || text.indexOf('\\(') !== -1 || text.indexOf('\\[') !== -1) return true;
+        // 检测 $...$（排除单独的 $ 货币符号）
+        if (/\$[^\s$][^$]*\$/.test(text)) return true;
+    }
+    return false;
+};
+window.hasLightboxContent = function() {
+    // 仅当文章内容区存在未被链接包裹的图片时才需要 Lightbox
+    var imgs = document.querySelectorAll('.post-content img');
+    for (var i = 0; i < imgs.length; i++) {
+        if (!imgs[i].closest('a')) return true;
+    }
+    return false;
+};
+
+/**
  * 工具函数：节流
  */
 function throttle(fn, delay) {
@@ -185,8 +285,30 @@ window.initDarkMode = function() {
 
 window.initPrismHighlight = function(retryCount) {
     if (!window.codeHighlightEnabled) return;
+    // 仅在页面存在代码块时才加载与高亮，避免首页等无内容页面加载 Prism
+    if (!window.hasPrismContent()) return;
     retryCount = retryCount || 0;
-    if (checkLib('Prism', function() { window.initPrismHighlight(retryCount + 1); }, retryCount)) return;
+
+    // Prism 未加载时，动态加载库与样式后再高亮
+    if (typeof window.Prism === 'undefined') {
+        var vs = window.vendorScripts || {};
+        if (!vs.prism) return;
+        if (window.vendorCssUrls && window.vendorCssUrls.prism) {
+            window.loadStyleOnce(window.vendorCssUrls.prism);
+        }
+        window.loadScriptOnce(vs.prism, function() {
+            // Prism 加载完成后加载 autoloader
+            if (!vs.prismAutoloader) { window.initPrismHighlight(retryCount); return; }
+            window.loadScriptOnce(vs.prismAutoloader, function() {
+                // 设置 autoloader 语言组件路径（仅非 CDN 模式需要）
+                if (vs.prismAutoloaderPath && window.Prism && Prism.plugins && Prism.plugins.autoloader) {
+                    Prism.plugins.autoloader.languages_path = vs.prismAutoloaderPath;
+                }
+                window.initPrismHighlight(retryCount);
+            });
+        });
+        return;
+    }
 
     const codeBlocks = document.querySelectorAll('.post-content pre code, .comment-content pre code');
     // 收集需要排除的代码块（mermaid/echarts），临时移除其 language-* 类名防止 Prism autoloader 加载不存在的语言组件
@@ -224,10 +346,27 @@ window.initPrismHighlight = function(retryCount) {
 };
 
 window.initLightbox = function(retryCount) {
+    // 仅在文章内容区存在未链接包裹的图片时才加载 Lightbox
+    if (!window.hasLightboxContent()) return;
     retryCount = retryCount || 0;
-    if (checkLib('jQuery', function() { window.initLightbox(retryCount + 1); }, retryCount)) return;
-    if (checkLib('lightbox', function() { window.initLightbox(retryCount + 1); }, retryCount)) return;
-    
+
+    var vs = window.vendorScripts || {};
+    var vc = window.vendorCssUrls || {};
+
+    // jQuery 未加载时，先动态加载 jQuery，再加载 Lightbox
+    if (typeof window.jQuery === 'undefined') {
+        if (!vs.jquery) return;
+        window.loadScriptOnce(vs.jquery, function() { window.initLightbox(retryCount); });
+        return;
+    }
+    // Lightbox 未加载时，动态加载 Lightbox 脚本与样式
+    if (typeof window.lightbox === 'undefined') {
+        if (!vs.lightbox) return;
+        if (vc.lightbox) window.loadStyleOnce(vc.lightbox);
+        window.loadScriptOnce(vs.lightbox, function() { window.initLightbox(retryCount); });
+        return;
+    }
+
     const postContent = document.querySelector('.post-content');
     if (postContent) {
         const images = postContent.querySelectorAll('img');
@@ -624,8 +763,17 @@ window.initPostViews = function() {
  */
 window.initMermaid = function(retryCount) {
     if (!window.mermaidEnabled) return;
+    // 仅在页面存在 mermaid 代码块时才加载与渲染
+    if (!window.hasMermaidContent()) return;
     retryCount = retryCount || 0;
-    if (checkLib('mermaid', function() { window.initMermaid(retryCount + 1); }, retryCount)) return;
+
+    // mermaid 未加载时，动态加载库后再渲染
+    if (typeof window.mermaid === 'undefined') {
+        var src = (window.vendorScripts || {}).mermaid;
+        if (!src) return;
+        window.loadScriptOnce(src, function() { window.initMermaid(retryCount); });
+        return;
+    }
 
     // 初始化 Mermaid 配置（仅首次）
     if (!window._mermaidInitialized) {
@@ -672,8 +820,17 @@ window.initMermaid = function(retryCount) {
  */
 window.initECharts = function(retryCount) {
     if (!window.echartsEnabled) return;
+    // 仅在页面存在 echarts 代码块时才加载与渲染
+    if (!window.hasEChartsContent()) return;
     retryCount = retryCount || 0;
-    if (checkLib('echarts', function() { window.initECharts(retryCount + 1); }, retryCount)) return;
+
+    // echarts 未加载时，动态加载库后再渲染
+    if (typeof window.echarts === 'undefined') {
+        var src = (window.vendorScripts || {}).echarts;
+        if (!src) return;
+        window.loadScriptOnce(src, function() { window.initECharts(retryCount); });
+        return;
+    }
 
     var echartsBlocks = document.querySelectorAll('.post-content pre code.language-echarts, .post-content pre code.lang-echarts, .comment-content pre code.language-echarts, .comment-content pre code.lang-echarts');
     echartsBlocks.forEach(function(codeBlock) {
@@ -729,8 +886,26 @@ window.destroyECharts = function() {
  */
 window.initKaTeX = function(retryCount) {
     if (!window.katexEnabled) return;
+    // 仅在页面存在数学公式内容时才加载与渲染
+    if (!window.hasKaTeXContent()) return;
     retryCount = retryCount || 0;
-    if (checkLib('katex', function() { window.initKaTeX(retryCount + 1); }, retryCount)) return;
+
+    // katex 未加载时，动态加载库、样式与 auto-render 后再渲染
+    if (typeof window.katex === 'undefined') {
+        var vs = window.vendorScripts || {};
+        if (!vs.katex) return;
+        if (window.vendorCssUrls && window.vendorCssUrls.katex) {
+            window.loadStyleOnce(window.vendorCssUrls.katex);
+        }
+        window.loadScriptOnce(vs.katex, function() {
+            // 加载 auto-render（用于扫描定界符的回退路径）
+            if (!vs.katexAutoRender) { window.initKaTeX(retryCount); return; }
+            window.loadScriptOnce(vs.katexAutoRender, function() {
+                window.initKaTeX(retryCount);
+            });
+        });
+        return;
+    }
 
     // 优先处理 PHP 过滤器生成的 .math-tex 元素（已修复 Markdown 副作用），包括评论区
     var mathElements = document.querySelectorAll('.post-content .math-tex, .comment-content .math-tex');
@@ -758,8 +933,9 @@ window.initKaTeX = function(retryCount) {
         return;
     }
 
-    // 回退：使用 auto-render 扫描定界符（当 PHP 过滤器未生效时），包括评论区
-    if (checkLib('renderMathInElement', function() { window.initKaTeX(retryCount + 1); }, retryCount)) return;
+    // 回退：使用 auto-render 扫描定界符（当 PHP 过滤器未生成 .math-tex 时），包括评论区
+    // auto-render 已在动态加载 katex 时一并加载，此处直接使用
+    if (typeof window.renderMathInElement === 'undefined') return;
 
     var renderTargets = document.querySelectorAll('.post-content, .comment-content');
     renderTargets.forEach(function(target) {
