@@ -74,21 +74,22 @@ function threadedComments($comments, $options) {
                 if ($commentOptions->commentsMarkdown) {
                     $commentText = $comments->text;
                     if ($commentText !== null) {
-                        echo shufei_parse_comment_markdown($commentText);
+                        $commentHtml = shufei_parse_comment_markdown($commentText);
                     } else {
                         ob_start();
                         $comments->content();
                         $commentHtml = ob_get_clean();
                         $commentHtml = shufei_parse_emoji_code($commentHtml, $commentOptions);
-                        echo $commentHtml;
                     }
                 } else {
                     ob_start();
                     $comments->content();
                     $commentHtml = ob_get_clean();
                     $commentHtml = shufei_parse_emoji_code($commentHtml, $commentOptions);
-                    echo $commentHtml;
                 }
+                // 解析评论中的文章引用标记 [quote]...[/quote] 为 <blockquote>
+                $commentHtml = shufei_parse_comment_quote($commentHtml);
+                echo $commentHtml;
                 ?>
             </div>
         </div>

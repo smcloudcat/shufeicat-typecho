@@ -6750,3 +6750,133 @@ pre[class*="language-"].line-numbers > code {
     background: #594214;
     color: #ffc53d;
 }
+
+/* ===== 评论引用文章内容功能 ===== */
+/* 选中文章文字后弹出的"引用并评论"浮动按钮 */
+.sf-quote-comment-btn {
+    position: absolute;
+    z-index: 9999;
+    display: none;
+    padding: 6px 14px;
+    background: var(--primary-color, #FF6B6B);
+    color: #fff;
+    border-radius: 4px;
+    font-size: 13px;
+    line-height: 1.4;
+    cursor: pointer;
+    user-select: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    transition: background 0.2s ease, transform 0.1s ease;
+    white-space: nowrap;
+}
+
+.sf-quote-comment-btn:hover {
+    background: var(--primary-hover, color-mix(in srgb, #FF6B6B 80%, #000));
+}
+
+.sf-quote-comment-btn:active {
+    transform: translateY(1px);
+}
+
+.sf-quote-comment-btn i {
+    margin-right: 4px;
+}
+
+/* 浮动按钮上方的小三角箭头 */
+.sf-quote-comment-btn::after {
+    content: '';
+    position: absolute;
+    bottom: -5px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 5px solid var(--primary-color, #FF6B6B);
+}
+
+/* 按钮显示在选区下方时，三角箭头朝上 */
+.sf-quote-comment-btn.sf-arrow-top::after {
+    bottom: auto;
+    top: -5px;
+    border-top: none;
+    border-bottom: 5px solid var(--primary-color, #FF6B6B);
+}
+
+/* 评论中引用块样式增强（区分于普通 blockquote） */
+.comment-content blockquote {
+    position: relative;
+    margin: 10px 0;
+    padding: 10px 14px 10px 16px;
+    border-left: 3px solid var(--primary-color, #FF6B6B);
+    background: #f7f7f9;
+    color: #555;
+    font-size: 14px;
+    line-height: 1.6;
+    border-radius: 0 4px 4px 0;
+}
+
+.comment-content blockquote p {
+    margin: 0;
+}
+
+.comment-content blockquote p + p {
+    margin-top: 6px;
+}
+
+[data-theme="dark"] .comment-content blockquote {
+    background: #1e1e2e;
+    color: #b0b0b0;
+    border-left-color: var(--primary-color, #FF6B6B);
+}
+
+/* ===== 评论文章引用块样式 ===== */
+.comment-content .article-quote {
+    position: relative;
+    padding-right: 36px;
+}
+
+.comment-content .article-quote .quote-content {
+    display: block;
+}
+
+.comment-content .article-quote .quote-locate-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 24px;
+    height: 24px;
+    line-height: 24px;
+    text-align: center;
+    color: #999;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: all 0.2s ease;
+    font-size: 13px;
+}
+
+.comment-content .article-quote .quote-locate-btn:hover {
+    color: var(--primary-color, #FF6B6B);
+    background: rgba(255, 107, 107, 0.1);
+}
+
+.comment-content .article-quote .quote-locate-btn:focus {
+    outline: 2px solid var(--primary-color, #FF6B6B);
+    outline-offset: 1px;
+}
+
+[data-theme="dark"] .comment-content .article-quote .quote-locate-btn {
+    color: #888;
+}
+
+[data-theme="dark"] .comment-content .article-quote .quote-locate-btn:hover {
+    color: var(--primary-color, #FF6B6B);
+    background: rgba(255, 107, 107, 0.15);
+}
+
+/* 移动端浮动按钮触摸优化 */
+@media (max-width: 768px) {
+    .sf-quote-comment-btn {
+        padding: 8px 16px;
+        font-size: 14px;
+    }
+}

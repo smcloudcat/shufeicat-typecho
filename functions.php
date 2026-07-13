@@ -4767,6 +4767,60 @@ function shufei_parse_comment_markdown($text)
 }
 
 /**
+ * 解析评论中的文章引用标记 [quote]...[/quote]
+ * 将其转换为带"定位到原文"功能的 <blockquote> HTML
+ * 不依赖 Markdown 是否开启，统一处理
+ *
+ * @param string $html 评论 HTML 内容
+ * @return string 处理后的 HTML
+ */
+function shufei_parse_comment_quote($html)
+{
+    if (empty($html)) return $html;
+
+    // 构造引用块 HTML 的闭包
+    $buildQuote = function($content) {
+        $content = trim($content);
+        if ($content === '') return '';
+
+        // 提取纯文本用于定位（移除所有 HTML 标签）
+        $plainText = strip_tags($content);
+        // 解码 HTML 实体，得到原始文本
+        $plainText = html_entity_decode($plainText, ENT_QUOTES, 'UTF-8');
+        // 截取前 200 字符用于搜索（避免 data 属性过长）
+        if (function_exists('mb_strlen') && mb_strlen($plainText) > 200) {
+            $plainText = mb_substr($plainText, 0, 200, 'UTF-8');
+        } elseif (!function_exists('mb_strlen') && strlen($plainText) > 600) {
+            $plainText = substr($plainText, 0, 600);
+        }
+
+        // 构造引用块 HTML
+        // data-quote-text 存储纯文本，供 JS 在文章中定位
+        $html = '<blockquote class="article-quote" data-quote-text="' . htmlspecialchars($plainText, ENT_QUOTES, 'UTF-8') . '">';
+        $html .= '<span class="quote-content">' . $content . '</span>';
+        $html .= '<span class="quote-locate-btn" title="定位到原文" role="button" tabindex="0">';
+        $html .= '<i class="fa fa-crosshairs"></i>';
+        $html .= '</span>';
+        $html .= '</blockquote>';
+
+        return $html;
+    };
+
+    // 先处理被 <p> 包围的 [quote]（Markdown 或自动段落模式产生的结构）
+    // 避免 <p><blockquote></blockquote></p> 无效嵌套
+    $html = preg_replace_callback('/<p>\s*\[quote\](.*?)\[\/quote\]\s*<\/p>/s', function($m) use ($buildQuote) {
+        return $buildQuote($m[1]);
+    }, $html);
+
+    // 再处理未被 <p> 包围的 [quote]
+    $html = preg_replace_callback('/\[quote\](.*?)\[\/quote\]/s', function($m) use ($buildQuote) {
+        return $buildQuote($m[1]);
+    }, $html);
+
+    return $html;
+}
+
+/**
  * 评论 HTML 白名单过滤
  * 仅允许安全的标签和属性，移除所有事件处理器、javascript: 协议等危险内容
  *

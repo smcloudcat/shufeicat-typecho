@@ -1559,6 +1559,343 @@ window.initMusicPlayer = function() {
     }
 })();
 
+/**
+ * 评论引用文章内容功能
+ * 在文章内容区选中文字后，弹出"引用并评论"浮动按钮
+ * 点击后将选中内容以 Markdown 引用语法插入到评论框
+ * 使用 document 级别事件委托，兼容 PJAX
+ */
+window.initQuoteComment = function() {
+    // 仅绑定一次全局事件监听
+    if (window._quoteCommentBound) return;
+    window._quoteCommentBound = true;
+
+    var btn = null;
+    var MAX_QUOTE_LENGTH = 500; // 引用内容最大字符数，避免过长
+
+    // 创建或获取浮动按钮
+    function getBtn() {
+        if (btn) return btn;
+        btn = document.createElement('div');
+        btn.id = 'sf-quote-comment-btn';
+        btn.className = 'sf-quote-comment-btn';
+        btn.innerHTML = '<i class="fa fa-quote-right"></i> 引用并评论';
+        btn.style.display = 'none';
+        document.body.appendChild(btn);
+        btn.addEventListener('mousedown', function(e) {
+            // 阻止点击按钮时清除选区
+            e.preventDefault();
+        });
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            insertQuote();
+        });
+        return btn;
+    }
+
+    // 隐藏按钮
+    function hideBtn() {
+        if (btn) btn.style.display = 'none';
+    }
+
+    // 检查选区是否在 .post-content 内
+    function getQuoteText() {
+        var sel = window.getSelection();
+        if (!sel || sel.rangeCount === 0) return '';
+        var range = sel.getRangeAt(0);
+        if (range.collapsed) return '';
+        var text = sel.toString();
+        if (!text) return '';
+        text = text.replace(/\s+/g, ' ').trim();
+        if (!text) return '';
+
+        // 检查选区是否位于文章内容区
+        var container = range.commonAncestorContainer;
+        var postContent = null;
+        if (container.nodeType === 1) {
+            postContent = container.closest('.post-content');
+        } else if (container.parentNode) {
+            postContent = container.parentNode.closest('.post-content');
+        }
+        if (!postContent) return '';
+
+        // 排除密码保护框内的选区
+        if (postContent.querySelector('.password-protection') && range.intersectsNode) {
+            var pwdBox = postContent.querySelector('.password-protection');
+            if (pwdBox && range.intersectsNode(pwdBox)) return '';
+        }
+
+        return text;
+    }
+
+    // 定位并显示按钮
+    function showBtnForSelection() {
+        var sel = window.getSelection();
+        if (!sel || sel.rangeCount === 0) {
+            hideBtn();
+            return;
+        }
+        var text = getQuoteText();
+        if (!text) {
+            hideBtn();
+            return;
+        }
+
+        var range = sel.getRangeAt(0);
+        var rect = range.getBoundingClientRect();
+        if (rect.width === 0 && rect.height === 0) {
+            hideBtn();
+            return;
+        }
+
+        var b = getBtn();
+        // 先显示再计算尺寸（offsetWidth 需要元素在文档流中）
+        b.style.display = 'block';
+        var btnWidth = b.offsetWidth;
+        var btnHeight = b.offsetHeight;
+
+        // 定位到选区上方居中
+        var top = window.scrollY + rect.top - btnHeight - 8;
+        var left = window.scrollX + rect.left + (rect.width / 2) - (btnWidth / 2);
+        var arrowOnTop = false; // 箭头默认在底部（按钮位于选区上方）
+
+        // 边界处理
+        if (top < window.scrollY) {
+            // 选区上方空间不足，放到选区下方，箭头改为在顶部
+            top = window.scrollY + rect.bottom + 8;
+            arrowOnTop = true;
+        }
+        if (left < 8) left = 8;
+        var maxLeft = window.scrollX + window.innerWidth - btnWidth - 8;
+        if (left > maxLeft) left = maxLeft;
+
+        b.style.top = top + 'px';
+        b.style.left = left + 'px';
+        if (arrowOnTop) {
+            b.classList.add('sf-arrow-top');
+        } else {
+            b.classList.remove('sf-arrow-top');
+        }
+    }
+
+    // 将引用文本插入到评论框
+    function insertQuote() {
+        var text = getQuoteText();
+        if (!text) {
+            hideBtn();
+            return;
+        }
+
+        // 截断过长引用
+        if (text.length > MAX_QUOTE_LENGTH) {
+            text = text.substring(0, MAX_QUOTE_LENGTH) + '...';
+        }
+
+        // 使用自定义 [quote] 标记，由 PHP 端统一解析为 <blockquote>
+        // 不依赖 Markdown 是否开启，避免 > 被转义为 &gt;
+        var insertText = '[quote]' + text + '[/quote]\n\n';
+
+        var textarea = document.getElementById('textarea');
+        if (!textarea) {
+            // 没有评论框（评论可能已关闭），直接返回
+            hideBtn();
+            // 保留选区，不清除
+            return;
+        }
+
+        // 在当前光标位置插入
+        var start = textarea.selectionStart;
+        var end = textarea.selectionEnd;
+        var value = textarea.value;
+
+        // 如果当前已有内容，且光标不在行首，前面补一个换行
+        var prefix = '';
+        if (start > 0 && value.charAt(start - 1) !== '\n') {
+            prefix = '\n';
+        }
+
+        var newText = value.substring(0, start) + prefix + insertText + value.substring(end);
+        textarea.value = newText;
+
+        // 光标移动到引用块之后，方便用户继续输入评论
+        var cursorPos = start + prefix.length + insertText.length;
+        textarea.selectionStart = textarea.selectionEnd = cursorPos;
+
+        // 清除选区
+        window.getSelection().removeAllRanges();
+        hideBtn();
+
+        // 触发 input 事件，兼容其他监听 textarea 变化的逻辑
+        try {
+            var evt = new Event('input', { bubbles: true });
+            textarea.dispatchEvent(evt);
+        } catch (err) {
+            // 旧浏览器回退
+            var evt2 = document.createEvent('HTMLEvents');
+            evt2.initEvent('input', true, false);
+            textarea.dispatchEvent(evt2);
+        }
+
+        // 滚动到评论区并聚焦
+        var commentsEl = document.getElementById('comments');
+        if (commentsEl) {
+            commentsEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        setTimeout(function() {
+            textarea.focus();
+        }, 300);
+    }
+
+    // 监听 mouseup（在 mouseup 后选区才确定）
+    document.addEventListener('mouseup', function(e) {
+        // 忽略点击按钮自身的 mouseup
+        if (e.target.closest && e.target.closest('#sf-quote-comment-btn')) return;
+        // 延迟一帧，确保选区已更新
+        setTimeout(showBtnForSelection, 10);
+    });
+
+    // 监听选区变化（键盘选择、点击空白处清除等）
+    document.addEventListener('selectionchange', function() {
+        var text = getQuoteText();
+        if (!text) {
+            hideBtn();
+        }
+    });
+
+    // 滚动或窗口大小变化时隐藏按钮（位置会失效）
+    window.addEventListener('scroll', throttle(hideBtn, 100), { passive: true });
+    window.addEventListener('resize', hideBtn);
+
+    // 切换页面（PJAX）时隐藏按钮
+    document.addEventListener('pjax:send', hideBtn);
+
+    // ===== 评论引用块"定位到原文"功能 =====
+    // 监听评论中引用块的"定位到原文"按钮点击
+    document.addEventListener('click', function(e) {
+        var locateBtn = e.target.closest('.quote-locate-btn');
+        if (!locateBtn) return;
+        e.preventDefault();
+        e.stopPropagation();
+
+        var blockquote = locateBtn.closest('.article-quote');
+        if (!blockquote) return;
+
+        var quoteText = blockquote.getAttribute('data-quote-text');
+        if (!quoteText) {
+            if (typeof window.showToast === 'function') {
+                window.showToast('无法获取引用内容', 'info');
+            }
+            return;
+        }
+
+        var postContent = document.querySelector('.post-content');
+        if (!postContent) {
+            if (typeof window.showToast === 'function') {
+                window.showToast('未找到文章内容', 'info');
+            }
+            return;
+        }
+
+        // 在文章内容中查找引用文本
+        var range = findTextInElement(postContent, quoteText);
+        if (range) {
+            // 滚动到匹配位置（留出顶部空间）
+            var rect = range.getBoundingClientRect();
+            window.scrollTo({
+                top: window.scrollY + rect.top - 80,
+                behavior: 'smooth'
+            });
+            // 临时高亮匹配的文本
+            highlightRange(range);
+        } else {
+            if (typeof window.showToast === 'function') {
+                window.showToast('未在文章中找到对应内容', 'info');
+            }
+        }
+    });
+
+    // 在指定元素内查找文本，返回 Range 对象
+    function findTextInElement(root, searchText) {
+        if (!searchText) return null;
+        var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null, false);
+        var fullText = '';
+        var textNodes = [];
+
+        while (walker.nextNode()) {
+            var node = walker.currentNode;
+            // 跳过 script/style 内的文本
+            var parent = node.parentNode;
+            if (parent && (parent.tagName === 'SCRIPT' || parent.tagName === 'STYLE')) continue;
+            textNodes.push({ node: node, start: fullText.length });
+            fullText += node.textContent;
+        }
+
+        // 尝试完整匹配
+        var index = fullText.indexOf(searchText);
+
+        // 如果完整匹配失败，尝试前 50 个字符（处理引用被截断的情况）
+        if (index === -1 && searchText.length > 50) {
+            searchText = searchText.substring(0, 50);
+            index = fullText.indexOf(searchText);
+        }
+
+        // 仍然失败，尝试前 30 个字符
+        if (index === -1 && searchText.length > 30) {
+            searchText = searchText.substring(0, 30);
+            index = fullText.indexOf(searchText);
+        }
+
+        if (index === -1) return null;
+
+        // 找到包含起始位置的文本节点
+        for (var i = 0; i < textNodes.length; i++) {
+            var nodeInfo = textNodes[i];
+            var nodeLength = nodeInfo.node.textContent.length;
+            var nodeEnd = nodeInfo.start + nodeLength;
+
+            if (nodeInfo.start <= index && index < nodeEnd) {
+                var offsetInNode = index - nodeInfo.start;
+                var range = document.createRange();
+                range.setStart(nodeInfo.node, offsetInNode);
+
+                // 尝试设置结束位置（可能跨越多个节点）
+                var remainingLength = searchText.length;
+                for (var j = i; j < textNodes.length && remainingLength > 0; j++) {
+                    var currentNode = textNodes[j].node;
+                    var currentLength = currentNode.textContent.length;
+                    var startOffset = (j === i) ? offsetInNode : 0;
+                    var availableLength = currentLength - startOffset;
+
+                    if (remainingLength <= availableLength) {
+                        range.setEnd(currentNode, startOffset + remainingLength);
+                        return range;
+                    } else {
+                        remainingLength -= availableLength;
+                    }
+                }
+                // 跨节点未完全匹配，只返回起始位置所在节点
+                range.setEnd(nodeInfo.node, nodeLength);
+                return range;
+            }
+        }
+        return null;
+    }
+
+    // 临时高亮 Range 对应的文本
+    function highlightRange(range) {
+        // 使用 Selection 高亮（兼容跨节点情况）
+        var sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+
+        // 2 秒后清除高亮
+        setTimeout(function() {
+            sel.removeAllRanges();
+        }, 2000);
+    }
+};
+
 document.addEventListener('DOMContentLoaded', function() {
     // 初始化夜间模式（优先执行，避免页面闪烁）
     window.initDarkMode();
@@ -1633,5 +1970,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 初始化音乐播放器增强
     window.initMusicPlayer();
+
+    // 初始化评论引用文章内容功能
+    window.initQuoteComment();
 
 });

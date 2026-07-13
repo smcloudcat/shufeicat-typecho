@@ -549,6 +549,10 @@
             if (typeof window.initMusicPlayer === 'function') {
                 window.initMusicPlayer();
             }
+
+            if (typeof window.initQuoteComment === 'function') {
+                window.initQuoteComment();
+            }
         }, 50);
     };
     
