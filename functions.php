@@ -1750,13 +1750,14 @@ HTML;
         array(
             'none' => _t('关闭'),
             'turnstile' => _t('Cloudflare Turnstile'),
+            'geetest' => _t('极验 Geetest v4'),
             'captcha_number' => _t('图片验证码（纯数字）'),
             'captcha_alpha' => _t('图片验证码（纯字母）'),
             'captcha_alnum' => _t('图片验证码（数字+字母）')
         ),
         'none',
         _t('评论验证方式'),
-        _t('介绍：选择评论提交时的人机验证方式。图片验证码无需第三方服务，Turnstile 需要 Cloudflare 账号')
+        _t('介绍：选择评论提交时的人机验证方式。图片验证码无需第三方服务，Turnstile 需要 Cloudflare 账号，极验 Geetest v4 需要极验账号')
     );
     $captchaType->setAttribute('class', 'typecho-option cat-group-verify');
     $form->addInput($captchaType);
@@ -1780,6 +1781,26 @@ HTML;
     );
     $turnstileSecretKey->setAttribute('class', 'typecho-option cat-group-verify');
     $form->addInput($turnstileSecretKey);
+
+    $geetestCaptchaId = new \Typecho\Widget\Helper\Form\Element\Text(
+        'geetestCaptchaId',
+        null,
+        null,
+        _t('极验 Captcha ID'),
+        _t('介绍：填写极验 Geetest v4 后台的 Captcha ID（仅极验验证方式需要）')
+    );
+    $geetestCaptchaId->setAttribute('class', 'typecho-option cat-group-verify');
+    $form->addInput($geetestCaptchaId);
+
+    $geetestCaptchaKey = new \Typecho\Widget\Helper\Form\Element\Password(
+        'geetestCaptchaKey',
+        null,
+        null,
+        _t('极验 Captcha Key'),
+        _t('介绍：填写极验 Geetest v4 后台的 Captcha Key（服务器端校验用，仅极验验证方式需要）')
+    );
+    $geetestCaptchaKey->setAttribute('class', 'typecho-option cat-group-verify');
+    $form->addInput($geetestCaptchaKey);
 
     $captchaLength = new \Typecho\Widget\Helper\Form\Element\Radio(
         'captchaLength',
@@ -2864,6 +2885,35 @@ function shufei_comment_check($comment, $post) {
         if (!isset($verifyResult['success']) || !$verifyResult['success']) {
             throw new \Typecho\Widget\Exception(_t('人机验证未通过，请重试'));
         }
+    } elseif (shufei_is_geetest_enabled()) {
+        // 极验 Geetest v4 验证
+        $lotNumber = isset($_POST['geetest_lot_number']) ? trim($_POST['geetest_lot_number']) : '';
+        $captchaOutput = isset($_POST['geetest_captcha_output']) ? trim($_POST['geetest_captcha_output']) : '';
+        $passToken = isset($_POST['geetest_pass_token']) ? trim($_POST['geetest_pass_token']) : '';
+        $genTime = isset($_POST['geetest_gen_time']) ? trim($_POST['geetest_gen_time']) : '';
+
+        if (empty($lotNumber) || empty($captchaOutput) || empty($passToken) || empty($genTime)) {
+            throw new \Typecho\Widget\Exception(_t('请先完成人机验证'));
+        }
+
+        $captchaId = isset($options->geetestCaptchaId) ? $options->geetestCaptchaId : '';
+        $captchaKey = isset($options->geetestCaptchaKey) ? $options->geetestCaptchaKey : '';
+        if (empty($captchaId) || empty($captchaKey)) {
+            // fail-closed：密钥未配置视为校验失败，避免静默放行
+            throw new \Typecho\Widget\Exception(_t('人机验证服务未正确配置，请联系管理员'));
+        }
+
+        // sign_token = HMAC-SHA256(captcha_key, lot_number)，输出为小写十六进制
+        $signToken = hash_hmac('sha256', $lotNumber, $captchaKey);
+
+        $verifyResult = shufei_geetest_verify($captchaId, $lotNumber, $captchaOutput, $passToken, $genTime, $signToken);
+        // fail-closed：网络异常、curl 不可用或返回空时拒绝评论
+        if ($verifyResult === null) {
+            throw new \Typecho\Widget\Exception(_t('人机验证服务暂时不可用，请稍后重试'));
+        }
+        if (!isset($verifyResult['result']) || $verifyResult['result'] !== 'success') {
+            throw new \Typecho\Widget\Exception(_t('人机验证未通过，请重试'));
+        }
     } elseif (shufei_is_captcha_enabled()) {
         // 图片验证码验证
         session_start();
@@ -2907,6 +2957,43 @@ function shufei_turnstile_verify_curl($secretKey, $token) {
         'response' => $token,
         'remoteip' => isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : ''
     )));
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+    $response = curl_exec($ch);
+    curl_close($ch);
+    if ($response) {
+        return json_decode($response, true);
+    }
+    return null;
+}
+
+/**
+ * 使用 cURL 验证极验 Geetest v4 校验参数
+ *
+ * @param string $captchaId     极验 Captcha ID
+ * @param string $lotNumber     验证流水号
+ * @param string $captchaOutput 验证输出
+ * @param string $passToken     pass_token
+ * @param string $genTime       生成时间
+ * @param string $signToken     签名 token (HMAC-SHA256)
+ * @return array|null 返回极验校验结果数组，失败返回 null
+ */
+function shufei_geetest_verify($captchaId, $lotNumber, $captchaOutput, $passToken, $genTime, $signToken) {
+    if (!function_exists('curl_init')) {
+        return null;
+    }
+    $postFields = http_build_query(array(
+        'captcha_id' => $captchaId,
+        'lot_number' => $lotNumber,
+        'captcha_output' => $captchaOutput,
+        'pass_token' => $passToken,
+        'gen_time' => $genTime,
+        'sign_token' => $signToken
+    ));
+    $ch = curl_init('https://gcaptcha4.geetest.com/validate');
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $postFields);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_TIMEOUT, 10);
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
@@ -3127,6 +3214,16 @@ function shufei_is_turnstile_enabled()
 }
 
 /**
+ * 检查极验 Geetest v4 人机验证是否启用
+ *
+ * @return bool
+ */
+function shufei_is_geetest_enabled()
+{
+    return shufei_get_captcha_type() === 'geetest';
+}
+
+/**
  * 检查图片验证码是否启用
  *
  * @return bool
@@ -3171,6 +3268,28 @@ function shufei_get_turnstile_site_key()
 {
     $options = \Typecho\Widget::widget('Widget_Options');
     return isset($options->turnstileSiteKey) ? $options->turnstileSiteKey : '';
+}
+
+/**
+ * 获取极验 Geetest v4 Captcha ID
+ *
+ * @return string
+ */
+function shufei_get_geetest_captcha_id()
+{
+    $options = \Typecho\Widget::widget('Widget_Options');
+    return isset($options->geetestCaptchaId) ? $options->geetestCaptchaId : '';
+}
+
+/**
+ * 获取极验 Geetest v4 Captcha Key
+ *
+ * @return string
+ */
+function shufei_get_geetest_captcha_key()
+{
+    $options = \Typecho\Widget::widget('Widget_Options');
+    return isset($options->geetestCaptchaKey) ? $options->geetestCaptchaKey : '';
 }
 
 /**

@@ -1896,9 +1896,130 @@ window.initQuoteComment = function() {
     }
 };
 
+/**
+ * 验证码组件初始化（非 Pjax 模式）
+ * Pjax 模式由 pjax.js 负责初始化；未开启 Pjax 时由本函数渲染 Turnstile / 极验组件
+ */
+window.initCaptchaWidgets = function() {
+    if (window.pjaxEnabled) return;
+
+    // ===== Cloudflare Turnstile（render=explicit 模式需手动渲染）=====
+    var turnstileContainer = document.getElementById('cf-turnstile');
+    if (turnstileContainer && !turnstileContainer.getAttribute('data-turnstile-rendered')) {
+        var turnstileTimer = setInterval(function() {
+            if (typeof window.turnstile !== 'undefined') {
+                clearInterval(turnstileTimer);
+                if (turnstileContainer.querySelector('iframe')) return;
+                try {
+                    var widgetId = window.turnstile.render('#cf-turnstile');
+                    if (widgetId) {
+                        turnstileContainer.setAttribute('data-turnstile-rendered', 'true');
+                        turnstileContainer.setAttribute('data-turnstile-widget-id', widgetId);
+                    }
+                } catch (e) {}
+            }
+        }, 100);
+        setTimeout(function() { clearInterval(turnstileTimer); }, 10000);
+    }
+
+    // ===== 极验 Geetest v4 =====
+    var geetestContainer = document.getElementById('geetest-captcha');
+    if (!geetestContainer || geetestContainer.getAttribute('data-geetest-init')) return;
+
+    var captchaId = geetestContainer.getAttribute('data-captcha-id');
+    if (!captchaId) return;
+
+    window.geetestCaptchaObj = null;
+    window.geetestResult = null;
+
+    // SDK 异步加载，轮询等待就绪后初始化
+    var geetestTimer = setInterval(function() {
+        if (typeof window.initGeetest4 !== 'undefined') {
+            clearInterval(geetestTimer);
+            geetestContainer.setAttribute('data-geetest-init', 'true');
+            try {
+                window.initGeetest4({
+                    captchaId: captchaId,
+                    product: 'bind'
+                }, function (captcha) {
+                    captcha.onReady(function () {});
+                    captcha.onSuccess(function () {
+                        var result = captcha.getValidate();
+                        if (result) {
+                            window.geetestResult = result;
+                            var form = document.getElementById('comment-form');
+                            if (form) {
+                                // 写入隐藏字段，随表单提交
+                                var fields = ['lot_number', 'captcha_output', 'pass_token', 'gen_time'];
+                                for (var i = 0; i < fields.length; i++) {
+                                    var input = form.querySelector('input[name="geetest_' + fields[i] + '"]');
+                                    if (!input) {
+                                        input = document.createElement('input');
+                                        input.type = 'hidden';
+                                        input.name = 'geetest_' + fields[i];
+                                        form.appendChild(input);
+                                    }
+                                    input.value = result[fields[i]] || '';
+                                }
+                                // 原生 submit() 不触发事件监听，避免循环拦截
+                                form.submit();
+                            }
+                        }
+                    });
+                    captcha.onError(function () {
+                        window.geetestResult = null;
+                        if (window.showToast) window.showToast('人机验证失败，请重试', 'error');
+                    });
+                    captcha.onClose(function () {
+                        if (window.showToast) window.showToast('请完成人机验证', 'info');
+                    });
+                    window.geetestCaptchaObj = captcha;
+                });
+            } catch (e) {}
+        }
+    }, 200);
+    setTimeout(function() { clearInterval(geetestTimer); }, 15000);
+
+    // 拦截表单提交：未完成极验验证时弹出验证码
+    var commentForm = document.getElementById('comment-form');
+    if (commentForm) {
+        commentForm.addEventListener('submit', function(e) {
+            var geetestValid = (window.geetestCaptchaObj && typeof window.geetestCaptchaObj.getValidate === 'function')
+                ? window.geetestCaptchaObj.getValidate()
+                : null;
+            if (!geetestValid) {
+                e.preventDefault();
+                if (window.geetestCaptchaObj) {
+                    try { window.geetestCaptchaObj.showCaptcha(); } catch (err) {
+                        if (window.showToast) window.showToast('人机验证加载中，请稍后重试', 'error');
+                    }
+                } else {
+                    if (window.showToast) window.showToast('人机验证正在加载，请稍后重试', 'error');
+                }
+                return;
+            }
+            // 验证通过，写入隐藏字段（onSuccess 中已写入，此处为兜底）
+            var fields = ['lot_number', 'captcha_output', 'pass_token', 'gen_time'];
+            for (var i = 0; i < fields.length; i++) {
+                var input = commentForm.querySelector('input[name="geetest_' + fields[i] + '"]');
+                if (!input) {
+                    input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = 'geetest_' + fields[i];
+                    commentForm.appendChild(input);
+                }
+                input.value = geetestValid[fields[i]] || '';
+            }
+        });
+    }
+};
+
 document.addEventListener('DOMContentLoaded', function() {
     // 初始化夜间模式（优先执行，避免页面闪烁）
     window.initDarkMode();
+
+    // 初始化验证码组件（非 Pjax 模式；Pjax 模式由 pjax.js 负责）
+    window.initCaptchaWidgets();
 
     // 初始化侧边栏折叠功能
     window.initCollapsibleSidebar();

@@ -185,6 +185,10 @@ function threadedComments($comments, $options) {
                 <div class="turnstile-container">
                     <div id="cf-turnstile" class="cf-turnstile" data-sitekey="<?php echo htmlspecialchars(shufei_get_turnstile_site_key()); ?>" data-theme="auto"></div>
                 </div>
+                <?php elseif (shufei_is_geetest_enabled() && !empty(shufei_get_geetest_captcha_id())): ?>
+                <div class="geetest-container">
+                    <div id="geetest-captcha" data-captcha-id="<?php echo htmlspecialchars(shufei_get_geetest_captcha_id()); ?>"></div>
+                </div>
                 <?php elseif (shufei_is_captcha_enabled()): ?>
                 <div class="captcha-container">
                     <div class="captcha-row">

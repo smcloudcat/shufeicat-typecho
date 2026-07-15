@@ -207,6 +207,11 @@
     <!-- Cloudflare Turnstile -->
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
     <?php endif; ?>
+
+    <?php if (shufei_is_geetest_enabled() && !empty(shufei_get_geetest_captcha_id())): ?>
+    <!-- 极验 Geetest v4 -->
+    <script src="https://static.geetest.com/v4/gt4.js" async defer></script>
+    <?php endif; ?>
     
     <script>
     window.themeUrl = '<?php echo rtrim($this->options->themeUrl, '/') . '/'; ?>';
@@ -385,6 +390,7 @@
                 }
 
                 this.refreshTurnstile();
+                this.refreshGeetest();
 
                 return false;
             },
@@ -406,7 +412,17 @@
                 this.visiable(this.dom('#cancel-comment-reply-link'), false);
                 holder.parentNode.insertBefore(response, holder);
                 this.refreshTurnstile();
+                this.refreshGeetest();
                 return false;
+            },
+            // 回复/取消回复移动 DOM 后，重置极验 Geetest v4 验证状态
+            refreshGeetest: function () {
+                if (window.geetestCaptchaObj) {
+                    try { window.geetestCaptchaObj.reset(); } catch (e) {}
+                }
+                if (typeof window.geetestResult !== 'undefined') {
+                    window.geetestResult = null;
+                }
             },
             // 回复/取消回复移动 DOM 后，已渲染的 Turnstile iframe 会失效，需移除后重新渲染
             refreshTurnstile: function () {

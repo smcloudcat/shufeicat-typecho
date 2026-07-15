@@ -204,6 +204,39 @@
                 return;
             }
 
+            // 极验 Geetest v4：未验证则弹出验证码，验证成功后会重新触发 submit
+            var geetestContainer = document.getElementById('geetest-captcha');
+            if (geetestContainer) {
+                var geetestValid = (window.geetestCaptchaObj && typeof window.geetestCaptchaObj.getValidate === 'function')
+                    ? window.geetestCaptchaObj.getValidate()
+                    : null;
+                if (!geetestValid) {
+                    if (window.geetestCaptchaObj) {
+                        setSubmitLoading(true);
+                        showSubmitTip('请完成人机验证', '');
+                        try { window.geetestCaptchaObj.showCaptcha(); } catch (e) {
+                            setSubmitLoading(false);
+                            showSubmitTip('人机验证加载中，请稍后重试', 'error');
+                        }
+                    } else {
+                        showSubmitTip('人机验证正在加载，请稍后重试', 'error');
+                    }
+                    return;
+                }
+                // 将极验验证结果写入隐藏字段，随表单一起提交
+                var geetestFields = ['lot_number', 'captcha_output', 'pass_token', 'gen_time'];
+                for (var gi = 0; gi < geetestFields.length; gi++) {
+                    var gInput = commentForm.querySelector('input[name="geetest_' + geetestFields[gi] + '"]');
+                    if (!gInput) {
+                        gInput = document.createElement('input');
+                        gInput.type = 'hidden';
+                        gInput.name = 'geetest_' + geetestFields[gi];
+                        commentForm.appendChild(gInput);
+                    }
+                    gInput.value = geetestValid[geetestFields[gi]] || '';
+                }
+            }
+
             var tokenInputs = commentForm.querySelectorAll('input[name="_"]');
             for (var i = 0; i < tokenInputs.length; i++) {
                 tokenInputs[i].parentNode.removeChild(tokenInputs[i]);
@@ -249,6 +282,7 @@
                                 hasError = true;
                                 showSubmitTip(errorMsg.textContent.trim() || '评论提交失败', 'error');
                                 initCaptcha();
+                                resetGeetest();
                             }
                         }
 
@@ -259,6 +293,7 @@
                 } else if (xhr.status === 403) {
                     showSubmitTip('评论被拒绝，请刷新页面后重试', 'error');
                     initCaptcha();
+                    resetGeetest();
                 } else {
                     var errorMsg = '提交失败，请稍后重试';
                     try {
@@ -272,6 +307,7 @@
                     } catch(e) {}
                     showSubmitTip(errorMsg, 'error');
                     initCaptcha();
+                    resetGeetest();
                 }
             };
 
@@ -323,6 +359,7 @@
                     initAjaxComment();
                     initTurnstile();
                     initCaptcha();
+                    initGeetest();
                     // 重新渲染评论区中的扩展内容
                     if (typeof window.initMermaid === 'function') {
                         window.initMermaid();
@@ -409,6 +446,85 @@
         var captchaInput = document.getElementById('captcha-code');
         if (captchaInput) {
             captchaInput.value = '';
+        }
+    }
+
+    // ===== 极验 Geetest v4 =====
+    window.geetestCaptchaObj = null;
+    window.geetestResult = null;
+    var geetestInitTimer = null;
+
+    function initGeetest() {
+        var geetestContainer = document.getElementById('geetest-captcha');
+        if (!geetestContainer) return;
+        // 已初始化过则跳过（避免重复绑定）
+        if (geetestContainer.getAttribute('data-geetest-init')) return;
+
+        var captchaId = geetestContainer.getAttribute('data-captcha-id');
+        if (!captchaId) return;
+
+        // SDK 尚未加载完成，稍后重试
+        if (typeof window.initGeetest4 === 'undefined') {
+            if (geetestInitTimer) clearTimeout(geetestInitTimer);
+            geetestInitTimer = setTimeout(initGeetest, 200);
+            return;
+        }
+
+        // 销毁旧实例（评论区重新渲染后旧实例已失效）
+        if (window.geetestCaptchaObj) {
+            try { window.geetestCaptchaObj.destroy(); } catch (e) {}
+            window.geetestCaptchaObj = null;
+        }
+        window.geetestResult = null;
+
+        geetestContainer.setAttribute('data-geetest-init', 'true');
+
+        try {
+            window.initGeetest4({
+                captchaId: captchaId,
+                product: 'bind'
+            }, function (captcha) {
+                captcha.onReady(function () {});
+                captcha.onSuccess(function () {
+                    var result = captcha.getValidate();
+                    if (result) {
+                        window.geetestResult = result;
+                        // 验证成功后重新触发表单提交
+                        var form = document.getElementById('comment-form');
+                        if (form) {
+                            form.dispatchEvent(new Event('submit', {bubbles: true, cancelable: true}));
+                        }
+                    }
+                });
+                captcha.onError(function () {
+                    window.geetestResult = null;
+                    setSubmitLoading(false);
+                    showSubmitTip('人机验证失败，请重试', 'error');
+                });
+                captcha.onClose(function () {
+                    setSubmitLoading(false);
+                    showSubmitTip('请完成人机验证', '');
+                });
+                window.geetestCaptchaObj = captcha;
+            });
+        } catch (e) {
+            window.geetestResult = null;
+        }
+    }
+
+    function resetGeetest() {
+        window.geetestResult = null;
+        if (window.geetestCaptchaObj) {
+            try { window.geetestCaptchaObj.reset(); } catch (e) {}
+        }
+        // 清空隐藏字段，避免残留失效的验证结果
+        var form = document.getElementById('comment-form');
+        if (form) {
+            var fields = ['lot_number', 'captcha_output', 'pass_token', 'gen_time'];
+            for (var i = 0; i < fields.length; i++) {
+                var input = form.querySelector('input[name="geetest_' + fields[i] + '"]');
+                if (input) input.value = '';
+            }
         }
     }
 
@@ -505,6 +621,7 @@
             
             initAjaxComment();
             initTurnstile();
+            initGeetest();
 
             if (typeof window.initPostLike === 'function') {
                 window.initPostLike();
