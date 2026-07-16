@@ -1078,6 +1078,9 @@ window.destroyTableOfContents = function() {
 window.initMarkdownExt = function() {
     var postContent = document.querySelector('.post-content');
     if (!postContent) return;
+    // 防重复绑定：F5 刷新时 DOMContentLoaded 与 load 都会调用
+    if (postContent.getAttribute('data-mdext-bound')) return;
+    postContent.setAttribute('data-mdext-bound', '1');
 
     // 任务列表：允许点击切换勾选状态（视觉反馈，实际 disabled 但添加交互样式）
     var taskCheckboxes = postContent.querySelectorAll('.task-list-checkbox');
@@ -1119,6 +1122,9 @@ window.initMarkdownExt = function() {
 window.initArticleAlert = function() {
     var alertBox = document.getElementById('article-alert-box');
     if (!alertBox) return;
+    // 防重复绑定：F5 刷新时 DOMContentLoaded 与 load 都会调用
+    if (alertBox.getAttribute('data-alert-bound')) return;
+    alertBox.setAttribute('data-alert-bound', '1');
 
     var closeBtn = document.getElementById('article-alert-close');
     if (closeBtn) {
@@ -1186,12 +1192,19 @@ window.initEmojiPanel = function() {
         panel.style.left = (window.scrollX + rect.left) + 'px';
     }
 
-    // 点击外部关闭面板
-    document.addEventListener('click', function(e) {
-        if (panel && panel.style.display === 'block' && !panel.contains(e.target) && e.target !== emojiToggle) {
-            panel.style.display = 'none';
-        }
-    });
+    // 点击外部关闭面板：document 监听器只绑定一次，避免 pjax 切换累积
+    // 通过实时查询当前面板元素，避免持有旧游离节点引用
+    if (!window._emojiDocClickBound) {
+        window._emojiDocClickBound = true;
+        document.addEventListener('click', function(e) {
+            var curPanel = document.getElementById('sf-emoji-container');
+            var curToggle = document.getElementById('emoji-toggle');
+            if (curPanel && curPanel.style.display === 'block'
+                && !curPanel.contains(e.target) && e.target !== curToggle) {
+                curPanel.style.display = 'none';
+            }
+        });
+    }
 
     // 动态加载 emoji.list.js
     function _loadEmojiList(callback) {
@@ -1419,6 +1432,9 @@ function _startBatchLoad(container, priorityTab) {
 window.initVideoPlayer = function() {
     var videoPlayers = document.querySelectorAll('.post-video-player');
     videoPlayers.forEach(function(video) {
+        // 防重复绑定：F5 刷新时 DOMContentLoaded 与 load 都会调用
+        if (video.getAttribute('data-video-bound')) return;
+        video.setAttribute('data-video-bound', '1');
         // 双击全屏
         video.addEventListener('dblclick', function() {
             if (this.requestFullscreen) {
@@ -1478,6 +1494,9 @@ window.initMusicPlayer = function() {
         var audio = player.querySelector('.music-audio');
         var disc = player.querySelector('.music-disc');
         if (!audio || !disc) return;
+        // 防重复绑定：F5 刷新时 DOMContentLoaded 与 load 都会调用
+        if (audio.getAttribute('data-music-bound')) return;
+        audio.setAttribute('data-music-bound', '1');
 
         // 播放时旋转唱片
         audio.addEventListener('play', function() {
@@ -2070,34 +2089,130 @@ window.initPostReadingFav = function() {
         window.addEventListener('load', deferredShortCheck);
     }
 
-    // 收藏按钮：若页面存在则同步状态
+    // 收藏按钮：页面内按钮 + 浮动按钮同步状态
     var favBtn = document.getElementById('post-fav-btn');
-    if (favBtn) {
-        function syncFavBtn() {
-            var fav = window.ReadingFav.isFav(cid);
+    var floatFavBtn = document.getElementById('float-fav-btn');
+
+    function syncFavBtn() {
+        var fav = window.ReadingFav.isFav(cid);
+        if (favBtn) {
             favBtn.classList.toggle('favorited', fav);
             var icon = favBtn.querySelector('i');
             var text = favBtn.querySelector('.fav-text');
             if (icon) icon.className = fav ? 'fa fa-heart' : 'fa fa-heart-o';
             if (text) text.textContent = fav ? '已收藏' : '收藏';
         }
+        if (floatFavBtn) {
+            floatFavBtn.classList.toggle('favorited', fav);
+            var fIcon = floatFavBtn.querySelector('i');
+            if (fIcon) fIcon.className = fav ? 'fa fa-heart' : 'fa fa-heart-o';
+            floatFavBtn.title = fav ? '取消收藏' : '收藏文章';
+        }
+    }
+
+    function doToggleFav() {
+        var title = document.title || '';
+        var url = window.location.href.split('#')[0];
+        var nowFav = window.ReadingFav.toggleFav(cid, { title: title, url: url });
         syncFavBtn();
-        favBtn.addEventListener('click', function() {
-            var title = document.title || '';
-            var url = window.location.href.split('#')[0];
-            var nowFav = window.ReadingFav.toggleFav(cid, { title: title, url: url });
-            syncFavBtn();
-            if (window.showToast) {
-                window.showToast(nowFav ? '已加入收藏' : '已取消收藏', nowFav ? 'success' : 'info');
-            }
-            // 通知导航栏收藏下拉同步
-            document.dispatchEvent(new CustomEvent('shufei:favchange'));
+        if (window.showToast) {
+            window.showToast(nowFav ? '已加入收藏' : '已取消收藏', nowFav ? 'success' : 'info');
+        }
+        // 通知导航栏收藏下拉同步
+        document.dispatchEvent(new CustomEvent('shufei:favchange'));
+    }
+
+    syncFavBtn();
+    if (favBtn) favBtn.addEventListener('click', doToggleFav);
+
+    // 浮动收藏按钮：文章页常驻显示，位于返回顶部/手机目录按钮上方
+    if (floatFavBtn) {
+        if (floatFavBtn.getAttribute('data-float-fav-bound')) {
+            // pjax 切换后元素被替换，无需重复绑定；但需重新显示
+        }
+        floatFavBtn.setAttribute('data-float-fav-bound', '1');
+        floatFavBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            doToggleFav();
         });
+        // 显示浮动收藏按钮
+        floatFavBtn.style.display = '';
+        // 同步 has-toc 状态：手机端有目录时上移到目录按钮上方
+        var mobileTocBtn = document.getElementById('mobile-toc-btn');
+        if (mobileTocBtn && mobileTocBtn.classList.contains('has-toc')) {
+            floatFavBtn.classList.add('has-toc');
+        }
+        // 监听 has-toc 变化（目录初始化可能在 initPostReadingFav 之后）
+        // 断开旧 observer 避免内存泄漏（pjax 切换 N 次会累积 N 个 observer）
+        if (window._tocObserver) {
+            window._tocObserver.disconnect();
+            window._tocObserver = null;
+        }
+        window._tocObserver = new MutationObserver(function() {
+            var curFloatBtn = document.getElementById('float-fav-btn');
+            var curTocBtn = document.getElementById('mobile-toc-btn');
+            if (!curFloatBtn || !curTocBtn) return;
+            if (curTocBtn.classList.contains('has-toc')) {
+                curFloatBtn.classList.add('has-toc');
+            } else {
+                curFloatBtn.classList.remove('has-toc');
+            }
+        });
+        if (mobileTocBtn) {
+            window._tocObserver.observe(mobileTocBtn, { attributes: true, attributeFilter: ['class'] });
+        }
+        // 延迟显示动画
+        setTimeout(function() { floatFavBtn.classList.add('show'); }, 100);
+        // 滚动时保持显示（仅绑定一次到 window，避免 pjax 切换累积监听器）
+        if (!window.__floatFavScrollBound) {
+            window.__floatFavScrollBound = true;
+            window.addEventListener('scroll', function() {
+                var fb = document.getElementById('float-fav-btn');
+                if (fb) fb.classList.add('show');
+            }, { passive: true });
+        }
+    }
+
+    // 继续上次阅读：若有进度记录（0 < percent < 100），显示提示条
+    var prevProgress = window.ReadingFav.getProgress(cid);
+    if (prevProgress && prevProgress.percent > 0 && prevProgress.percent < 100) {
+        // 等待图片加载后再插入，避免布局抖动
+        function insertResumeBar() {
+            // 避免重复插入
+            if (article.querySelector('.resume-reading')) return;
+            var bar = document.createElement('div');
+            bar.className = 'resume-reading';
+            bar.innerHTML = '<i class="fa fa-bookmark"></i>'
+                + '<span class="resume-text">继续上次阅读（<span class="resume-percent">' + prevProgress.percent + '%</span>）</span>'
+                + '<i class="fa fa-arrow-right"></i>'
+                + '<i class="fa fa-times resume-close" title="关闭"></i>';
+            // 插入到文章内容前
+            postContent.parentNode.insertBefore(bar, postContent);
+            bar.addEventListener('click', function(e) {
+                if (e.target.classList.contains('resume-close')) {
+                    bar.remove();
+                    return;
+                }
+                // 根据保存的百分比反推滚动位置
+                var totalH = postContent.offsetHeight;
+                var winH = window.innerHeight || document.documentElement.clientHeight;
+                var readable = Math.max(1, totalH - winH);
+                var scrolled = Math.round(prevProgress.percent / 100 * readable);
+                var target = postContent.getBoundingClientRect().top + window.scrollY + scrolled - 40;
+                window.scrollTo({ top: Math.max(0, target), behavior: 'smooth' });
+                bar.remove();
+            });
+        }
+        if (document.readyState === 'complete') {
+            setTimeout(insertResumeBar, 300);
+        } else {
+            window.addEventListener('load', function() { setTimeout(insertResumeBar, 300); });
+        }
     }
 };
 
 /**
- * 文章列表：在每张卡片上标记阅读状态/进度
+ * 文章列表：在每张卡片上标记阅读状态/进度 + 收藏标记
  */
 window.initListReadingMarks = function() {
     // 列表容器类名为 post-list-classic / post-list-card 等（不含 .post-list）
@@ -2112,19 +2227,31 @@ window.initListReadingMarks = function() {
         var cid = card.getAttribute('data-cid');
         if (!cid) continue;
 
+        var hasReading = false;
         var p = window.ReadingFav.getProgress(cid);
-        if (!p) continue; // 未阅读过不显示
-
-        var badge = document.createElement('div');
-        badge.className = 'reading-badge';
-        if (p.percent >= 100) {
-            badge.className += ' read-done';
-            badge.innerHTML = '<i class="fa fa-check-circle"></i> 已看';
-        } else {
-            badge.className += ' reading';
-            badge.innerHTML = '<i class="fa fa-bookmark-o"></i> 已看 ' + p.percent + '%';
+        if (p) {
+            hasReading = true;
+            var badge = document.createElement('div');
+            badge.className = 'reading-badge';
+            if (p.percent >= 100) {
+                badge.className += ' read-done';
+                badge.innerHTML = '<i class="fa fa-check-circle"></i> 已看';
+            } else {
+                badge.className += ' reading';
+                badge.innerHTML = '<i class="fa fa-bookmark-o"></i> 已看 ' + p.percent + '%';
+            }
+            card.appendChild(badge);
         }
-        card.appendChild(badge);
+
+        // 已收藏的文章显示收藏标记
+        if (window.ReadingFav.isFav(cid)) {
+            var favBadge = document.createElement('div');
+            favBadge.className = 'fav-badge';
+            if (hasReading) favBadge.className += ' has-reading';
+            favBadge.innerHTML = '<i class="fa fa-heart"></i>';
+            favBadge.title = '已收藏';
+            card.appendChild(favBadge);
+        }
     }
 };
 
@@ -2200,14 +2327,75 @@ window.initFavDropdown = function() {
         var isOpen = panel.classList.toggle('fav-panel-open');
         if (isOpen) render();
     });
-    // 点击外部关闭
-    document.addEventListener('click', function(e) {
-        if (!nav.contains(e.target)) panel.classList.remove('fav-panel-open');
-    });
-    // 收藏变化时若面板打开则刷新
-    document.addEventListener('shufei:favchange', function() {
-        if (panel.classList.contains('fav-panel-open')) render();
-    });
+
+    // document 级监听器只绑定一次，避免 pjax 切换累积
+    // 回调内实时查询当前 nav/panel，避免持有旧游离节点引用
+    if (!window._favDropdownDocBound) {
+        window._favDropdownDocBound = true;
+        // 点击外部关闭
+        document.addEventListener('click', function(e) {
+            var curNav = document.getElementById('header-nav-fav');
+            if (!curNav) return;
+            var curPanel = curNav.querySelector('.nav-fav-panel');
+            if (curPanel && !curNav.contains(e.target)) {
+                curPanel.classList.remove('fav-panel-open');
+            }
+        });
+        // 收藏变化时若面板打开则刷新
+        document.addEventListener('shufei:favchange', function() {
+            var curNav = document.getElementById('header-nav-fav');
+            if (!curNav) return;
+            var curPanel = curNav.querySelector('.nav-fav-panel');
+            if (curPanel && curPanel.classList.contains('fav-panel-open')) {
+                var curList = curPanel.querySelector('.fav-list');
+                if (curList) {
+                    // 复用 render 逻辑：重新渲染当前面板
+                    var list = window.ReadingFav.listFav();
+                    if (!list.length) {
+                        curList.innerHTML = '<li class="fav-empty"><i class="fa fa-heart-o"></i> 暂无收藏</li>';
+                        return;
+                    }
+                    var html = '';
+                    for (var i = 0; i < list.length; i++) {
+                        var item = list[i];
+                        var safeTitle = (item.title || '').replace(/[<>&"]/g, function(c) {
+                            return { '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c];
+                        });
+                        html += '<li class="fav-item" data-cid="' + item.cid + '">'
+                            + '<a href="' + item.url + '" class="fav-link" title="' + safeTitle + '">'
+                            + '<i class="fa fa-heart"></i>'
+                            + '<span class="fav-title">' + safeTitle + '</span>'
+                            + '</a>'
+                            + '<button class="fav-remove" title="取消收藏" data-cid="' + item.cid + '"><i class="fa fa-times"></i></button>'
+                            + '</li>';
+                    }
+                    curList.innerHTML = html;
+                    // 重新绑定移除按钮
+                    var removes = curList.querySelectorAll('.fav-remove');
+                    for (var j = 0; j < removes.length; j++) {
+                        removes[j].addEventListener('click', function(ev) {
+                            ev.preventDefault();
+                            ev.stopPropagation();
+                            var cid = this.getAttribute('data-cid');
+                            window.ReadingFav.removeFav(cid);
+                            document.dispatchEvent(new CustomEvent('shufei:favchange'));
+                        });
+                    }
+                    // 重新绑定 pjax 加载链接
+                    var links = curList.querySelectorAll('.fav-link');
+                    for (var k = 0; k < links.length; k++) {
+                        links[k].addEventListener('click', function(ev) {
+                            if (window.shufeiPjax) {
+                                ev.preventDefault();
+                                if (curPanel) curPanel.classList.remove('fav-panel-open');
+                                window.shufeiPjax.loadUrl(this.href);
+                            }
+                        });
+                    }
+                }
+            }
+        });
+    }
 
     render();
 };

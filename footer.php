@@ -90,6 +90,11 @@
     <i class="fa fa-angle-up"></i>
 </div>
 
+<!-- 文章页浮动收藏按钮（仅文章页显示，位于返回顶部/手机目录按钮上方） -->
+<div id="float-fav-btn" title="<?php _e('收藏文章'); ?>" style="display:none;">
+    <i class="fa fa-heart-o"></i>
+</div>
+
 <!-- 手机端文章目录触发按钮（仅文章页且拥有目录时显示） -->
 <div id="mobile-toc-btn" title="<?php _e('文章目录'); ?>">
     <i class="fa fa-list-ul"></i>

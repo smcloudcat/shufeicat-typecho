@@ -129,7 +129,6 @@
         'a[href^="#"]',
         'a[target="_blank"]',
         'a[download]',
-        'form',
         '.no-pjax',
         'a[href*="admin"]',
         'a[href*="login"]',
@@ -579,13 +578,17 @@
         window.reinitPageFunctions();
     });
     
-    document.addEventListener('pjax:timeout', function(e) {
-        e.continue();
-    });
-    
     document.addEventListener('pjax:error', function(e) {
-        if (e.requestedUrl) {
-            window.location.href = e.requestedUrl;
+        // MoOx/pjax 0.2.8 不触发 pjax:timeout，超时走 pjax:error 路径
+        // e.requestedUrl 在该库中不存在，用 e.triggerElement.href 获取目标 URL
+        var targetUrl = null;
+        if (e.triggerElement && e.triggerElement.href) {
+            targetUrl = e.triggerElement.href;
+        } else if (e.request && e.request.responseURL) {
+            targetUrl = e.request.responseURL;
+        }
+        if (targetUrl) {
+            window.location.href = targetUrl;
         } else {
             window.location.reload();
         }
@@ -596,8 +599,22 @@
     
     window.reinitPageFunctions = function() {
         if (window.reinitTimer) clearTimeout(window.reinitTimer);
-        
+
         window.reinitTimer = setTimeout(function() {
+            // 清理浮动收藏按钮（在 #footer 外，pjax 不会替换，需手动重置）
+            // 用克隆节点替换彻底清除旧的 click 监听器，避免 pjax 切换后
+            // 旧监听器仍用旧 cid 触发收藏，导致收藏错乱
+            var floatFavBtn = document.getElementById('float-fav-btn');
+            if (floatFavBtn) {
+                var newFloatBtn = floatFavBtn.cloneNode(true);
+                newFloatBtn.classList.remove('show', 'favorited', 'has-toc');
+                newFloatBtn.style.display = 'none';
+                newFloatBtn.removeAttribute('data-float-fav-bound');
+                var fIcon = newFloatBtn.querySelector('i');
+                if (fIcon) fIcon.className = 'fa fa-heart-o';
+                floatFavBtn.parentNode.replaceChild(newFloatBtn, floatFavBtn);
+            }
+
             if (typeof window.initDarkMode === 'function') {
                 window.initDarkMode();
             }
