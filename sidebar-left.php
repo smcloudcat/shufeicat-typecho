@@ -48,6 +48,40 @@
         </section>
 
         <!-- 页面导航 -->
+        <?php
+        // 计算需要在页面导航中排除的页面 cid（已在侧边栏单独展示的留言板和 GitHub 页面）
+        $_excludePageCids = array();
+        $_db = \Typecho\Db::get();
+
+        // 留言板（仅在留言板入口启用时排除）
+        $_gbEnabled = !empty($this->options->guestbookEnabled) && $this->options->guestbookEnabled === 'on';
+        if ($_gbEnabled) {
+            $_gbPageId = isset($this->options->guestbookPageId) ? trim($this->options->guestbookPageId) : '';
+            if (!empty($_gbPageId)) {
+                $_excludePageCids[] = intval($_gbPageId);
+            } else {
+                $_gbRow = $_db->fetchRow($_db->select('cid')->from('table.contents')
+                    ->where('template = ?', 'guestbook.php')
+                    ->where('status = ?', 'publish')
+                    ->limit(1));
+                if (!empty($_gbRow)) {
+                    $_excludePageCids[] = intval($_gbRow['cid']);
+                }
+            }
+        }
+
+        // GitHub 页面（仅在 GitHub 入口启用时排除）
+        $_ghUsername = !empty($this->options->githubUsername) ? trim($this->options->githubUsername) : '';
+        if (!empty($_ghUsername)) {
+            $_ghRow = $_db->fetchRow($_db->select('cid')->from('table.contents')
+                ->where('template = ?', 'github.php')
+                ->where('status = ?', 'publish')
+                ->limit(1));
+            if (!empty($_ghRow)) {
+                $_excludePageCids[] = intval($_ghRow['cid']);
+            }
+        }
+        ?>
         <section class="widget page-nav-widget collapsible-widget">
             <h3 class="widget-title collapsible-toggle"><i class="fa fa-sitemap"></i><?php _e('页面导航'); ?><i class="fa fa-chevron-down collapsible-arrow"></i></h3>
             <div class="collapsible-content">
@@ -60,6 +94,7 @@
                     </li>
                     <?php \Widget\Contents\Page\Rows::alloc()->to($pages); ?>
                     <?php while ($pages->next()): ?>
+                        <?php if (in_array(intval($pages->cid), $_excludePageCids)) continue; ?>
                         <li>
                             <a href="<?php $pages->permalink(); ?>" <?php if ($this->is('page', $pages->slug)): ?>class="current"<?php endif; ?>>
                                 <i class="fa fa-file-text-o"></i>
