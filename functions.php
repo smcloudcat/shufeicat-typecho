@@ -161,7 +161,7 @@ function shufei_check_theme_update($force = false, $channel = null)
  */
 function shufei_get_theme_version()
 {
-    return '1.4.1';
+    return '1.5.0-rc.1';
 }
 
 /**
@@ -170,51 +170,109 @@ function shufei_get_theme_version()
 function themeConfig($form)
 {
     $css = '<style>' .
-        '.cat-config-container { display: flex; background: #fff; border: 1px solid #e5e5e5; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.04); margin-bottom: 25px; overflow: hidden; font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; }' .
-        '.cat-config-aside { width: 180px; background: #f9f9f9; border-right: 1px solid #e5e5e5; flex-shrink: 0; padding: 15px 0; }' .
-        '.cat-config-logo { padding: 0 20px 15px; font-weight: bold; color: #467B96; font-size: 16px; border-bottom: 1px solid #eee; margin-bottom: 10px; }' .
-        '.cat-config-aside ul { list-style: none; margin: 0; padding: 0; }' .
-        '.cat-config-aside li { padding: 12px 20px; cursor: pointer; color: #666; font-size: 13px; transition: .2s; border-left: 3px solid transparent; }' .
+        // ===== 主容器：左右两栏布局 =====
+        '.cat-config-container { display: flex; background: #fff; border: 1px solid #e8e8e8; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); margin-bottom: 20px; overflow: hidden; font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; color: #333; }' .
+        // ===== 侧边栏导航 =====
+        '.cat-config-aside { width: 170px; background: #fbfbfb; border-right: 1px solid #ececec; flex-shrink: 0; padding: 0; }' .
+        '.cat-config-logo { padding: 14px 18px; font-weight: 600; color: #467B96; font-size: 14px; border-bottom: 1px solid #ececec; letter-spacing: 0.3px; }' .
+        '.cat-config-aside ul { list-style: none; margin: 0; padding: 4px 0; }' .
+        '.cat-config-aside li { padding: 9px 18px 9px 20px; cursor: pointer; color: #595959; font-size: 13px; transition: background .15s, color .15s; border-left: 2px solid transparent; line-height: 1.4; }' .
         '.cat-config-aside li:hover { background: #f0f0f0; color: #467B96; }' .
-        '.cat-config-aside li.active { background: #fff; color: #467B96; font-weight: bold; border-left-color: #467B96; }' .
-        '.cat-config-main { flex: 1; padding: 10px 30px 30px; min-height: 500px; }' .
+        '.cat-config-aside li.active { background: #fff; color: #467B96; font-weight: 600; border-left-color: #467B96; }' .
+        // ===== 主内容区 =====
+        '.cat-config-main { flex: 1; padding: 8px 28px 24px; min-height: 480px; min-width: 0; }' .
         '.typecho-option-list:not(.typecho-option-submit) { display: none !important; }' .
         '.cat-pane { display: none; }' .
-        '.cat-pane.active { display: block; animation: catFadeIn .3s ease; }' .
-        '@keyframes catFadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }' .
-        '.cat-config-main .typecho-option { border-bottom: 1px solid #f5f5f5; padding: 25px 0; margin: 0; }' .
+        '.cat-pane.active { display: block; animation: catFadeIn .2s ease; }' .
+        '@keyframes catFadeIn { from { opacity: 0; } to { opacity: 1; } }' .
+        // ===== 选项行：紧凑列表式布局 =====
+        '.cat-config-main .typecho-option { padding: 14px 0; margin: 0; border-bottom: 1px solid #f0f0f0; }' .
         '.cat-config-main .typecho-option:last-child { border-bottom: none; }' .
-        '.cat-config-main .typecho-option label.typecho-label { display: block; font-weight: bold; margin-bottom: 10px; color: #333; }' .
-        '.cat-config-main .description { color: #999; font-size: 12px; margin-top: 8px; line-height: 1.6; }' .
-        '.cat-config-main input[type=text], .cat-config-main textarea, .cat-config-main select, .cat-config-main input[type=number] { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; background: #fafafa; transition: all .2s; box-sizing: border-box; }' .
-        '.cat-config-main input:focus, .cat-config-main textarea:focus { border-color: #467B96; outline: none; background: #fff; box-shadow: 0 0 0 3px rgba(70, 123, 150, 0.1); }' .
-        '.typecho-option-submit { background: #fff; padding: 25px; border: 1px solid #e5e5e5; border-radius: 8px; text-align: right; }' .
-        '.typecho-option-submit button { background: #467B96 !important; border: none !important; color: #fff !important; padding: 0 40px !important; height: 46px !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; border-radius: 6px !important; cursor: pointer !important; font-weight: 600 !important; transition: all .2s !important; vertical-align: middle !important; margin: 0 !important; line-height: 1 !important; text-decoration: none !important; outline: none !important; }' .
-        '.typecho-option-submit button:hover { transform: scale(1.02); opacity: 0.9; }' .
-        '.api-status-box { padding: 15px; border-radius: 6px; margin-bottom: 20px; font-size: 13px; border: 1px solid transparent; line-height: 1.6; }' .
+        '.cat-config-main .typecho-option label.typecho-label { display: block; font-weight: 600; margin-bottom: 6px; color: #262626; font-size: 13px; line-height: 1.4; }' .
+        '.cat-config-main .description { color: #8c8c8c; font-size: 12px; margin-top: 6px; line-height: 1.5; }' .
+        // ===== 表单输入元素：统一小圆角 =====
+        '.cat-config-main input[type=text], .cat-config-main textarea, .cat-config-main select, .cat-config-main input[type=number] { width: 100%; padding: 7px 10px; border: 1px solid #d9d9d9; border-radius: 4px; background: #fff; transition: border-color .15s, box-shadow .15s; box-sizing: border-box; font-size: 13px; color: #333; }' .
+        '.cat-config-main input:focus, .cat-config-main textarea:focus, .cat-config-main select:focus { border-color: #467B96; outline: none; box-shadow: 0 0 0 2px rgba(70, 123, 150, 0.12); }' .
+        '.cat-config-main textarea { min-height: 72px; resize: vertical; font-family: inherit; }' .
+        // ===== radio/checkbox 选项：紧凑横排，小圆角 =====
+        '.cat-config-main ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }' .
+        '.cat-config-main ul li { margin: 0; }' .
+        '.cat-config-main ul li label { display: inline-flex; align-items: center; cursor: pointer; font-size: 12px; color: #595959; padding: 4px 10px; border: 1px solid #d9d9d9; border-radius: 3px; transition: all .15s; background: #fff; line-height: 1.4; user-select: none; }' .
+        '.cat-config-main ul li label:hover { border-color: #467B96; color: #467B96; }' .
+        '.cat-config-main ul li input[type=radio], .cat-config-main ul li input[type=checkbox] { margin-right: 4px; accent-color: #467B96; }' .
+        '.cat-config-main ul li:has(input:checked) label { border-color: #467B96; color: #467B96; background: #eef5f8; font-weight: 500; }' .
+        // ===== 提交按钮区 =====
+        '.typecho-option-submit { background: #fbfbfb; padding: 16px 20px; border: 1px solid #e8e8e8; border-radius: 4px; text-align: right; margin-top: 12px; }' .
+        '.typecho-option-submit button { background: #467B96 !important; border: none !important; color: #fff !important; padding: 0 28px !important; height: 38px !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; border-radius: 4px !important; cursor: pointer !important; font-weight: 500 !important; font-size: 13px !important; transition: background .15s !important; vertical-align: middle !important; margin: 0 !important; line-height: 1 !important; text-decoration: none !important; outline: none !important; }' .
+        '.typecho-option-submit button:hover { background: #3a6478 !important; }' .
+        // ===== API 状态提示框 =====
+        '.api-status-box { padding: 10px 14px; border-radius: 4px; margin-bottom: 16px; font-size: 12px; border: 1px solid transparent; line-height: 1.6; }' .
         '.api-success { background: #f6ffed; border-color: #b7eb8f; color: #389e0d; }' .
         '.api-error { background: #fff2f0; border-color: #ffccc7; color: #cf1322; }' .
-        '.cat-data-section { padding: 20px 0; border-bottom: 1px solid #f5f5f5; }' .
+        // ===== 数据管理区块 =====
+        '.cat-data-section { padding: 16px 0; border-bottom: 1px solid #f0f0f0; }' .
         '.cat-data-section:last-child { border-bottom: none; }' .
-        '.cat-data-title { font-weight: bold; font-size: 14px; margin-bottom: 8px; color: #333; }' .
-        '.cat-data-desc { color: #999; font-size: 12px; margin-bottom: 15px; line-height: 1.8; }' .
-        '.cat-data-btn { display: inline-block; padding: 10px 24px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all .2s; text-decoration: none; }' .
-        '.cat-data-btn:hover { opacity: 0.85; transform: scale(1.02); }' .
+        '.cat-data-title { font-weight: 600; font-size: 13px; margin-bottom: 6px; color: #262626; }' .
+        '.cat-data-desc { color: #8c8c8c; font-size: 12px; margin-bottom: 12px; line-height: 1.6; }' .
+        '.cat-data-btn { display: inline-block; padding: 7px 18px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 500; transition: opacity .15s; text-decoration: none; line-height: 1.4; }' .
+        '.cat-data-btn:hover { opacity: 0.88; }' .
         '.cat-data-btn-primary { background: #467B96; color: #fff; }' .
         '.cat-data-btn-warning { background: #e67e22; color: #fff; }' .
         '.cat-data-btn-danger { background: #e74c3c; color: #fff; }' .
-        '.cat-file-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }' .
-        '.cat-file-label { display: inline-block; padding: 10px 20px; background: #fafafa; border: 1px dashed #ccc; border-radius: 6px; color: #666; font-size: 13px; cursor: pointer; transition: all .2s; position: relative; overflow: hidden; }' .
-        '.cat-file-label:hover { border-color: #467B96; color: #467B96; background: #f0f7fa; }' .
+        '.cat-file-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }' .
+        '.cat-file-label { display: inline-block; padding: 7px 14px; background: #fff; border: 1px dashed #d9d9d9; border-radius: 4px; color: #595959; font-size: 12px; cursor: pointer; transition: border-color .15s, color .15s; position: relative; overflow: hidden; line-height: 1.4; }' .
+        '.cat-file-label:hover { border-color: #467B96; color: #467B96; }' .
         '.cat-file-label input[type=file] { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }' .
         '.cat-file-name { color: #467B96; font-size: 12px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }' .
-        '.cat-data-status { margin-top: 12px; padding: 12px 16px; border-radius: 6px; font-size: 13px; display: none; line-height: 1.6; }' .
+        '.cat-data-status { margin-top: 10px; padding: 10px 14px; border-radius: 4px; font-size: 12px; display: none; line-height: 1.6; }' .
         '.cat-data-status.show { display: block; }' .
         '.cat-data-status.success { background: #f6ffed; border: 1px solid #b7eb8f; color: #389e0d; }' .
         '.cat-data-status.error { background: #fff2f0; border: 1px solid #ffccc7; color: #cf1322; }' .
         '.cat-data-status.info { background: #e6f7ff; border: 1px solid #91d5ff; color: #096dd9; }' .
-        '.cat-data-warning { background: #fffbe6; border: 1px solid #ffe58f; border-radius: 6px; padding: 12px 16px; margin-bottom: 20px; color: #d48806; font-size: 12px; line-height: 1.8; }' .
+        '.cat-data-warning { background: #fffbe6; border: 1px solid #ffe58f; border-radius: 4px; padding: 10px 14px; margin-bottom: 16px; color: #d48806; font-size: 12px; line-height: 1.6; }' .
         '.cat-data-warning i { margin-right: 6px; }' .
+        // ===== 桌面端：侧边栏 sticky =====
+        '@media (min-width: 769px) {' .
+            '.cat-config-aside { position: sticky; top: 0; align-self: flex-start; max-height: 100vh; overflow-y: auto; }' .
+        '}' .
+        // ===== 移动端适配：侧边栏改为顶部横向滚动 =====
+        '@media (max-width: 768px) {' .
+            '.cat-config-container { flex-direction: column; border-radius: 4px; margin-bottom: 12px; }' .
+            '.cat-config-aside { width: 100%; border-right: none; border-bottom: 1px solid #ececec; position: relative; }' .
+            '.cat-config-logo { padding: 12px 14px; font-size: 13px; }' .
+            '#cat-tabs { display: flex; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: thin; padding: 0; }' .
+            '#cat-tabs::-webkit-scrollbar { height: 3px; }' .
+            '#cat-tabs::-webkit-scrollbar-thumb { background: #d9d9d9; border-radius: 2px; }' .
+            '.cat-config-aside li { padding: 10px 14px; white-space: nowrap; border-left: none; border-bottom: 2px solid transparent; font-size: 12px; }' .
+            '.cat-config-aside li.active { background: transparent; border-bottom-color: #467B96; border-left-color: transparent; }' .
+            '.cat-config-aside li:hover { background: #f0f0f0; }' .
+            '.cat-config-main { padding: 6px 14px 18px; min-height: 240px; width: 100%; box-sizing: border-box; }' .
+            '.cat-config-main .typecho-option { padding: 12px 0; }' .
+            '.cat-config-main .typecho-option label.typecho-label { font-size: 13px; margin-bottom: 6px; }' .
+            '.cat-config-main input[type=text], .cat-config-main textarea, .cat-config-main select, .cat-config-main input[type=number] { padding: 8px 10px; font-size: 13px; }' .
+            '.cat-config-main textarea { min-height: 64px; }' .
+            '.typecho-option-submit { padding: 14px; text-align: center; }' .
+            '.typecho-option-submit button { width: 100%; max-width: 260px; height: 40px !important; padding: 0 18px !important; }' .
+            '.cat-data-section { padding: 12px 0; }' .
+            '.cat-data-title { font-size: 12px; }' .
+            '.cat-data-desc { font-size: 11px; line-height: 1.5; }' .
+            '.cat-file-row { flex-direction: column; align-items: stretch; gap: 8px; }' .
+            '.cat-file-label { text-align: center; padding: 10px; }' .
+            '.cat-data-btn { width: 100%; text-align: center; padding: 9px; }' .
+            '.cat-data-warning { font-size: 11px; padding: 9px 12px; line-height: 1.5; }' .
+            '.cat-config-main ul { gap: 5px; }' .
+            '.cat-config-main ul li label { padding: 5px 9px; font-size: 11px; }' .
+        '}' .
+        '@media (max-width: 480px) {' .
+            '.cat-config-logo { padding: 10px 12px; font-size: 12px; }' .
+            '.cat-config-aside li { padding: 8px 12px; font-size: 11px; }' .
+            '.cat-config-main { padding: 4px 12px 14px; }' .
+            '.cat-config-main .typecho-option { padding: 10px 0; }' .
+            '.cat-config-main .typecho-option label.typecho-label { font-size: 12px; }' .
+            '.cat-config-main .description { font-size: 11px; }' .
+            '.typecho-option-submit { padding: 12px; }' .
+            '.typecho-option-submit button { height: 38px !important; font-size: 12px !important; }' .
+        '}' .
         '</style>';
     echo $css;
 

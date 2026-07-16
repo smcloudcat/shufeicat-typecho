@@ -21,19 +21,25 @@ $action = isset($_GET['action']) ? $_GET['action'] : '';
 
 header('Content-Type: application/json');
 
-// CSRF 防护：校验 Typecho 安全 token
-// 使用固定 suffix 生成 token，避免 PJAX 切换页面或 CDN/反代场景下
-// 前端 getRequestUrl() 与后端 HTTP_REFERER 不一致导致校验失败
+// CSRF 防护：基于 session 的独立 token 校验
+// 原实现依赖 Widget\Security，独立访问本文件时上下文不完整会导致 token 不一致
+// 改用 session token：header.php 生成写入 $_SESSION，本文件校验
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 $csrfToken = isset($_POST['_']) ? $_POST['_'] : '';
-$expectedToken = '';
-if (class_exists('\Widget\Security')) {
-    try {
-        $security = \Widget\Security::alloc();
-        $expectedToken = $security->getToken('shufei_ajax');
-    } catch (\Throwable $e) {
-        // 安全组件初始化失败时拒绝所有请求
-        echo json_encode(array('success' => false, 'message' => '安全校验失败'));
-        exit;
+$sessionKey = 'shufei_ajax_token';
+$expectedToken = isset($_SESSION[$sessionKey]) ? $_SESSION[$sessionKey] : '';
+
+// token 为空或校验失败，尝试用 Typecho 原生 Security 回退（兼容旧版）
+if (empty($expectedToken)) {
+    if (class_exists('\Widget\Security')) {
+        try {
+            $security = \Widget\Security::alloc();
+            $expectedToken = $security->getToken('shufei_ajax');
+        } catch (\Throwable $e) {
+            $expectedToken = '';
+        }
     }
 }
 

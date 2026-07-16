@@ -16,6 +16,7 @@
 
 <?php if ($postListStyle === 'classic'): ?>
 <article class="post <?php echo $hasThumb ? 'has-thumbnail' : ''; ?> <?php echo $isSticky ? 'post-sticky' : ''; ?>"
+         data-cid="<?php echo $post->cid; ?>"
          itemscope itemtype="http://schema.org/BlogPosting"
          style="<?php echo $hasThumb ? 'background-image: url(' . shufei_sanitize_url($thumbnail) . ');' : ''; ?>">
     <a href="<?php echo $post->permalink(); ?>" class="post-link" aria-label="<?php $post->title(); ?>"></a>
@@ -59,6 +60,7 @@
 
 <?php else: ?>
 <article class="post <?php echo $hasThumb ? 'has-thumbnail' : 'no-thumbnail'; ?> <?php echo $isSticky ? 'post-sticky' : ''; ?>"
+         data-cid="<?php echo $post->cid; ?>"
          itemscope itemtype="http://schema.org/BlogPosting">
     <a href="<?php echo $post->permalink(); ?>" class="post-link" aria-label="<?php $post->title(); ?>"></a>
 

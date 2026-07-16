@@ -658,6 +658,10 @@ window.initPostLike = function() {
     var likeBtn = document.querySelector('.post-like-btn');
     if (!likeBtn) return;
 
+    // 防重复绑定：F5 刷新时 main.js(DOMContentLoaded) 与 pjax.js(load) 都会调用
+    if (likeBtn.getAttribute('data-like-bound')) return;
+    likeBtn.setAttribute('data-like-bound', '1');
+
     likeBtn.addEventListener('click', function(e) {
         e.preventDefault();
         e.stopPropagation();
@@ -1897,6 +1901,366 @@ window.initQuoteComment = function() {
 };
 
 /**
+ * 阅读进度 & 收藏管理（基于 localStorage）
+ * 存储 key 设计：
+ *   shufei_reading_progress  -> { [cid]: { percent: 0-100, ts: 时间戳 } }  percent=100 表示已看完
+ *   shufei_favorites         -> { [cid]: { title, url, ts } }
+ */
+window.ReadingFav = (function() {
+    var PROGRESS_KEY = 'shufei_reading_progress';
+    var FAV_KEY = 'shufei_favorites';
+    var MAX_FAV = 100;
+
+    function safeParse(key, def) {
+        try {
+            var raw = localStorage.getItem(key);
+            return raw ? JSON.parse(raw) : def;
+        } catch (e) { return def; }
+    }
+    function safeWrite(key, val) {
+        try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) {}
+    }
+
+    function getProgress(cid) {
+        var data = safeParse(PROGRESS_KEY, {});
+        return data[cid] || null;
+    }
+    function setProgress(cid, percent) {
+        if (!cid) return;
+        var data = safeParse(PROGRESS_KEY, {});
+        // 进度只增不减，避免上下滚动导致已读状态倒退
+        // 但 100% 可能是内容未渲染时的误判，允许向下修正
+        var prev = data[cid] ? data[cid].percent : 0;
+        if (percent < prev && prev < 100) percent = prev;
+        data[cid] = { percent: percent, ts: Date.now() };
+        safeWrite(PROGRESS_KEY, data);
+    }
+    function markRead(cid) {
+        if (!cid) return;
+        var data = safeParse(PROGRESS_KEY, {});
+        data[cid] = { percent: 100, ts: Date.now() };
+        safeWrite(PROGRESS_KEY, data);
+    }
+
+    function isFav(cid) {
+        var data = safeParse(FAV_KEY, {});
+        return !!data[cid];
+    }
+    function addFav(cid, info) {
+        if (!cid) return false;
+        var data = safeParse(FAV_KEY, {});
+        if (data[cid]) return false;
+        data[cid] = { title: info.title || '', url: info.url || '', ts: Date.now() };
+        safeWrite(FAV_KEY, data);
+        return true;
+    }
+    function removeFav(cid) {
+        if (!cid) return false;
+        var data = safeParse(FAV_KEY, {});
+        if (!data[cid]) return false;
+        delete data[cid];
+        safeWrite(FAV_KEY, data);
+        return true;
+    }
+    function toggleFav(cid, info) {
+        if (isFav(cid)) { removeFav(cid); return false; }
+        addFav(cid, info); return true;
+    }
+    function listFav() {
+        var data = safeParse(FAV_KEY, {});
+        var arr = [];
+        for (var k in data) { if (data.hasOwnProperty(k)) arr.push({ cid: k, title: data[k].title, url: data[k].url, ts: data[k].ts }); }
+        arr.sort(function(a, b) { return b.ts - a.ts; });
+        return arr;
+    }
+
+    return {
+        getProgress: getProgress,
+        setProgress: setProgress,
+        markRead: markRead,
+        isFav: isFav,
+        addFav: addFav,
+        removeFav: removeFav,
+        toggleFav: toggleFav,
+        listFav: listFav
+    };
+})();
+
+/**
+ * 文章详情页：记录滚动阅读进度 + 收藏按钮交互
+ */
+window.initPostReadingFav = function() {
+    var article = document.querySelector('article.post-single');
+    var postContent = document.querySelector('.post-single .post-content');
+    if (!article || !postContent) return;
+
+    // 防重复绑定：F5 刷新时 main.js(DOMContentLoaded) 与 pjax.js(load) 都会调用
+    if (article.getAttribute('data-rf-bound')) return;
+    article.setAttribute('data-rf-bound', '1');
+
+    // 从页面获取 cid：优先 meta 上的 data-cid，回退到 body data-cid
+    var cid = document.body.getAttribute('data-cid') || article.getAttribute('data-cid');
+    if (!cid) return;
+
+    // pjax 模式下强制滚动到顶部
+    // pjax 替换 DOM 后可能保留原滚动位置，导致进度计算错误
+    if (window.pjaxEnabled && !window.location.hash) {
+        window.scrollTo(0, 0);
+    }
+
+    // 滚动监听：仅在用户实际滚动时计算并记录进度
+    var ticking = false;
+    function updateProgress() {
+        ticking = false;
+        var rect = postContent.getBoundingClientRect();
+        var winH = window.innerHeight || document.documentElement.clientHeight;
+        var totalH = postContent.offsetHeight;
+        // 内容高度为 0 时跳过（DOM 尚未渲染完成）
+        if (totalH === 0) return;
+        var top = rect.top;
+        var scrolled = Math.max(0, -top);
+        var readable = Math.max(1, totalH - winH);
+        var percent = Math.min(100, Math.max(0, Math.round((scrolled / readable) * 100)));
+        if (percent > 0) {
+            window.ReadingFav.setProgress(cid, percent);
+        }
+    }
+    window.addEventListener('scroll', function() {
+        if (!ticking) {
+            window.requestAnimationFrame(updateProgress);
+            ticking = true;
+        }
+    }, { passive: true });
+
+    // 短文自动标记已读：延迟检查，确保 pjax 替换后布局已稳定
+    // 仅当内容确实较短（高度 > 0 且 <= 视口 80%）时才标记，避免刚进入就误判
+    function checkShortArticle() {
+        var totalH = postContent.offsetHeight;
+        var winH = window.innerHeight || document.documentElement.clientHeight;
+        if (totalH > 0 && totalH <= winH * 0.8) {
+            window.ReadingFav.setProgress(cid, 100);
+        }
+    }
+    function deferredShortCheck() {
+        var imgs = postContent.querySelectorAll('img');
+        var unloaded = 0;
+        for (var i = 0; i < imgs.length; i++) {
+            if (!imgs[i].complete) unloaded++;
+        }
+        if (unloaded > 0) {
+            var pending = unloaded;
+            var done = function() {
+                pending--;
+                if (pending <= 0) setTimeout(checkShortArticle, 200);
+            };
+            for (var j = 0; j < imgs.length; j++) {
+                if (!imgs[j].complete) {
+                    imgs[j].addEventListener('load', done);
+                    imgs[j].addEventListener('error', done);
+                }
+            }
+            setTimeout(function() { if (pending > 0) checkShortArticle(); }, 3000);
+        } else {
+            setTimeout(checkShortArticle, 500);
+        }
+    }
+    if (document.readyState === 'complete') {
+        deferredShortCheck();
+    } else {
+        window.addEventListener('load', deferredShortCheck);
+    }
+
+    // 收藏按钮：若页面存在则同步状态
+    var favBtn = document.getElementById('post-fav-btn');
+    if (favBtn) {
+        function syncFavBtn() {
+            var fav = window.ReadingFav.isFav(cid);
+            favBtn.classList.toggle('favorited', fav);
+            var icon = favBtn.querySelector('i');
+            var text = favBtn.querySelector('.fav-text');
+            if (icon) icon.className = fav ? 'fa fa-heart' : 'fa fa-heart-o';
+            if (text) text.textContent = fav ? '已收藏' : '收藏';
+        }
+        syncFavBtn();
+        favBtn.addEventListener('click', function() {
+            var title = document.title || '';
+            var url = window.location.href.split('#')[0];
+            var nowFav = window.ReadingFav.toggleFav(cid, { title: title, url: url });
+            syncFavBtn();
+            if (window.showToast) {
+                window.showToast(nowFav ? '已加入收藏' : '已取消收藏', nowFav ? 'success' : 'info');
+            }
+            // 通知导航栏收藏下拉同步
+            document.dispatchEvent(new CustomEvent('shufei:favchange'));
+        });
+    }
+};
+
+/**
+ * 文章列表：在每张卡片上标记阅读状态/进度
+ */
+window.initListReadingMarks = function() {
+    // 列表容器类名为 post-list-classic / post-list-card 等（不含 .post-list）
+    var cards = document.querySelectorAll('[class*="post-list-"] article.post[data-cid]');
+    if (!cards.length) return;
+    for (var i = 0; i < cards.length; i++) {
+        var card = cards[i];
+        // 避免重复处理
+        if (card.getAttribute('data-reading-mark')) continue;
+        card.setAttribute('data-reading-mark', '1');
+
+        var cid = card.getAttribute('data-cid');
+        if (!cid) continue;
+
+        var p = window.ReadingFav.getProgress(cid);
+        if (!p) continue; // 未阅读过不显示
+
+        var badge = document.createElement('div');
+        badge.className = 'reading-badge';
+        if (p.percent >= 100) {
+            badge.className += ' read-done';
+            badge.innerHTML = '<i class="fa fa-check-circle"></i> 已看';
+        } else {
+            badge.className += ' reading';
+            badge.innerHTML = '<i class="fa fa-bookmark-o"></i> 已看 ' + p.percent + '%';
+        }
+        card.appendChild(badge);
+    }
+};
+
+/**
+ * 顶部导航栏：收藏下拉
+ */
+window.initFavDropdown = function() {
+    var nav = document.getElementById('header-nav-fav');
+    if (!nav) return;
+
+    var btn = nav.querySelector('.nav-fav-btn');
+    var panel = nav.querySelector('.nav-fav-panel');
+    if (!btn || !panel) return;
+
+    // 防重复绑定：F5 刷新时 main.js(DOMContentLoaded) 与 pjax.js(load) 都会调用
+    // pjax 切换页面时 header 被替换为新元素，新元素无此标记会正常绑定
+    if (btn.getAttribute('data-fav-bound')) return;
+    btn.setAttribute('data-fav-bound', '1');
+
+    function render() {
+        var list = window.ReadingFav.listFav();
+        var listEl = panel.querySelector('.fav-list');
+        if (!listEl) return;
+        if (!list.length) {
+            listEl.innerHTML = '<li class="fav-empty"><i class="fa fa-heart-o"></i> 暂无收藏</li>';
+            return;
+        }
+        var html = '';
+        for (var i = 0; i < list.length; i++) {
+            var item = list[i];
+            var safeTitle = (item.title || '').replace(/[<>&"]/g, function(c) {
+                return { '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c];
+            });
+            html += '<li class="fav-item" data-cid="' + item.cid + '">'
+                + '<a href="' + item.url + '" class="fav-link" title="' + safeTitle + '">'
+                + '<i class="fa fa-heart"></i>'
+                + '<span class="fav-title">' + safeTitle + '</span>'
+                + '</a>'
+                + '<button class="fav-remove" title="取消收藏" data-cid="' + item.cid + '"><i class="fa fa-times"></i></button>'
+                + '</li>';
+        }
+        listEl.innerHTML = html;
+
+        // 绑定移除按钮
+        var removes = listEl.querySelectorAll('.fav-remove');
+        for (var j = 0; j < removes.length; j++) {
+            removes[j].addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                var cid = this.getAttribute('data-cid');
+                window.ReadingFav.removeFav(cid);
+                render();
+                document.dispatchEvent(new CustomEvent('shufei:favchange'));
+            });
+        }
+
+        // 为收藏链接绑定 pjax 加载（动态生成的链接未被 Pjax 自动绑定）
+        var links = listEl.querySelectorAll('.fav-link');
+        for (var k = 0; k < links.length; k++) {
+            links[k].addEventListener('click', function(e) {
+                if (window.shufeiPjax) {
+                    e.preventDefault();
+                    panel.classList.remove('fav-panel-open');
+                    window.shufeiPjax.loadUrl(this.href);
+                }
+            });
+        }
+    }
+
+    btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var isOpen = panel.classList.toggle('fav-panel-open');
+        if (isOpen) render();
+    });
+    // 点击外部关闭
+    document.addEventListener('click', function(e) {
+        if (!nav.contains(e.target)) panel.classList.remove('fav-panel-open');
+    });
+    // 收藏变化时若面板打开则刷新
+    document.addEventListener('shufei:favchange', function() {
+        if (panel.classList.contains('fav-panel-open')) render();
+    });
+
+    render();
+};
+
+/**
+ * 顶部搜索框：默认收起，点击搜索图标展开输入框
+ * 输入框为空失焦时自动收起，按 Escape 收起
+ */
+window.initSearchToggle = function() {
+    var form = document.getElementById('search');
+    if (!form) return;
+    // 防重复绑定（pjax 切换后 header 被替换，新元素无此标记会正常绑定）
+    if (form.getAttribute('data-search-bound')) return;
+    form.setAttribute('data-search-bound', '1');
+
+    var input = form.querySelector('input#s');
+    var btn = form.querySelector('button.submit');
+    if (!input || !btn) return;
+
+    function expand() {
+        form.classList.add('search-expanded');
+        setTimeout(function() { input.focus(); }, 120);
+    }
+    function collapse() {
+        if (input.value.trim() === '') {
+            form.classList.remove('search-expanded');
+        }
+    }
+
+    // 点击搜索按钮：未展开时展开并阻止提交；已展开则正常提交
+    btn.addEventListener('click', function(e) {
+        if (!form.classList.contains('search-expanded')) {
+            e.preventDefault();
+            expand();
+        }
+    });
+
+    // 输入框失焦：内容为空则收起
+    input.addEventListener('blur', function() {
+        setTimeout(collapse, 150);
+    });
+
+    // Escape 键收起
+    input.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' || e.keyCode === 27) {
+            input.value = '';
+            form.classList.remove('search-expanded');
+            input.blur();
+        }
+    });
+};
+
+/**
  * 验证码组件初始化（非 Pjax 模式）
  * Pjax 模式由 pjax.js 负责初始化；未开启 Pjax 时由本函数渲染 Turnstile / 极验组件
  */
@@ -2020,6 +2384,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 初始化验证码组件（非 Pjax 模式；Pjax 模式由 pjax.js 负责）
     window.initCaptchaWidgets();
+
+    // 初始化阅读进度 & 收藏功能
+    window.initPostReadingFav();
+    window.initListReadingMarks();
+    window.initFavDropdown();
+
+    // 初始化搜索框展开/收起
+    window.initSearchToggle();
 
     // 初始化侧边栏折叠功能
     window.initCollapsibleSidebar();

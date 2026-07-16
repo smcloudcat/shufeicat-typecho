@@ -482,7 +482,7 @@
         
         <div class="header-right">
             <div class="site-search">
-                <form id="search" method="post" action="<?php $this->options->siteUrl(); ?>" role="search">
+                <form id="search" method="get" action="<?php $this->options->siteUrl(); ?>" role="search">
                     <label for="s" class="sr-only"><?php _e('搜索关键字'); ?></label>
                     <input type="text" id="s" name="s" class="text" placeholder="<?php _e('搜索文章...'); ?>"/>
                     <button type="submit" class="submit">
@@ -490,12 +490,29 @@
                     </button>
                 </form>
             </div>
+            <div class="header-nav-fav" id="header-nav-fav">
+                <button class="nav-fav-btn" title="<?php _e('我的收藏'); ?>" aria-label="<?php _e('我的收藏'); ?>" aria-haspopup="true" aria-expanded="false">
+                    <i class="fa fa-heart-o"></i>
+                </button>
+                <div class="nav-fav-panel" role="menu" aria-label="<?php _e('收藏列表'); ?>">
+                    <div class="nav-fav-header"><?php _e('我的收藏'); ?></div>
+                    <ul class="fav-list"></ul>
+                </div>
+            </div>
             <button class="dark-mode-toggle" id="dark-mode-toggle" title="<?php _e('切换夜间模式'); ?>" aria-label="<?php _e('切换夜间模式'); ?>">
                 <i class="fa fa-moon-o"></i>
             </button>
         </div>
     </div>
-    <script>window.csrfToken = '<?php echo $this->security->getToken('shufei_ajax'); ?>';</script>
+    <?php
+    // 生成 CSRF token 并同步写入 session，供 ajax-handler.php 校验
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+    $shufeiAjaxToken = $this->security->getToken('shufei_ajax');
+    $_SESSION['shufei_ajax_token'] = $shufeiAjaxToken;
+    ?>
+    <script>window.csrfToken = '<?php echo $shufeiAjaxToken; ?>';</script>
 </header><!-- end #header -->
 
 <div id="body">

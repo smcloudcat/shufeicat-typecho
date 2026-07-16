@@ -1037,34 +1037,51 @@ img {
 }
 
 .site-search {
-    flex: 0 0 280px;
+    flex: 0 0 auto;
 }
 
 #search {
     position: relative;
+    width: 36px;
+    height: 36px;
+    transition: width 0.3s ease;
+}
+
+#search.search-expanded {
+    width: 280px;
 }
 
 #search input {
     width: 100%;
-    padding: 12px 45px 12px 20px;
+    height: 36px;
+    padding: 0;
+    margin: 0;
     border: 2px solid transparent;
     border-radius: 25px;
     outline: none;
-    transition: var(--transition-fast);
     font-size: 14px;
     background: #f5f5f5;
+    opacity: 0;
+    box-sizing: border-box;
+    overflow: hidden;
+    transition: padding 0.3s ease, opacity 0.2s ease;
+}
+
+#search.search-expanded input {
+    padding: 12px 45px 12px 20px;
+    opacity: 1;
+    transition: padding 0.3s ease, opacity 0.2s ease 0.15s;
 }
 
 #search input:focus {
     border-color: var(--primary-color);
     background: #fff;
-    box-shadow: 0 0 0 4px rgba(255, 107, 107, 0.1);
     box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary-color) 10%, transparent);
 }
 
 #search button {
     position: absolute;
-    right: 8px;
+    right: 2px;
     top: 50%;
     transform: translateY(-50%);
     border: none;
@@ -1079,6 +1096,7 @@ img {
     display: flex;
     align-items: center;
     justify-content: center;
+    z-index: 2;
 }
 
 #search button:hover {
@@ -3306,9 +3324,9 @@ pre[class*="language-"].line-numbers > code {
     .header-inner {
         padding: 0 20px;
     }
-    
-    .site-search {
-        flex: 0 0 240px;
+
+    #search.search-expanded {
+        width: 240px;
     }
 }
 
@@ -3339,7 +3357,10 @@ pre[class*="language-"].line-numbers > code {
 
     .site-search {
         flex: 0 0 auto;
-        max-width: 200px;
+    }
+
+    #search.search-expanded {
+        width: 200px;
     }
 
     .site-name {
@@ -3442,10 +3463,14 @@ pre[class*="language-"].line-numbers > code {
     }
 
     .site-search {
-        max-width: 160px;
+        max-width: 200px;
     }
 
-    #search input {
+    #search.search-expanded {
+        width: 160px;
+    }
+
+    #search.search-expanded input {
         padding: 8px 36px 8px 12px;
         font-size: 13px;
     }
@@ -3453,7 +3478,7 @@ pre[class*="language-"].line-numbers > code {
     #search button {
         width: 28px;
         height: 28px;
-        right: 6px;
+        right: 4px;
     }
 
     body {
@@ -3530,10 +3555,14 @@ pre[class*="language-"].line-numbers > code {
     }
 
     .site-search {
-        max-width: 140px;
+        max-width: 160px;
     }
 
-    #search input {
+    #search.search-expanded {
+        width: 140px;
+    }
+
+    #search.search-expanded input {
         padding: 6px 32px 6px 10px;
         font-size: 12px;
     }
@@ -3541,7 +3570,7 @@ pre[class*="language-"].line-numbers > code {
     #search button {
         width: 26px;
         height: 26px;
-        right: 4px;
+        right: 5px;
     }
 
     .container {
@@ -4495,24 +4524,23 @@ pre[class*="language-"].line-numbers > code {
 .post-like-btn {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    padding: 12px 30px;
+    gap: 6px;
+    padding: 7px 16px;
     background: #fff;
-    border: 2px solid var(--primary-color);
-    border-radius: 25px;
+    border: 1px solid var(--primary-color);
+    border-radius: 4px;
     color: var(--primary-color);
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 500;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: background .2s, color .2s, border-color .2s;
     outline: none;
+    line-height: 1.4;
 }
 
 .post-like-btn:hover {
     background: var(--primary-color);
     color: #fff;
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px color-mix(in srgb, var(--primary-color) 30%, transparent);
 }
 
 .post-like-btn.liked {
@@ -4524,16 +4552,246 @@ pre[class*="language-"].line-numbers > code {
 
 .post-like-btn.liked:hover {
     background: #f0f0f0;
-    transform: none;
-    box-shadow: none;
 }
 
 .post-like-btn i {
-    font-size: 16px;
+    font-size: 13px;
 }
 
 .post-like-btn .like-count {
     font-weight: 600;
+}
+
+/* ===== 文章收藏按钮 ===== */
+.post-fav-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 16px;
+    background: #fff;
+    border: 1px solid #ff5a5a;
+    border-radius: 4px;
+    color: #ff5a5a;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background .2s, color .2s, border-color .2s;
+    outline: none;
+    line-height: 1.4;
+}
+
+.post-fav-btn:hover {
+    background: #ff5a5a;
+    color: #fff;
+}
+
+.post-fav-btn.favorited {
+    background: #ff5a5a;
+    color: #fff;
+    border-color: #ff5a5a;
+}
+
+.post-fav-btn.favorited:hover {
+    background: #ff5a5a;
+}
+
+.post-fav-btn i {
+    font-size: 13px;
+}
+
+/* 按钮组容器：两个按钮并列在一起 */
+.post-action-btns {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+}
+
+/* 点赞关闭时收藏按钮单独居中 */
+.post-like-box .like-box-inner:has(> .post-action-btns:only-child) {
+    justify-content: center;
+}
+
+.post-like-box .like-box-inner:has(> .post-action-btns:only-child) .post-action-btns {
+    margin-left: 0;
+}
+
+/* ===== 文章列表阅读状态标记 ===== */
+.reading-badge {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    z-index: 3;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    pointer-events: none;
+}
+
+.reading-badge.read-done {
+    background: rgba(76, 175, 80, 0.92);
+    color: #fff;
+}
+
+.reading-badge.reading {
+    background: rgba(255, 152, 0, 0.92);
+    color: #fff;
+}
+
+.reading-badge i {
+    font-size: 12px;
+}
+
+/* ===== 顶部导航栏收藏下拉 ===== */
+.header-nav-fav {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.nav-fav-btn {
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: transparent;
+    color: var(--text-color);
+    font-size: 16px;
+    cursor: pointer;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s, color 0.2s;
+}
+
+.nav-fav-btn:hover {
+    background: color-mix(in srgb, var(--primary-color) 12%, transparent);
+    color: var(--primary-color);
+}
+
+.nav-fav-panel {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 8px;
+    min-width: 280px;
+    max-width: 360px;
+    max-height: 420px;
+    background: #fff;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    overflow: hidden;
+    display: none;
+    z-index: 1000;
+}
+
+.nav-fav-panel.fav-panel-open {
+    display: block;
+}
+
+.nav-fav-header {
+    padding: 12px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-color);
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-color, #f8f9fc);
+}
+
+.nav-fav-panel .fav-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-height: 360px;
+    overflow-y: auto;
+}
+
+.fav-item {
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.fav-item:last-child {
+    border-bottom: none;
+}
+
+.fav-link {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    color: var(--text-color);
+    font-size: 13px;
+    text-decoration: none;
+    min-width: 0;
+    transition: background 0.2s;
+}
+
+.fav-link:hover {
+    background: color-mix(in srgb, var(--primary-color) 6%, transparent);
+}
+
+.fav-link i {
+    color: #ff5a5a;
+    flex-shrink: 0;
+}
+
+.fav-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.fav-remove {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    margin-right: 8px;
+    border: none;
+    background: transparent;
+    color: #999;
+    font-size: 13px;
+    cursor: pointer;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s, color 0.2s;
+}
+
+.fav-remove:hover {
+    background: #ffe5e5;
+    color: #ff5a5a;
+}
+
+.fav-empty {
+    padding: 30px 16px;
+    text-align: center;
+    color: #999;
+    font-size: 13px;
+}
+
+.fav-empty i {
+    display: block;
+    font-size: 28px;
+    margin-bottom: 8px;
+    color: #ddd;
+}
+
+/* 文章卡片需要相对定位以承载阅读标记 */
+.post-list .post,
+article.post {
+    position: relative;
 }
 
 /* ============================================
@@ -4624,7 +4882,7 @@ pre[class*="language-"].line-numbers > code {
     font-size: 11px;
 }
 
-/* 响应式调�?*/
+/* 响应式调整 */
 @media (max-width: 768px) {
     .post-like-box {
         padding: 20px 15px;
@@ -4640,10 +4898,9 @@ pre[class*="language-"].line-numbers > code {
         justify-content: center;
     }
 
-    .post-like-btn {
-        padding: 10px 24px;
-        font-size: 13px;
-        width: 100%;
+    /* 移动端按钮组居中并列 */
+    .post-action-btns {
+        margin-left: 0;
         justify-content: center;
     }
 
@@ -4871,8 +5128,8 @@ pre[class*="language-"].line-numbers > code {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 38px;
-    height: 38px;
+    width: 36px;
+    height: 36px;
     border: 1px solid var(--border-color);
     border-radius: 50%;
     background: transparent;
@@ -4880,7 +5137,6 @@ pre[class*="language-"].line-numbers > code {
     cursor: pointer;
     font-size: 16px;
     transition: all 0.3s ease;
-    margin-left: 10px;
 }
 .dark-mode-toggle:hover {
     background: color-mix(in srgb, var(--primary-color) 10%, transparent);
@@ -5369,6 +5625,43 @@ pre[class*="language-"].line-numbers > code {
 }
 [data-theme="dark"] .like-stat-divider {
     color: #3a3a48;
+}
+
+/* 夜间模式：收藏按钮 / 收藏下拉 / 阅读标记 */
+[data-theme="dark"] .post-fav-btn {
+    background: #1e1e2a;
+    color: #ff7a7a;
+    border-color: #ff5a5a;
+}
+[data-theme="dark"] .post-fav-btn:hover {
+    background: #ff5a5a;
+    color: #fff;
+}
+[data-theme="dark"] .post-fav-btn.favorited {
+    background: #ff5a5a;
+    color: #fff;
+}
+[data-theme="dark"] .nav-fav-panel {
+    background: #1e1e2a;
+    border-color: #2a2a36;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+[data-theme="dark"] .nav-fav-header {
+    background: #161620;
+    color: #e0e0e8;
+    border-bottom-color: #2a2a36;
+}
+[data-theme="dark"] .fav-item {
+    border-bottom-color: #2a2a36;
+}
+[data-theme="dark"] .fav-link {
+    color: #c8c8d0;
+}
+[data-theme="dark"] .fav-link:hover {
+    background: color-mix(in srgb, var(--primary-color) 12%, transparent);
+}
+[data-theme="dark"] .fav-remove:hover {
+    background: rgba(255, 90, 90, 0.2);
 }
 
 /* 排行�?*/

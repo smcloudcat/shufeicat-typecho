@@ -27,7 +27,7 @@
         </div>
     </div>
     <?php endif; ?>
-    <article class="post post-single <?php echo !empty($thumbnail) ? 'has-thumbnail' : ''; ?>" itemscope itemtype="http://schema.org/BlogPosting">
+    <article class="post post-single <?php echo !empty($thumbnail) ? 'has-thumbnail' : ''; ?>" data-cid="<?php echo $this->cid; ?>" itemscope itemtype="http://schema.org/BlogPosting">
         <header class="post-header" <?php if (!empty($thumbnail)): ?>style="background-image: url(<?php echo htmlspecialchars($thumbnail); ?>);"<?php endif; ?>>
             <div class="post-header-overlay">
                 <h1 class="post-title" itemprop="name headline">
@@ -106,10 +106,27 @@
                     <span class="stat-value post-likes-count" data-cid="<?php echo $this->cid; ?>"><?php echo shufei_get_likes($this->cid); ?></span>
                 </span>
             </div>
-            <button class="post-like-btn <?php echo shufei_has_liked($this->cid) ? 'liked' : ''; ?>" data-cid="<?php echo $this->cid; ?>" <?php echo shufei_has_liked($this->cid) ? 'disabled' : ''; ?>>
-                <i class="fa fa-thumbs-up"></i>
-                <span class="like-text"><?php echo shufei_has_liked($this->cid) ? '已点赞' : '点赞'; ?></span>
-            </button>
+            <div class="post-action-btns">
+                <button class="post-like-btn <?php echo shufei_has_liked($this->cid) ? 'liked' : ''; ?>" data-cid="<?php echo $this->cid; ?>" <?php echo shufei_has_liked($this->cid) ? 'disabled' : ''; ?>>
+                    <i class="fa fa-thumbs-up"></i>
+                    <span class="like-text"><?php echo shufei_has_liked($this->cid) ? '已点赞' : '点赞'; ?></span>
+                </button>
+                <button class="post-fav-btn" id="post-fav-btn" data-cid="<?php echo $this->cid; ?>" title="收藏文章">
+                    <i class="fa fa-heart-o"></i>
+                    <span class="fav-text">收藏</span>
+                </button>
+            </div>
+        </div>
+    </div>
+    <?php else: ?>
+    <div class="post-like-box">
+        <div class="like-box-inner">
+            <div class="post-action-btns">
+                <button class="post-fav-btn" id="post-fav-btn" data-cid="<?php echo $this->cid; ?>" title="收藏文章">
+                    <i class="fa fa-heart-o"></i>
+                    <span class="fav-text">收藏</span>
+                </button>
+            </div>
         </div>
     </div>
     <?php endif; ?>

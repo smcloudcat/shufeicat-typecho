@@ -532,7 +532,7 @@
         if (typeof Pjax === 'undefined') {
             return;
         }
-        
+
         var pjax = new Pjax({
             elements: 'a:not(' + excludeSelectors.join(', ') + ')',
             selectors: [
@@ -547,9 +547,12 @@
             timeout: pjaxTimeout,
             debug: false
         });
-        
+
+        // 暴露 pjax 实例，供动态生成的链接（如收藏列表）手动触发 pjax 加载
+        window.shufeiPjax = pjax;
+
         initAjaxComment();
-        
+
         return pjax;
     }
     
@@ -622,6 +625,21 @@
             initAjaxComment();
             initTurnstile();
             initGeetest();
+
+            // 阅读进度 & 收藏（pjax 切换页面后重新初始化）
+            if (typeof window.initPostReadingFav === 'function') {
+                window.initPostReadingFav();
+            }
+            if (typeof window.initListReadingMarks === 'function') {
+                window.initListReadingMarks();
+            }
+            if (typeof window.initFavDropdown === 'function') {
+                window.initFavDropdown();
+            }
+
+            if (typeof window.initSearchToggle === 'function') {
+                window.initSearchToggle();
+            }
 
             if (typeof window.initPostLike === 'function') {
                 window.initPostLike();
