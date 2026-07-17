@@ -666,6 +666,14 @@
                 window.initPostViews();
             }
 
+            if (typeof window.initCommentLike === 'function') {
+                window.initCommentLike();
+            }
+
+            if (typeof window.initCommentSort === 'function') {
+                window.initCommentSort();
+            }
+
             if (typeof window.initMermaid === 'function') {
                 window.initMermaid();
             }

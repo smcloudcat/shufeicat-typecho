@@ -371,15 +371,15 @@ window.initLightbox = function(retryCount) {
     if (postContent) {
         const images = postContent.querySelectorAll('img');
         let imageIndex = 0;
-        
+
         images.forEach(function(img) {
             if (img.closest('a')) {
                 return;
             }
-            
+
             const imgSrc = img.getAttribute('src');
             if (!imgSrc) return;
-            
+
             const link = document.createElement('a');
             link.href = imgSrc;
             link.setAttribute('data-lightbox', 'post-images');
@@ -394,14 +394,14 @@ window.initLightbox = function(retryCount) {
             }
             if (!lightboxTitle) lightboxTitle = '图片 ' + (imageIndex + 1);
             link.setAttribute('data-title', lightboxTitle);
-            
+
             img.parentNode.insertBefore(link, img);
             link.appendChild(img);
-            
+
             imageIndex++;
         });
     }
-    
+
     if (typeof lightbox !== 'undefined' && typeof lightbox.option === 'function') {
         lightbox.option({
             'resizeDuration': 200,
@@ -413,38 +413,466 @@ window.initLightbox = function(retryCount) {
             'positionFromTop': 50
         });
 
-        // 覆盖默认的紧贴顶部定位，让灯箱在视口中垂直居中
-        function centerLightbox() {
-            if (!lightbox.$lightbox || !lightbox.$lightbox.is(':visible')) return;
-            var windowHeight = $(window).height();
-            var lbHeight = lightbox.$lightbox.outerHeight();
-            var scrollTop = $(window).scrollTop();
-            var newTop = scrollTop + Math.max(0, (windowHeight - lbHeight) / 2);
-            lightbox.$lightbox.css('top', newTop + 'px');
-        }
-
-        // 仅包装一次，避免 pjax 切换时重复包装导致嵌套
-        if (!lightbox._centered) {
-            lightbox._centered = true;
-
-            // 包装 start：灯箱打开后立即居中（此时显示 loading）
-            var originalStart = lightbox.start;
-            lightbox.start = function($link) {
-                originalStart.apply(this, arguments);
-                setTimeout(centerLightbox, 0);
-            };
-
-            // 包装 showImage：图片显示后再次居中（图片尺寸已确定）
-            var originalShowImage = lightbox.showImage;
-            lightbox.showImage = function() {
-                originalShowImage.apply(this, arguments);
-                setTimeout(centerLightbox, 0);
-            };
-
-            // 窗口尺寸变化时重新居中
-            $(window).on('resize', centerLightbox);
+        // 仅增强一次，避免 pjax 切换时重复包装
+        if (!lightbox._enhanced) {
+            lightbox._enhanced = true;
+            window._enhanceLightbox();
         }
     }
+};
+
+/**
+ * 灯箱增强：自定义工具栏、旋转、缩放、下载、全屏、拖动、键盘快捷键
+ * 仅在 Lightbox2 已加载后调用一次
+ */
+window._enhanceLightbox = function() {
+    var $ = window.jQuery;
+    if (!$ || !window.lightbox) return;
+    var lb = window.lightbox;
+
+    // 灯箱状态
+    var state = {
+        rotation: 0,        // 旋转角度（度）
+        scale: 1,           // 缩放倍数
+        offsetX: 0,         // X 偏移（拖动）
+        offsetY: 0,         // Y 偏移（拖动）
+        naturalWidth: 0,    // 原始宽度
+        naturalHeight: 0,   // 原始高度
+        isDragging: false,
+        dragStartX: 0,
+        dragStartY: 0,
+        startOffsetX: 0,
+        startOffsetY: 0
+    };
+
+    // ---------- 注入自定义工具栏（只注入一次） ----------
+    function injectToolbar() {
+        if (document.getElementById('sf-lb-toolbar')) return;
+
+        var toolbar = document.createElement('div');
+        toolbar.id = 'sf-lb-toolbar';
+        toolbar.className = 'sf-lb-toolbar';
+        toolbar.innerHTML =
+            '<button type="button" class="sf-lb-btn" data-action="rotate-left" title="左旋 (Shift+R)" aria-label="左旋">' +
+              '<i class="fa fa-rotate-left"></i>' +
+            '</button>' +
+            '<button type="button" class="sf-lb-btn" data-action="rotate-right" title="右旋 (R)" aria-label="右旋">' +
+              '<i class="fa fa-rotate-right"></i>' +
+            '</button>' +
+            '<button type="button" class="sf-lb-btn" data-action="zoom-out" title="缩小 (-)" aria-label="缩小">' +
+              '<i class="fa fa-search-minus"></i>' +
+            '</button>' +
+            '<button type="button" class="sf-lb-btn" data-action="zoom-in" title="放大 (+)" aria-label="放大">' +
+              '<i class="fa fa-search-plus"></i>' +
+            '</button>' +
+            '<button type="button" class="sf-lb-btn" data-action="reset" title="复位 (0)" aria-label="复位">' +
+              '<i class="fa fa-compress"></i>' +
+            '</button>' +
+            '<button type="button" class="sf-lb-btn" data-action="fullscreen" title="全屏 (F)" aria-label="全屏">' +
+              '<i class="fa fa-expand"></i>' +
+            '</button>' +
+            '<button type="button" class="sf-lb-btn" data-action="download" title="下载 (D)" aria-label="下载">' +
+              '<i class="fa fa-download"></i>' +
+            '</button>' +
+            '<button type="button" class="sf-lb-btn sf-lb-close" data-action="close" title="关闭 (Esc)" aria-label="关闭">' +
+              '<i class="fa fa-times"></i>' +
+            '</button>';
+        document.body.appendChild(toolbar);
+
+        toolbar.addEventListener('click', function(e) {
+            var btn = e.target.closest('.sf-lb-btn');
+            if (!btn) return;
+            var action = btn.getAttribute('data-action');
+            handleAction(action);
+        });
+    }
+
+    // ---------- 注入底部信息条 ----------
+    function injectInfoBar() {
+        if (document.getElementById('sf-lb-info')) return;
+        var info = document.createElement('div');
+        info.id = 'sf-lb-info';
+        info.className = 'sf-lb-info';
+        info.innerHTML =
+            '<span class="sf-lb-caption"></span>' +
+            '<span class="sf-lb-meta"></span>';
+        document.body.appendChild(info);
+    }
+
+    // ---------- 自定义左右导航 ----------
+    function injectNav() {
+        if (document.getElementById('sf-lb-prev')) return;
+        var prev = document.createElement('button');
+        prev.type = 'button';
+        prev.id = 'sf-lb-prev';
+        prev.className = 'sf-lb-nav sf-lb-prev';
+        prev.setAttribute('aria-label', '上一张');
+        prev.innerHTML = '<i class="fa fa-angle-left"></i>';
+
+        var next = document.createElement('button');
+        next.type = 'button';
+        next.id = 'sf-lb-next';
+        next.className = 'sf-lb-nav sf-lb-next';
+        next.setAttribute('aria-label', '下一张');
+        next.innerHTML = '<i class="fa fa-angle-right"></i>';
+
+        document.body.appendChild(prev);
+        document.body.appendChild(next);
+
+        prev.addEventListener('click', function(e) {
+            e.stopPropagation();
+            if (lb.currentImageIndex === 0) {
+                lb.changeImage(lb.album.length - 1);
+            } else {
+                lb.changeImage(lb.currentImageIndex - 1);
+            }
+        });
+        next.addEventListener('click', function(e) {
+            e.stopPropagation();
+            if (lb.currentImageIndex === lb.album.length - 1) {
+                lb.changeImage(0);
+            } else {
+                lb.changeImage(lb.currentImageIndex + 1);
+            }
+        });
+    }
+
+    // ---------- 更新变换 ----------
+    function applyTransform() {
+        var img = document.querySelector('.lb-image');
+        if (!img) return;
+        // 当缩放 > 1 时启用拖动光标
+        if (state.scale > 1.05) {
+            img.style.cursor = 'grab';
+        } else {
+            img.style.cursor = '';
+        }
+        img.style.transform =
+            'rotate(' + state.rotation + 'deg) ' +
+            'scale(' + state.scale + ') ' +
+            'translate(' + state.offsetX + 'px, ' + state.offsetY + 'px)';
+    }
+
+    // ---------- 重置变换状态 ----------
+    function resetTransform() {
+        state.rotation = 0;
+        state.scale = 1;
+        state.offsetX = 0;
+        state.offsetY = 0;
+        applyTransform();
+    }
+
+    // ---------- 显示工具栏/信息条/导航 ----------
+    function showOverlays() {
+        var t = document.getElementById('sf-lb-toolbar');
+        var i = document.getElementById('sf-lb-info');
+        var p = document.getElementById('sf-lb-prev');
+        var n = document.getElementById('sf-lb-next');
+        if (t) t.classList.add('sf-lb-visible');
+        if (i) i.classList.add('sf-lb-visible');
+        if (p) p.classList.add('sf-lb-visible');
+        if (n) n.classList.add('sf-lb-visible');
+        // 单张时隐藏导航
+        var single = !lb.album || lb.album.length <= 1;
+        if (p) p.style.display = single ? 'none' : '';
+        if (n) n.style.display = single ? 'none' : '';
+    }
+
+    function hideOverlays() {
+        var t = document.getElementById('sf-lb-toolbar');
+        var i = document.getElementById('sf-lb-info');
+        var p = document.getElementById('sf-lb-prev');
+        var n = document.getElementById('sf-lb-next');
+        if (t) t.classList.remove('sf-lb-visible');
+        if (i) i.classList.remove('sf-lb-visible');
+        if (p) p.classList.remove('sf-lb-visible');
+        if (n) n.classList.remove('sf-lb-visible');
+    }
+
+    // ---------- 更新信息条内容 ----------
+    function updateInfoBar() {
+        var info = document.getElementById('sf-lb-info');
+        if (!info || !lb.album || lb.currentImageIndex == null) return;
+        var cur = lb.album[lb.currentImageIndex];
+        if (!cur) return;
+        var captionEl = info.querySelector('.sf-lb-caption');
+        var metaEl = info.querySelector('.sf-lb-meta');
+        if (captionEl) captionEl.textContent = cur.title || '';
+        var meta = '';
+        if (lb.album.length > 1) {
+            meta += (lb.currentImageIndex + 1) + ' / ' + lb.album.length;
+        }
+        if (state.naturalWidth && state.naturalHeight) {
+            if (meta) meta += ' · ';
+            meta += state.naturalWidth + '×' + state.naturalHeight;
+        }
+        if (metaEl) metaEl.textContent = meta;
+    }
+
+    // ---------- 下载 ----------
+    function downloadImage() {
+        if (!lb.album || lb.currentImageIndex == null) return;
+        var cur = lb.album[lb.currentImageIndex];
+        if (!cur || !cur.link) return;
+        var url = cur.link;
+        var filename = url.split('/').pop().split('?')[0] || 'image';
+        // 同源直接用 a 标签下载
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.target = '_blank';
+        a.rel = 'noopener';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    }
+
+    // ---------- 全屏 ----------
+    function toggleFullscreen() {
+        var img = document.querySelector('.lb-image');
+        if (!img) return;
+        if (!document.fullscreenElement) {
+            if (img.requestFullscreen) {
+                img.requestFullscreen().catch(function() {});
+            } else if (img.webkitRequestFullscreen) {
+                img.webkitRequestFullscreen();
+            }
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            } else if (document.webkitExitFullscreen) {
+                document.webkitExitFullscreen();
+            }
+        }
+    }
+
+    // ---------- 处理工具栏动作 ----------
+    function handleAction(action) {
+        switch (action) {
+            case 'rotate-left':
+                state.rotation = (state.rotation - 90 + 360) % 360;
+                applyTransform();
+                break;
+            case 'rotate-right':
+                state.rotation = (state.rotation + 90) % 360;
+                applyTransform();
+                break;
+            case 'zoom-in':
+                state.scale = Math.min(5, state.scale + 0.25);
+                applyTransform();
+                updateInfoBar();
+                break;
+            case 'zoom-out':
+                state.scale = Math.max(0.5, state.scale - 0.25);
+                if (state.scale <= 1) {
+                    state.offsetX = 0;
+                    state.offsetY = 0;
+                }
+                applyTransform();
+                updateInfoBar();
+                break;
+            case 'reset':
+                resetTransform();
+                updateInfoBar();
+                break;
+            case 'fullscreen':
+                toggleFullscreen();
+                break;
+            case 'download':
+                downloadImage();
+                break;
+            case 'close':
+                lb.end();
+                break;
+        }
+    }
+
+    // ---------- 滚轮缩放 ----------
+    function onWheel(e) {
+        if (!lb.$lightbox || !lb.$lightbox.is(':visible')) return;
+        e.preventDefault();
+        if (e.deltaY < 0) {
+            state.scale = Math.min(5, state.scale + 0.15);
+        } else {
+            state.scale = Math.max(0.5, state.scale - 0.15);
+            if (state.scale <= 1) {
+                state.offsetX = 0;
+                state.offsetY = 0;
+            }
+        }
+        applyTransform();
+        updateInfoBar();
+    }
+
+    // ---------- 双击切换缩放 ----------
+    function onDblClick(e) {
+        if (state.scale > 1.05) {
+            resetTransform();
+        } else {
+            state.scale = 2;
+            applyTransform();
+            updateInfoBar();
+        }
+    }
+
+    // ---------- 拖动查看（放大状态下） ----------
+    function onPointerDown(e) {
+        if (state.scale <= 1.05) return;
+        // 仅对图片本体响应
+        var img = e.target.closest('.lb-image');
+        if (!img) return;
+        state.isDragging = true;
+        state.dragStartX = e.clientX;
+        state.dragStartY = e.clientY;
+        state.startOffsetX = state.offsetX;
+        state.startOffsetY = state.offsetY;
+        img.style.cursor = 'grabbing';
+        e.preventDefault();
+    }
+
+    function onPointerMove(e) {
+        if (!state.isDragging) return;
+        state.offsetX = state.startOffsetX + (e.clientX - state.dragStartX) / state.scale;
+        state.offsetY = state.startOffsetY + (e.clientY - state.dragStartY) / state.scale;
+        applyTransform();
+    }
+
+    function onPointerUp() {
+        if (!state.isDragging) return;
+        state.isDragging = false;
+        var img = document.querySelector('.lb-image');
+        if (img && state.scale > 1.05) img.style.cursor = 'grab';
+    }
+
+    // ---------- 键盘快捷键 ----------
+    function onKeydown(e) {
+        if (!lb.$lightbox || !lb.$lightbox.is(':visible')) return;
+        var key = e.key;
+        switch (key) {
+            case 'r':
+                handleAction(e.shiftKey ? 'rotate-left' : 'rotate-right');
+                e.preventDefault();
+                break;
+            case 'R':
+                handleAction('rotate-left');
+                e.preventDefault();
+                break;
+            case '+':
+            case '=':
+                handleAction('zoom-in');
+                e.preventDefault();
+                break;
+            case '-':
+            case '_':
+                handleAction('zoom-out');
+                e.preventDefault();
+                break;
+            case '0':
+                handleAction('reset');
+                e.preventDefault();
+                break;
+            case 'f':
+            case 'F':
+                handleAction('fullscreen');
+                e.preventDefault();
+                break;
+            case 'd':
+            case 'D':
+                handleAction('download');
+                e.preventDefault();
+                break;
+        }
+    }
+
+    // ---------- 包装 Lightbox2 内部方法 ----------
+    // 包装 start：灯箱打开
+    var originalStart = lb.start;
+    lb.start = function($link) {
+        originalStart.apply(this, arguments);
+        // 注入 UI（若尚未注入）
+        injectToolbar();
+        injectInfoBar();
+        injectNav();
+        // 首次打开后绑定图片 load 监听
+        bindImgLoadOnce();
+        // 启用 flex 居中（CSS 控制，无需 JS 计算 top）
+        if (lb.$lightbox) lb.$lightbox.addClass('sf-lb-centered');
+        // 重置变换状态
+        resetTransform();
+        // 显示叠加层
+        setTimeout(showOverlays, 0);
+    };
+
+    // 包装 showImage：图片切换后更新信息
+    var originalShowImage = lb.showImage;
+    lb.showImage = function() {
+        originalShowImage.apply(this, arguments);
+        // 切换图片时重置状态
+        resetTransform();
+    };
+
+    // 包装 changeImage：切换图片
+    var originalChangeImage = lb.changeImage;
+    lb.changeImage = function() {
+        originalChangeImage.apply(this, arguments);
+        resetTransform();
+    };
+
+    // 包装 end：关闭时隐藏叠加层
+    var originalEnd = lb.end;
+    lb.end = function() {
+        hideOverlays();
+        // 退出全屏（若在全屏中）
+        if (document.fullscreenElement) {
+            try { document.exitFullscreen(); } catch (e) {}
+        }
+        originalEnd.apply(this, arguments);
+    };
+
+    // 监听图片加载完成，获取原始尺寸并更新信息条
+    // lb.$image 在首次 start() 调用 build() 后才存在，因此延迟到 start 包装内绑定
+    var _imgLoadBound = false;
+    function bindImgLoadOnce() {
+        if (_imgLoadBound) return;
+        var imgEl = lb.$image ? lb.$image[0] : null;
+        if (!imgEl) return;
+        _imgLoadBound = true;
+        imgEl.addEventListener('load', function() {
+            state.naturalWidth = imgEl.naturalWidth || 0;
+            state.naturalHeight = imgEl.naturalHeight || 0;
+            updateInfoBar();
+            // 图片加载后再次显示叠加层（防止被 Lightbox2 隐藏）
+            showOverlays();
+        });
+    }
+
+    // 包装 sizeContainer：尺寸调整后显示叠加层（居中由 CSS flex 处理）
+    var originalSizeContainer = lb.sizeContainer;
+    lb.sizeContainer = function(imageWidth, imageHeight) {
+        originalSizeContainer.apply(this, arguments);
+        setTimeout(function() {
+            showOverlays();
+            updateInfoBar();
+        }, 0);
+    };
+
+    // 隐藏原生 close 按钮（使用自定义）
+    $('<style>').text(
+        '.lb-closeContainer, .lb-dataContainer { display: none !important; }' +
+        '.lb-nav a.lb-prev, .lb-nav a.lb-next { display: none !important; }'
+    ).appendTo('head');
+
+    // 绑定全局事件（只绑定一次）
+    document.addEventListener('wheel', onWheel, { passive: false });
+    document.addEventListener('dblclick', onDblClick);
+    document.addEventListener('keydown', onKeydown);
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('pointermove', onPointerMove);
+    document.addEventListener('pointerup', onPointerUp);
+    document.addEventListener('pointercancel', onPointerUp);
+
+    // 点击遮罩关闭（保留 Lightbox2 原生行为，这里仅作为兜底）
+    // 已由 Lightbox2 自身处理
 };
 
 window.initCopyButtons = function() {
@@ -760,6 +1188,173 @@ window.initPostViews = function() {
 
         xhr.send('cid=' + encodeURIComponent(cid) + '&_=' + encodeURIComponent(csrfToken));
     }, 1500);
+};
+
+/**
+ * 评论点赞功能
+ */
+window.initCommentLike = function() {
+    var likeBtns = document.querySelectorAll('.comment-like-btn:not([data-like-bound])');
+    if (!likeBtns.length) return;
+
+    var themeUrl = window.themeUrl || '';
+    var csrfToken = window.csrfToken || '';
+
+    for (var i = 0; i < likeBtns.length; i++) {
+        (function(btn) {
+            btn.setAttribute('data-like-bound', '1');
+
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                if (btn.classList.contains('liked')) return;
+
+                var coid = btn.getAttribute('data-coid');
+                if (!coid) return;
+
+                var countEl = btn.querySelector('.like-count');
+                var iconEl = btn.querySelector('i');
+
+                var xhr = new XMLHttpRequest();
+                xhr.open('POST', themeUrl + 'core/ajax-handler.php?action=comment_like', true);
+                xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+                xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+
+                xhr.onreadystatechange = function() {
+                    if (xhr.readyState === 4) {
+                        if (xhr.status === 200) {
+                            try {
+                                var data = JSON.parse(xhr.responseText);
+                                if (data.success) {
+                                    btn.classList.add('liked');
+                                    if (iconEl) iconEl.className = 'fa fa-heart';
+                                    if (countEl) countEl.textContent = data.likes;
+                                    var li = btn.closest('li');
+                                    if (li) li.setAttribute('data-likes', data.likes);
+                                } else {
+                                    if (window.showToast) window.showToast(data.message || '点赞失败', 'error');
+                                }
+                            } catch (err) {
+                                if (window.showToast) window.showToast('点赞请求异常', 'error');
+                            }
+                        } else {
+                            if (window.showToast) window.showToast('网络请求失败', 'error');
+                        }
+                    }
+                };
+
+                xhr.send('coid=' + encodeURIComponent(coid) + '&_=' + encodeURIComponent(csrfToken));
+            });
+        })(likeBtns[i]);
+    }
+};
+
+/**
+ * 评论排序功能
+ */
+window.initCommentSort = function() {
+    var sortOptions = document.getElementById('comment-sort-options');
+    if (!sortOptions) return;
+
+    if (!sortOptions.getAttribute('data-sort-bound')) {
+        sortOptions.setAttribute('data-sort-bound', '1');
+
+        sortOptions.addEventListener('click', function(e) {
+            var btn = e.target.closest('.sort-btn');
+            if (!btn) return;
+
+            var sortType = btn.getAttribute('data-sort');
+            if (!sortType) return;
+
+            var allBtns = sortOptions.querySelectorAll('.sort-btn');
+            for (var i = 0; i < allBtns.length; i++) {
+                allBtns[i].classList.remove('active');
+            }
+            btn.classList.add('active');
+
+            try { localStorage.setItem('shufei_comment_sort', sortType); } catch (e) {}
+
+            window.applyCommentSort(sortType);
+        });
+    }
+
+    // 恢复用户偏好
+    window.applyCommentSort();
+};
+
+window.applyCommentSort = function(sortType) {
+    var commentList = document.getElementById('comment-list');
+    if (!commentList) return;
+
+    if (!sortType) {
+        try { sortType = localStorage.getItem('shufei_comment_sort') || 'default'; } catch (e) { sortType = 'default'; }
+        var sortOptions = document.getElementById('comment-sort-options');
+        if (sortOptions) {
+            var btns = sortOptions.querySelectorAll('.sort-btn');
+            for (var i = 0; i < btns.length; i++) {
+                btns[i].classList.toggle('active', btns[i].getAttribute('data-sort') === sortType);
+            }
+        }
+    }
+
+    var items = commentList.children;
+    if (!items.length) return;
+
+    // 保存原始顺序
+    for (var i = 0; i < items.length; i++) {
+        if (!items[i].getAttribute('data-original-index')) {
+            items[i].setAttribute('data-original-index', i);
+        }
+    }
+
+    // author 模式：只过滤不排序
+    if (sortType === 'author') {
+        for (var i = 0; i < items.length; i++) {
+            var isAuthor = items[i].getAttribute('data-is-author') === '1';
+            items[i].style.display = isAuthor ? '' : 'none';
+        }
+        return;
+    }
+
+    // 恢复所有评论显示
+    for (var i = 0; i < items.length; i++) {
+        items[i].style.display = '';
+    }
+
+    if (sortType === 'default') {
+        var arr = Array.prototype.slice.call(items);
+        arr.sort(function(a, b) {
+            return parseInt(a.getAttribute('data-original-index')) - parseInt(b.getAttribute('data-original-index'));
+        });
+        for (var i = 0; i < arr.length; i++) {
+            commentList.appendChild(arr[i]);
+        }
+        return;
+    }
+
+    var arr = Array.prototype.slice.call(items);
+    arr.sort(function(a, b) {
+        var va = 0, vb = 0;
+        if (sortType === 'time_asc') {
+            va = parseInt(a.getAttribute('data-created')) || 0;
+            vb = parseInt(b.getAttribute('data-created')) || 0;
+            return va - vb;
+        } else if (sortType === 'time_desc') {
+            va = parseInt(a.getAttribute('data-created')) || 0;
+            vb = parseInt(b.getAttribute('data-created')) || 0;
+            return vb - va;
+        } else if (sortType === 'likes') {
+            va = parseInt(a.getAttribute('data-likes')) || 0;
+            vb = parseInt(b.getAttribute('data-likes')) || 0;
+            return vb - va;
+        }
+        return 0;
+    });
+
+    for (var i = 0; i < arr.length; i++) {
+        commentList.appendChild(arr[i]);
+    }
 };
 
 /**
@@ -2624,6 +3219,10 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 初始化浏览量统计
     window.initPostViews();
+
+    // 初始化评论点赞和排序
+    window.initCommentLike();
+    window.initCommentSort();
     
     // 初始化 Mermaid 图表渲染
     setTimeout(window.initMermaid, 350);

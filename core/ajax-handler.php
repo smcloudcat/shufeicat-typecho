@@ -59,6 +59,16 @@ switch ($action) {
         echo json_encode($result);
         break;
 
+    case 'comment_like':
+        $coid = isset($_POST['coid']) ? intval($_POST['coid']) : 0;
+        if ($coid <= 0) {
+            echo json_encode(array('success' => false, 'message' => '参数错误'));
+            exit;
+        }
+        $result = shufei_add_comment_like($coid);
+        echo json_encode($result);
+        break;
+
     case 'view':
         $cid = isset($_POST['cid']) ? intval($_POST['cid']) : 0;
         if ($cid <= 0) {

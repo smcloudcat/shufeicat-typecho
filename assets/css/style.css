@@ -2201,6 +2201,59 @@ pre[class*="language-"].line-numbers > code {
     margin-bottom: 8px;
 }
 
+.comment-toolbar {
+    margin-bottom: 16px;
+}
+
+.comment-sort-bar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+}
+
+.sort-label {
+    font-size: 13px;
+    color: var(--text-secondary);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+}
+
+.sort-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.sort-btn {
+    font-size: 12px;
+    padding: 4px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: var(--transition-fast);
+    white-space: nowrap;
+}
+
+.sort-btn:hover {
+    color: var(--text-color);
+    border-color: var(--text-secondary);
+}
+
+.sort-btn.active {
+    color: #fff;
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
 #comments > .comment-list {
     width: 100%;
     box-sizing: border-box;
@@ -2417,8 +2470,43 @@ pre[class*="language-"].line-numbers > code {
 }
 
 .comment-reply-btn {
+    margin-left: 0;
+    font-size: 13px;
+}
+
+.comment-like-btn {
     margin-left: auto;
     font-size: 13px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    user-select: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 4px;
+    border: 1px solid transparent;
+    transition: var(--transition-fast);
+}
+
+.comment-like-btn:hover {
+    color: var(--primary-color);
+    background: color-mix(in srgb, var(--primary-color) 6%, transparent);
+    border-color: color-mix(in srgb, var(--primary-color) 20%, transparent);
+}
+
+.comment-like-btn.liked {
+    color: var(--primary-color);
+}
+
+.comment-like-btn.liked i {
+    animation: commentLikePop 0.3s ease;
+}
+
+@keyframes commentLikePop {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.3); }
+    100% { transform: scale(1); }
 }
 
 .comment-reply-btn a {
@@ -4265,68 +4353,276 @@ pre[class*="language-"].line-numbers > code {
     opacity: 1;
 }
 
-/* Lightbox2 自定义样式覆盖 */
+/* Lightbox2 容器优化 */
 #lightbox {
-    /* 让 top 变化平滑过渡，避免居中调整时的跳变 */
     transition: top 0.2s ease-out;
 }
 
-.lb-dataContainer {
-    max-width: 100%;
+/* flex 居中：让灯箱始终在视口中央，切换图片时位置稳定 */
+#lightbox.sf-lb-centered {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100vh !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: left !important;
+    line-height: normal !important;
 }
 
-.lb-data .lb-caption {
-    font-size: 14px;
-    font-weight: 500;
-    color: #fff;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+/* 让 outerContainer 不再撑满宽度，由 flex 居中 */
+#lightbox.sf-lb-centered .lb-outerContainer {
+    margin: 0 auto;
 }
 
-.lb-data .lb-number {
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.8);
-}
-
-/* 灯箱导航按钮样式 */
+/* 隐藏 Lightbox2 原生数据容器和导航（由自定义 UI 替代） */
+.lb-dataContainer,
 .lb-nav a.lb-prev,
 .lb-nav a.lb-next {
-    opacity: 0.6;
-    transition: opacity 0.3s ease;
+    display: none !important;
 }
 
-.lb-nav a.lb-prev:hover,
-.lb-nav a.lb-next:hover {
-    opacity: 1;
+/* 图片本体：支持变换过渡 */
+.lb-image {
+    transition: transform 0.2s ease-out;
+    transform-origin: center center;
+    will-change: transform;
+    border-radius: 4px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
 }
 
-/* 灯箱关闭按钮 */
-.lb-close {
-    opacity: 0.8;
-    transition: opacity 0.3s ease;
-}
-
-.lb-close:hover {
-    opacity: 1;
-}
-
-/* 灯箱背景遮罩 */
+/* 外容器：去除默认黑底，让图片更通透 */
 .lb-outerContainer {
-    background: rgba(0, 0, 0, 0.9);
+    background: transparent !important;
 }
 
-/* 移动端灯箱适配 */
+/* 容器内边距收紧 */
+.lb-container {
+    padding: 4px !important;
+}
+
+/* 加载动画 */
+.lb-loader {
+    margin: 0 auto;
+}
+
+/* ---------- 自定义工具栏 ---------- */
+.sf-lb-toolbar {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 8px;
+    background: rgba(20, 20, 20, 0.75);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 6px;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-6px);
+    transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s;
+    pointer-events: none;
+}
+
+.sf-lb-toolbar.sf-lb-visible {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+.sf-lb-btn {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.85);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.sf-lb-btn:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+}
+
+.sf-lb-btn.sf-lb-close {
+    margin-left: 4px;
+    color: rgba(255, 110, 110, 0.9);
+}
+
+.sf-lb-btn.sf-lb-close:hover {
+    background: rgba(255, 110, 110, 0.2);
+    color: #ff6e6e;
+}
+
+/* ---------- 自定义左右导航 ---------- */
+.sf-lb-nav {
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 10000;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: rgba(20, 20, 20, 0.7);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    color: rgba(255, 255, 255, 0.9);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, background 0.2s ease, visibility 0.2s;
+    pointer-events: none;
+}
+
+.sf-lb-nav.sf-lb-visible {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+.sf-lb-nav:hover {
+    background: rgba(20, 20, 20, 0.9);
+    color: #fff;
+}
+
+.sf-lb-prev {
+    left: 16px;
+}
+
+.sf-lb-next {
+    right: 16px;
+}
+
+/* ---------- 底部信息条 ---------- */
+.sf-lb-info {
+    position: fixed;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%) translateY(6px);
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    max-width: calc(100vw - 32px);
+    padding: 8px 14px;
+    background: rgba(20, 20, 20, 0.7);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s;
+    pointer-events: none;
+}
+
+.sf-lb-info.sf-lb-visible {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(0);
+}
+
+.sf-lb-caption {
+    font-size: 13px;
+    color: #fff;
+    text-align: center;
+    line-height: 1.4;
+    word-break: break-word;
+    max-width: 80vw;
+}
+
+.sf-lb-meta {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.6);
+    text-align: center;
+}
+
+/* ---------- 全屏状态下样式 ---------- */
+.lb-image:fullscreen {
+    background: #000;
+    object-fit: contain;
+    width: 100vw;
+    height: 100vh;
+    max-width: none;
+    max-height: none;
+}
+
+/* ---------- 移动端灯箱适配 ---------- */
 @media (max-width: 768px) {
-    .lb-data .lb-caption {
+    .sf-lb-toolbar {
+        top: 8px;
+        right: 8px;
+        padding: 4px 6px;
+        gap: 2px;
+    }
+
+    .sf-lb-btn {
+        width: 30px;
+        height: 30px;
+        font-size: 13px;
+    }
+
+    .sf-lb-nav {
+        width: 38px;
+        height: 38px;
+        font-size: 18px;
+    }
+
+    .sf-lb-prev {
+        left: 8px;
+    }
+
+    .sf-lb-next {
+        right: 8px;
+    }
+
+    .sf-lb-info {
+        bottom: 8px;
+        padding: 6px 10px;
+    }
+
+    .sf-lb-caption {
         font-size: 12px;
     }
-    
-    .lb-data .lb-number {
-        font-size: 11px;
+
+    .sf-lb-meta {
+        font-size: 10px;
     }
-    
-    .lb-nav a.lb-prev,
-    .lb-nav a.lb-next {
-        width: 40%;
+}
+
+@media (max-width: 480px) {
+    .sf-lb-btn[data-action="zoom-in"],
+    .sf-lb-btn[data-action="zoom-out"],
+    .sf-lb-btn[data-action="reset"],
+    .sf-lb-btn[data-action="fullscreen"] {
+        display: none;
+    }
+
+    .sf-lb-nav {
+        width: 34px;
+        height: 34px;
+        font-size: 16px;
     }
 }
 

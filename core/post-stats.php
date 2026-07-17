@@ -211,6 +211,166 @@ function shufei_has_liked($cid)
     return isset($_COOKIE[$cookieKey]);
 }
 
+/* ==================== 评论点赞功能 ==================== */
+
+/**
+ * 确保评论统计表存在
+ */
+function shufei_ensure_comment_stats_table()
+{
+    static $checked = false;
+    if ($checked) return;
+
+    $db = \Typecho\Db::get();
+    $prefix = shufei_get_db_prefix();
+    $adapterName = shufei_get_db_adapter_name();
+    $tableName = $prefix . 'comment_stats';
+    $quotedTable = shufei_quote_column($tableName);
+
+    try {
+        $db->query("SELECT 1 FROM " . $quotedTable . " LIMIT 1");
+    } catch (\Exception $e) {
+        $isPgsql = ($adapterName === 'Pdo_Pgsql' || $adapterName === 'Pgsql');
+        $isSqlite = ($adapterName === 'Pdo_SQLite' || $adapterName === 'SQLite');
+
+        if ($isPgsql) {
+            $sql = "CREATE TABLE IF NOT EXISTS " . $quotedTable . " (
+                \"coid\" integer NOT NULL,
+                \"likes\" integer NOT NULL DEFAULT 0,
+                \"updated_at\" integer NOT NULL DEFAULT 0,
+                PRIMARY KEY (\"coid\")
+            )";
+        } elseif ($isSqlite) {
+            $sql = "CREATE TABLE IF NOT EXISTS " . $quotedTable . " (
+                \"coid\" integer NOT NULL PRIMARY KEY,
+                \"likes\" integer NOT NULL DEFAULT 0,
+                \"updated_at\" integer NOT NULL DEFAULT 0
+            )";
+        } else {
+            $sql = "CREATE TABLE IF NOT EXISTS " . $quotedTable . " (
+                `coid` int(10) unsigned NOT NULL,
+                `likes` int(10) unsigned NOT NULL DEFAULT '0',
+                `updated_at` int(10) unsigned NOT NULL DEFAULT '0',
+                PRIMARY KEY (`coid`),
+                KEY `idx_likes` (`likes`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+        }
+        $db->query($sql);
+    }
+
+    $checked = true;
+}
+
+/**
+ * 批量获取评论点赞数（带静态缓存）
+ * @param int $cid 文章ID，用于缓存键
+ * @return array [coid => likes]
+ */
+function shufei_get_comment_likes_map($cid)
+{
+    static $maps = array();
+    $cid = intval($cid);
+    if (isset($maps[$cid])) return $maps[$cid];
+
+    shufei_ensure_comment_stats_table();
+
+    $db = \Typecho\Db::get();
+    $prefix = shufei_get_db_prefix();
+
+    // 查询该文章所有评论的点赞数
+    $adapterName = shufei_get_db_adapter_name();
+    $isPgsql = ($adapterName === 'Pdo_Pgsql' || $adapterName === 'Pgsql');
+    $q = $isPgsql ? '"' : '`';
+
+    $sql = "SELECT s.{$q}coid{$q}, s.{$q}likes{$q}
+        FROM {$q}{$prefix}comment_stats{$q} s
+        INNER JOIN {$q}{$prefix}comments{$q} c ON s.{$q}coid{$q} = c.{$q}coid{$q}
+        WHERE c.{$q}cid{$q} = {$cid} AND s.{$q}likes{$q} > 0";
+
+    try {
+        $rows = $db->fetchAll($sql);
+    } catch (\Exception $e) {
+        $rows = array();
+    }
+
+    $map = array();
+    foreach ($rows as $row) {
+        $map[intval($row['coid'])] = intval($row['likes']);
+    }
+
+    $maps[$cid] = $map;
+    return $map;
+}
+
+/**
+ * 获取单条评论点赞数
+ * @param int $coid 评论ID
+ * @return int
+ */
+function shufei_get_comment_likes($coid)
+{
+    shufei_ensure_comment_stats_table();
+
+    $db = \Typecho\Db::get();
+    $prefix = shufei_get_db_prefix();
+
+    $row = $db->fetchRow($db->select('likes')->from($prefix . 'comment_stats')->where('coid = ?', $coid));
+    return $row ? intval($row['likes']) : 0;
+}
+
+/**
+ * 增加评论点赞数
+ * @param int $coid 评论ID
+ * @return array 结果数组
+ */
+function shufei_add_comment_like($coid)
+{
+    shufei_ensure_comment_stats_table();
+
+    $db = \Typecho\Db::get();
+    $prefix = shufei_get_db_prefix();
+    $time = time();
+
+    // cookie 防刷
+    $cookieKey = 'shufei_comment_liked_' . $coid;
+    if (isset($_COOKIE[$cookieKey])) {
+        return array('success' => false, 'message' => '您已经点过赞了', 'likes' => shufei_get_comment_likes($coid));
+    }
+
+    // 校验评论是否存在
+    $comment = $db->fetchRow($db->select('coid', 'status')->from($prefix . 'comments')->where('coid = ?', $coid));
+    if (!$comment) {
+        return array('success' => false, 'message' => '评论不存在');
+    }
+
+    $exists = $db->fetchRow($db->select('coid')->from($prefix . 'comment_stats')->where('coid = ?', $coid));
+
+    if ($exists) {
+        $db->query($db->update($prefix . 'comment_stats')
+            ->expression('likes', 'likes + 1')
+            ->rows(array('updated_at' => $time))
+            ->where('coid = ?', $coid));
+    } else {
+        $db->query($db->insert($prefix . 'comment_stats')
+            ->rows(array('coid' => $coid, 'likes' => 1, 'updated_at' => $time)));
+    }
+
+    setcookie($cookieKey, '1', time() + 30 * 86400, '/');
+
+    return array('success' => true, 'message' => '点赞成功', 'likes' => shufei_get_comment_likes($coid));
+}
+
+/**
+ * 检查用户是否已对该评论点赞
+ * @param int $coid 评论ID
+ * @return bool
+ */
+function shufei_has_comment_liked($coid)
+{
+    $cookieKey = 'shufei_comment_liked_' . $coid;
+    return isset($_COOKIE[$cookieKey]);
+}
+
 /**
  * 获取排行榜文章列表（带文件缓存）
  * @param string $type 排序类型: views(浏览量) | likes(点赞数)

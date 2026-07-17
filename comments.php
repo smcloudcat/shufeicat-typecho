@@ -31,11 +31,17 @@ function threadedComments($comments, $options) {
         $commentClass .= ' comment-by-author';
     }
 
+    // 评论点赞数（批量查询带静态缓存，整页只查一次库）
+    $likesMap = shufei_get_comment_likes_map($comments->cid);
+    $commentLikes = isset($likesMap[$comments->coid]) ? intval($likesMap[$comments->coid]) : 0;
+    $commentLiked = shufei_has_comment_liked($comments->coid);
+    $isAuthorComment = ($comments->authorId && $comments->authorId == $comments->ownerId) ? '1' : '0';
+
     $avatarUrl = shufei_get_gravatar_url($comments->mail, 40);
     $authorName = htmlspecialchars($comments->author);
     $parentAuthorName = $parentAuthor ? htmlspecialchars($parentAuthor) : '';
 ?>
-    <li itemscope itemtype="http://schema.org/UserComments" id="<?php $comments->theId(); ?>" class="<?php echo $commentClass; ?>">
+    <li itemscope itemtype="http://schema.org/UserComments" id="<?php $comments->theId(); ?>" class="<?php echo $commentClass; ?>" data-coid="<?php echo $comments->coid; ?>" data-likes="<?php echo $commentLikes; ?>" data-created="<?php echo $comments->created; ?>" data-is-author="<?php echo $isAuthorComment; ?>">
         <div class="comment-avatar">
             <img src="<?php echo $avatarUrl; ?>" alt="<?php echo $authorName; ?>" class="avatar" width="40" height="40" />
         </div>
@@ -64,6 +70,10 @@ function threadedComments($comments, $options) {
                 <?php if ('approved' !== $comments->status): ?>
                     <em class="comment-awaiting-moderation"><i class="fa fa-clock-o"></i> 待审核</em>
                 <?php endif; ?>
+                <span class="comment-like-btn<?php if ($commentLiked): ?> liked<?php endif; ?>" data-coid="<?php echo $comments->coid; ?>" title="点赞">
+                    <i class="fa <?php echo $commentLiked ? 'fa-heart' : 'fa-heart-o'; ?>"></i>
+                    <span class="like-count"><?php echo $commentLikes; ?></span>
+                </span>
                 <span class="comment-reply-btn">
                     <?php $comments->reply('<i class="fa fa-reply"></i> 回复'); ?>
                 </span>
@@ -114,7 +124,20 @@ function threadedComments($comments, $options) {
             </h3>
         </div>
 
-        <ol class="comment-list">
+        <div class="comment-toolbar">
+            <div class="comment-sort-bar">
+                <span class="sort-label"><i class="fa fa-sort"></i> 排序</span>
+                <div class="sort-options" id="comment-sort-options">
+                    <button type="button" class="sort-btn active" data-sort="default">默认</button>
+                    <button type="button" class="sort-btn" data-sort="time_asc">最早</button>
+                    <button type="button" class="sort-btn" data-sort="time_desc">最新</button>
+                    <button type="button" class="sort-btn" data-sort="likes">点赞</button>
+                    <button type="button" class="sort-btn" data-sort="author">只看作者</button>
+                </div>
+            </div>
+        </div>
+
+        <ol class="comment-list" id="comment-list">
         <?php $comments->listComments(['before' => '', 'after' => '']); ?>
         </ol>
 
