@@ -1101,10 +1101,10 @@ UPDATEJS;
 
     $postListStyle = new \Typecho\Widget\Helper\Form\Element\Radio(
         'postListStyle',
-        array('card' => _t('卡片模式'), 'classic' => _t('经典模式')),
+        array('card' => _t('卡片模式'), 'classic' => _t('经典模式'), 'minimal' => _t('极简模式')),
         'classic',
         _t('文章列表样式'),
-        _t('介绍：选择首页文章列表的展示样式<br>卡片模式：缩略图在左侧，标题和摘要在右侧，信息更清晰<br>经典模式：缩略图作为背景覆盖，文字叠加在图片上')
+        _t('介绍：选择首页文章列表的展示样式<br>卡片模式：缩略图在左侧，标题和摘要在右侧，信息更清晰<br>经典模式：缩略图作为背景覆盖，文字叠加在图片上<br>极简模式：无缩略图，纯文字列表，紧凑一行一条，适合文字博客快速浏览')
     );
     $postListStyle->setAttribute('class', 'typecho-option cat-group-appearance');
     $form->addInput($postListStyle);

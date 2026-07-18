@@ -58,6 +58,37 @@
     </div>
 </article>
 
+<?php elseif ($postListStyle === 'minimal'): ?>
+<article class="post minimal-item <?php echo $isSticky ? 'post-sticky' : ''; ?>"
+         data-cid="<?php echo $post->cid; ?>"
+         itemscope itemtype="http://schema.org/BlogPosting">
+    <a href="<?php echo $post->permalink(); ?>" class="post-link" aria-label="<?php $post->title(); ?>"></a>
+
+    <div class="minimal-row">
+        <div class="minimal-date" itemprop="datePublished">
+            <time datetime="<?php $post->date('c'); ?>"><?php $post->date('m/d'); ?></time>
+        </div>
+        <h2 class="minimal-title" itemprop="name headline">
+            <a itemprop="url" href="<?php $post->permalink(); ?>"><?php $post->title(); ?></a>
+        </h2>
+        <div class="minimal-meta">
+            <?php if (!$post->hidden): ?>
+            <span class="minimal-comments" title="评论数">
+                <i class="fa fa-comment-o"></i> <?php $post->commentsNum(_t('0'), _t('1'), _t('%d')); ?>
+            </span>
+            <?php endif; ?>
+            <span class="minimal-category" title="分类">
+                <i class="fa fa-folder-o"></i> <?php $post->category(','); ?>
+            </span>
+        </div>
+    </div>
+    <?php if (!$post->hidden && !empty($excerpt)): ?>
+    <div class="minimal-excerpt" itemprop="description">
+        <p class="excerpt-text"><?php echo htmlspecialchars($excerpt); ?></p>
+    </div>
+    <?php endif; ?>
+</article>
+
 <?php else: ?>
 <article class="post <?php echo $hasThumb ? 'has-thumbnail' : 'no-thumbnail'; ?> <?php echo $isSticky ? 'post-sticky' : ''; ?>"
          data-cid="<?php echo $post->cid; ?>"

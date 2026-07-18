@@ -1425,6 +1425,243 @@ img {
 }
 
 /* ============================================
+ * 文章列表 - 极简模式 (.post-list-minimal)
+ * 纯文字流：日期 | 标题 | 元信息，一行一条
+ * ============================================ */
+.post-list-minimal {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.post-list-minimal .post.minimal-item {
+    position: relative;
+    background: var(--card-bg);
+    border-radius: 4px;
+    border-bottom: 1px solid var(--border-color);
+    transition: background 0.15s ease;
+    overflow: hidden;
+}
+
+.post-list-minimal .post.minimal-item:last-child {
+    border-bottom: none;
+}
+
+.post-list-minimal .post.minimal-item:hover {
+    background: color-mix(in srgb, var(--primary-color) 4%, var(--card-bg));
+}
+
+/* 点击覆盖层 */
+.post-list-minimal .post-link {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+}
+
+/* 极简模式：徽章 flex 容器（收藏存在时由 JS 创建并移入收藏徽章） */
+.post-list-minimal .minimal-badges {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: 8px;
+    position: relative;
+    z-index: 4;
+}
+
+/* flex 容器内的收藏徽章重置绝对定位，使用流式布局 */
+.post-list-minimal .minimal-badges .fav-badge {
+    position: static;
+    top: auto;
+    left: auto;
+    right: auto;
+    transform: none;
+    width: 20px;
+    height: 20px;
+    font-size: 10px;
+    box-shadow: none;
+}
+
+/* 收藏存在时（徽章在 flex 容器内），标题/摘要不再需要 padding-right */
+.post-list-minimal .post.minimal-item.has-fav .minimal-title,
+.post-list-minimal .post.minimal-item.has-fav .minimal-excerpt {
+    padding-right: 0;
+}
+
+/* 单行布局：日期 | 标题 | 元信息 */
+.post-list-minimal .minimal-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 10px 14px 0;
+    min-width: 0;
+}
+
+/* 摘要行：在标题行下方，缩进对齐标题起始位置 */
+.post-list-minimal .minimal-excerpt {
+    padding: 4px 14px 10px 58px;
+    margin: 0;
+}
+
+.post-list-minimal .minimal-excerpt .excerpt-text {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--text-secondary, #595959);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+/* 极简模式下隐藏左侧阅读进度徽章（保留收藏徽章） */
+.post-list-minimal .post.minimal-item .reading-badge {
+    display: none;
+}
+
+/* 日期列：等宽，灰字 */
+.post-list-minimal .minimal-date {
+    flex: 0 0 auto;
+    font-size: 12px;
+    color: var(--text-tertiary, #8c8c8c);
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+}
+
+/* 标题列：弹性填充，单行省略 */
+.post-list-minimal .minimal-title {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.5;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.post-list-minimal .minimal-title a {
+    color: var(--text-color);
+    position: relative;
+    z-index: 3;
+    transition: color 0.15s ease;
+}
+
+.post-list-minimal .post.minimal-item:hover .minimal-title a {
+    color: var(--primary-color);
+}
+
+/* 元信息列：靠右，灰字小号 */
+.post-list-minimal .minimal-meta {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 12px;
+    color: var(--text-tertiary, #8c8c8c);
+    white-space: nowrap;
+    z-index: 3;
+    position: relative;
+}
+
+.post-list-minimal .minimal-meta i {
+    margin-right: 3px;
+    font-size: 11px;
+}
+
+.post-list-minimal .minimal-meta a {
+    color: var(--text-tertiary, #8c8c8c);
+    transition: color 0.15s ease;
+}
+
+.post-list-minimal .minimal-meta a:hover {
+    color: var(--primary-color);
+}
+
+/* 阅读标记：保持与其他样式一致 */
+.post-list-minimal .post.minimal-item.is-read {
+    opacity: 0.55;
+}
+
+.post-list-minimal .post.minimal-item.is-read .minimal-title a {
+    color: var(--text-tertiary, #8c8c8c);
+}
+
+/* 收藏徽章：极简模式下定位在标题左侧 */
+.post-list-minimal .post.minimal-item .fav-badge {
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+/* ---------- 极简模式移动端适配 ---------- */
+@media (max-width: 768px) {
+    .post-list-minimal .minimal-row {
+        gap: 10px;
+        padding: 9px 12px 0;
+    }
+
+    .post-list-minimal .minimal-excerpt {
+        padding: 4px 12px 9px 52px;
+    }
+
+    .post-list-minimal .minimal-date {
+        font-size: 11px;
+    }
+
+    .post-list-minimal .minimal-title {
+        font-size: 13px;
+    }
+
+    .post-list-minimal .minimal-meta {
+        gap: 8px;
+        font-size: 11px;
+    }
+
+    /* 窄屏隐藏分类，只保留评论数，避免标题被挤压 */
+    .post-list-minimal .minimal-category {
+        display: none;
+    }
+
+    .post-list-minimal .post.minimal-item.has-fav .minimal-title,
+    .post-list-minimal .post.minimal-item.has-fav .minimal-excerpt {
+        padding-right: 0;
+    }
+}
+
+@media (max-width: 480px) {
+    .post-list-minimal .minimal-row {
+        gap: 8px;
+        padding: 8px 10px 0;
+    }
+
+    .post-list-minimal .minimal-excerpt {
+        padding: 3px 10px 8px 44px;
+    }
+
+    .post-list-minimal .minimal-title {
+        font-size: 13px;
+    }
+
+    /* 极窄屏隐藏所有元信息，只保留日期和标题 */
+    .post-list-minimal .minimal-meta {
+        display: none;
+    }
+
+    .post-list-minimal .post.minimal-item.has-fav .minimal-title,
+    .post-list-minimal .post.minimal-item.has-fav .minimal-excerpt {
+        padding-right: 0;
+    }
+
+    .post-list-minimal .minimal-badges {
+        gap: 4px;
+        margin-left: 6px;
+    }
+}
+
+/* ============================================
  * 文章缩略图样�? * ============================================ */
 .post-thumbnail {
     margin: -25px -25px 20px -25px;

@@ -1301,7 +1301,7 @@ window.applyCommentSort = function(sortType) {
     var items = commentList.children;
     if (!items.length) return;
 
-    // 保存原始顺序
+    // 保存原始顺序（仅首次设置，pjax 切换后新 DOM 会重新设置）
     for (var i = 0; i < items.length; i++) {
         if (!items[i].getAttribute('data-original-index')) {
             items[i].setAttribute('data-original-index', i);
@@ -1322,34 +1322,46 @@ window.applyCommentSort = function(sortType) {
         items[i].style.display = '';
     }
 
+    // 先恢复 default 顺序，再按目标排序（避免上次排序结果干扰）
+    var arr = Array.prototype.slice.call(items);
+    arr.sort(function(a, b) {
+        return parseInt(a.getAttribute('data-original-index')) - parseInt(b.getAttribute('data-original-index'));
+    });
+
     if (sortType === 'default') {
-        var arr = Array.prototype.slice.call(items);
-        arr.sort(function(a, b) {
-            return parseInt(a.getAttribute('data-original-index')) - parseInt(b.getAttribute('data-original-index'));
-        });
         for (var i = 0; i < arr.length; i++) {
             commentList.appendChild(arr[i]);
         }
         return;
     }
 
-    var arr = Array.prototype.slice.call(items);
+    // 按目标排序，相同主键时用原始顺序作为二级排序（保证稳定）
     arr.sort(function(a, b) {
-        var va = 0, vb = 0;
+        var va = 0, vb = 0, result = 0;
         if (sortType === 'time_asc') {
             va = parseInt(a.getAttribute('data-created')) || 0;
             vb = parseInt(b.getAttribute('data-created')) || 0;
-            return va - vb;
+            result = va - vb;
         } else if (sortType === 'time_desc') {
             va = parseInt(a.getAttribute('data-created')) || 0;
             vb = parseInt(b.getAttribute('data-created')) || 0;
-            return vb - va;
+            result = vb - va;
         } else if (sortType === 'likes') {
             va = parseInt(a.getAttribute('data-likes')) || 0;
             vb = parseInt(b.getAttribute('data-likes')) || 0;
-            return vb - va;
+            result = vb - va;
+            // 点赞数相同时，按时间降序（新的在前）
+            if (result === 0) {
+                var ta = parseInt(a.getAttribute('data-created')) || 0;
+                var tb = parseInt(b.getAttribute('data-created')) || 0;
+                result = tb - ta;
+            }
         }
-        return 0;
+        // 二级排序：仍然相同时保持原始顺序
+        if (result === 0) {
+            result = parseInt(a.getAttribute('data-original-index')) - parseInt(b.getAttribute('data-original-index'));
+        }
+        return result;
     });
 
     for (var i = 0; i < arr.length; i++) {
@@ -2846,6 +2858,21 @@ window.initListReadingMarks = function() {
             favBadge.innerHTML = '<i class="fa fa-heart"></i>';
             favBadge.title = '已收藏';
             card.appendChild(favBadge);
+            // 极简模式下：添加 class 用于 CSS 留白控制
+            if (card.classList.contains('minimal-item')) {
+                card.classList.add('has-fav');
+                // 极简模式：把收藏徽章移入右侧 flex 容器，避免绝对定位与标题重叠
+                var minimalRow = card.querySelector('.minimal-row');
+                if (minimalRow && !minimalRow.querySelector('.minimal-badges')) {
+                    var badgesWrap = document.createElement('div');
+                    badgesWrap.className = 'minimal-badges';
+                    minimalRow.appendChild(badgesWrap);
+                }
+                var targetWrap = minimalRow ? minimalRow.querySelector('.minimal-badges') : null;
+                if (targetWrap && favBadge.parentNode === card) {
+                    targetWrap.appendChild(favBadge);
+                }
+            }
         }
     }
 };
