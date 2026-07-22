@@ -30,8 +30,10 @@
     $archiveObj = shufei_is_post() || shufei_is_page() ? shufei_get_archive() : null;
     $ogType = $archiveObj ? 'article' : 'website';
     $ogImage = shufei_get_seo_og_image($archiveObj);
+    $ogImageDimensions = shufei_get_og_image_dimensions($ogImage);
     $siteTitle = $this->options->title;
     $siteUrl = $this->options->siteUrl;
+    $prevNext = shufei_get_prev_next_page();
     ?>
     
     <title><?php echo $seoTitle; ?></title>
@@ -40,7 +42,51 @@
     <meta name="description" content="<?php echo $seoDescription; ?>">
     <meta name="keywords" content="<?php echo $seoKeywords; ?>">
     <meta name="robots" content="<?php echo $robotsContent; ?>">
+    <meta name="language" content="zh-CN">
+    <meta name="applicable-device" content="pc,mobile">
+    <meta name="author" content="<?php echo htmlspecialchars($archiveObj ? $archiveObj->author->screenName : $siteTitle, ENT_QUOTES, 'UTF-8'); ?>">
     <link rel="canonical" href="<?php echo htmlspecialchars($canonicalUrl); ?>">
+    
+    <!-- 分页 prev/next（帮助搜索引擎理解分页关系） -->
+    <?php if (!empty($prevNext['prev'])): ?>
+    <link rel="prev" href="<?php echo htmlspecialchars($prevNext['prev']); ?>">
+    <?php endif; ?>
+    <?php if (!empty($prevNext['next'])): ?>
+    <link rel="next" href="<?php echo htmlspecialchars($prevNext['next']); ?>">
+    <?php endif; ?>
+    
+    <!-- RSS / Atom Feed 自动发现 -->
+    <link rel="alternate" type="application/rss+xml" title="<?php echo htmlspecialchars($siteTitle, ENT_QUOTES, 'UTF-8'); ?> &raquo; RSS 2.0" href="<?php $this->options->feedUrl(); ?>">
+    <link rel="alternate" type="application/rss+xml" title="<?php echo htmlspecialchars($siteTitle, ENT_QUOTES, 'UTF-8'); ?> &raquo; 评论 RSS 2.0" href="<?php $this->options->commentsFeedUrl(); ?>">
+    <?php if ($archiveObj && shufei_is_post()): ?>
+    <link rel="alternate" type="application/rss+xml" title="<?php echo htmlspecialchars($siteTitle, ENT_QUOTES, 'UTF-8'); ?> &raquo; 文章评论 RSS 2.0" href="<?php echo htmlspecialchars($archiveObj->feedUrl); ?>">
+    <?php endif; ?>
+
+    <!-- Sitemap 自动发现 -->
+    <link rel="sitemap" type="application/xml" href="<?php echo rtrim($this->options->themeUrl, '/') . '/sitemap.php'; ?>">
+    
+    <!-- DNS Prefetch 优化外部资源加载 -->
+    <?php
+    // 收集需要 dns-prefetch 的域名
+    $dnsPrefetchHosts = array();
+    if (!empty($this->options->gravatarMirror)) {
+        $gravatarHost = parse_url($this->options->gravatarMirror, PHP_URL_HOST);
+        if ($gravatarHost) $dnsPrefetchHosts[] = $gravatarHost;
+    }
+    if (!empty($this->options->customCdn)) {
+        $cdnHost = parse_url($this->options->customCdn, PHP_URL_HOST);
+        if ($cdnHost) $dnsPrefetchHosts[] = $cdnHost;
+    }
+    if (shufei_is_turnstile_enabled()) $dnsPrefetchHosts[] = 'challenges.cloudflare.com';
+    if (shufei_is_geetest_enabled()) $dnsPrefetchHosts[] = 'static.geetest.com';
+    if (!empty($this->options->weatherEnabled) && $this->options->weatherEnabled === 'on') {
+        $dnsPrefetchHosts[] = 'api.lwcat.cn';
+    }
+    $dnsPrefetchHosts = array_unique($dnsPrefetchHosts);
+    foreach ($dnsPrefetchHosts as $host):
+    ?>
+    <link rel="dns-prefetch" href="//<?php echo htmlspecialchars($host); ?>">
+    <?php endforeach; ?>
     
     <!-- Open Graph 协议（Facebook / 微博 / QQ 等） -->
     <meta property="og:type" content="<?php echo $ogType; ?>">
@@ -51,6 +97,11 @@
     <meta property="og:locale" content="zh_CN">
     <?php if (!empty($ogImage)): ?>
     <meta property="og:image" content="<?php echo htmlspecialchars($ogImage); ?>">
+    <?php if ($ogImageDimensions): ?>
+    <meta property="og:image:width" content="<?php echo $ogImageDimensions['width']; ?>">
+    <meta property="og:image:height" content="<?php echo $ogImageDimensions['height']; ?>">
+    <meta property="og:image:alt" content="<?php echo htmlspecialchars($archiveObj ? $archiveObj->title : $siteTitle, ENT_QUOTES, 'UTF-8'); ?>">
+    <?php endif; ?>
     <?php endif; ?>
     
     <!-- Twitter Card -->
@@ -59,13 +110,18 @@
     <meta name="twitter:description" content="<?php echo $seoDescription; ?>">
     <?php if (!empty($ogImage)): ?>
     <meta name="twitter:image" content="<?php echo htmlspecialchars($ogImage); ?>">
+    <meta name="twitter:image:alt" content="<?php echo htmlspecialchars($archiveObj ? $archiveObj->title : $siteTitle, ENT_QUOTES, 'UTF-8'); ?>">
     <?php endif; ?>
     
     <!-- 文章专属 OG meta -->
-    <?php if ($archiveObj && $ogType === 'article'): ?>
+    <?php if ($archiveObj && $ogType === 'article'):
+        $wordCount = shufei_get_word_count($archiveObj);
+        $readingTime = shufei_get_reading_time($archiveObj);
+    ?>
     <meta property="article:published_time" content="<?php echo date('c', $archiveObj->created); ?>">
     <meta property="article:modified_time" content="<?php echo date('c', $archiveObj->modified); ?>">
     <meta property="article:author" content="<?php echo htmlspecialchars($archiveObj->author->screenName); ?>">
+    <meta property="article:word_count" content="<?php echo $wordCount; ?>">
     <meta property="article:section" content="<?php
         $sectionName = '';
         if (!empty($archiveObj->categories)) {
@@ -105,41 +161,88 @@
     ?>
     
     <!-- JSON-LD 结构化数据 -->
-    <?php if ($archiveObj && $ogType === 'article'):
+    <?php
+    // 面包屑结构化数据（所有页面都可能有）
+    $breadcrumbJsonLd = shufei_get_breadcrumbs_jsonld();
+    if ($breadcrumbJsonLd): ?>
+    <script type="application/ld+json"><?php echo json_encode($breadcrumbJsonLd, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?></script>
+    <?php endif;
+
+    if ($archiveObj && $ogType === 'article'):
+        $wordCount = shufei_get_word_count($archiveObj);
         $jsonLd = array(
             '@context' => 'https://schema.org',
             '@type'    => 'BlogPosting',
             'headline' => $archiveObj->title,
             'url'      => $archiveObj->permalink,
+            'mainEntityOfPage' => array(
+                '@type' => 'WebPage',
+                '@id'   => $archiveObj->permalink
+            ),
             'datePublished' => date('c', $archiveObj->created),
             'dateModified'  => date('c', $archiveObj->modified),
             'author'  => array(
                 '@type' => 'Person',
-                'name'  => $archiveObj->author->screenName
+                'name'  => $archiveObj->author->screenName,
+                'url'   => $archiveObj->author->permalink
             ),
             'publisher' => array(
                 '@type' => 'Organization',
                 'name'  => $siteTitle,
-                'url'   => $siteUrl
+                'url'   => $siteUrl,
+                'logo'  => array(
+                    '@type' => 'ImageObject',
+                    'url'   => !empty($this->options->logoUrl) ? $this->options->logoUrl : rtrim($siteUrl, '/') . '/favicon.ico'
+                )
             ),
             'description' => strip_tags($seoDescription),
-            'keywords'    => strip_tags($seoKeywords)
+            'keywords'    => strip_tags($seoKeywords),
+            'wordCount'   => $wordCount
         );
+        if (!empty($archiveObj->categories) && is_array($archiveObj->categories) && isset($archiveObj->categories[0]['name'])) {
+            $jsonLd['articleSection'] = $archiveObj->categories[0]['name'];
+        }
         if (!empty($ogImage)) {
-            $jsonLd['image'] = $ogImage;
+            $jsonLd['image'] = array(
+                '@type'  => 'ImageObject',
+                'url'    => $ogImage,
+                'width'  => $ogImageDimensions ? $ogImageDimensions['width'] : 1200,
+                'height' => $ogImageDimensions ? $ogImageDimensions['height'] : 630
+            );
         }
     ?>
     <script type="application/ld+json"><?php echo json_encode($jsonLd, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?></script>
     <?php else:
+        // 首页/列表页 WebSite 结构化数据 + 站内搜索 Action
         $webJsonLd = array(
             '@context' => 'https://schema.org',
             '@type'    => 'WebSite',
             'name'     => $siteTitle,
-            'url'      => $siteUrl
+            'url'      => $siteUrl,
+            'inLanguage' => 'zh-CN'
         );
         if (!empty($this->options->description)) {
             $webJsonLd['description'] = strip_tags($this->options->description);
         }
+        // 站内搜索 SearchAction
+        $webJsonLd['potentialAction'] = array(
+            '@type'       => 'SearchAction',
+            'target'      => array(
+                '@type'       => 'EntryPoint',
+                'urlTemplate' => rtrim($siteUrl, '/') . '/?s={search_term_string}'
+            ),
+            'query-input' => 'required name=search_term_string'
+        );
+        // publisher 信息
+        $webJsonLd['publisher'] = array(
+            '@type' => 'Organization',
+            'name'  => $siteTitle,
+            'url'   => $siteUrl,
+            'logo'  => array(
+                '@type' => 'ImageObject',
+                'url'   => !empty($this->options->logoUrl) ? $this->options->logoUrl : rtrim($siteUrl, '/') . '/favicon.ico'
+            )
+        );
     ?>
     <script type="application/ld+json"><?php echo json_encode($webJsonLd, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?></script>
     <?php endif; ?>

@@ -287,6 +287,7 @@ function themeConfig($form)
                     '<li data-id="cat-pjax">Pjax无刷新</li>' .
                     '<li data-id="cat-resource">资源加载</li>' .
                     '<li data-id="cat-article">文章缩略图</li>' .
+                    '<li data-id="cat-sidebar">侧边栏设置</li>' .
                     '<li data-id="cat-stats">文章统计</li>' .
                     '<li data-id="cat-seo">SEO 设置</li>' .
                     '<li data-id="cat-mail">评论邮件通知</li>' .
@@ -312,7 +313,7 @@ function themeConfig($form)
             'var c = document.getElementById("cat-tpl").querySelector(".cat-config-container");' .
             'var pWrap = c.querySelector("#cat-panes");' .
             'f.insertBefore(c, f.firstChild);' .
-            'var ids = ["cat-basic", "cat-avatar", "cat-appearance", "cat-pjax", "cat-resource", "cat-article", "cat-stats", "cat-seo", "cat-mail", "cat-ai", "cat-storage", "cat-verify", "cat-enhance", "cat-nav", "cat-data", "cat-update"];' .
+            'var ids = ["cat-basic", "cat-avatar", "cat-appearance", "cat-pjax", "cat-resource", "cat-article", "cat-sidebar", "cat-stats", "cat-seo", "cat-mail", "cat-ai", "cat-storage", "cat-verify", "cat-enhance", "cat-nav", "cat-data", "cat-update"];' .
             'ids.forEach(function(id) {' .
                 'var p = document.createElement("div");' .
                 'p.id = id; p.className = "cat-pane" + (id === "cat-basic" ? " active" : "");' .
@@ -941,16 +942,15 @@ UPDATEJS;
         array(
             'ShowRecentPosts'    => _t('显示最新文章'),
             'ShowRecentComments' => _t('显示最近回复'),
-            'ShowCategory'       => _t('显示分类'),
             'ShowArchive'        => _t('显示归档'),
             'ShowOther'          => _t('显示其它杂项'),
             'ShowLinks'          => _t('显示友链')
         ),
-        array('ShowRecentPosts', 'ShowRecentComments', 'ShowCategory', 'ShowArchive', 'ShowOther', 'ShowLinks'),
-        _t('侧边栏显示'),
-        _t('介绍：选择要在侧边栏展示的功能板块')
+        array('ShowRecentPosts', 'ShowRecentComments', 'ShowArchive', 'ShowOther', 'ShowLinks'),
+        _t('侧边栏功能板块'),
+        _t('介绍：选择要在侧边栏展示的功能板块（分类目录、页面导航、站长信息等为固定板块，始终显示）')
     );
-    $sidebarBlock->setAttribute('class', 'typecho-option cat-group-basic');
+    $sidebarBlock->setAttribute('class', 'typecho-option cat-group-sidebar');
     $form->addInput($sidebarBlock->multiMode());
 
     $links = new \Typecho\Widget\Helper\Form\Element\Textarea(
@@ -960,8 +960,28 @@ UPDATEJS;
         _t('友链配置'),
         _t('介绍：每行一个友链，格式：链接名称,链接地址<br>例如：<br>CC的小窝,https://lwcat.cn<br>谷歌,https://www.google.com')
     );
-    $links->setAttribute('class', 'typecho-option cat-group-basic');
+    $links->setAttribute('class', 'typecho-option cat-group-sidebar');
     $form->addInput($links);
+
+    $sidebarOrderLeft = new \Typecho\Widget\Helper\Form\Element\Text(
+        'sidebarOrderLeft',
+        null,
+        'author,category,pages,guestbook,github,customnav,links,other,contacts,footer',
+        _t('左侧侧边栏显示顺序'),
+        _t('介绍：用英文逗号分隔板块标识，按填写顺序从上到下显示<br>可选板块：<br><b>author</b> = 站长信息（固定）<br><b>category</b> = 分类目录（固定）<br><b>pages</b> = 页面导航（固定）<br><b>guestbook</b> = 留言板入口<br><b>github</b> = GitHub 入口<br><b>customnav</b> = 快捷导航<br><b>links</b> = 友链<br><b>other</b> = 其它杂项<br><b>contacts</b> = 联系方式<br><b>footer</b> = 底部信息（固定）<br>未填写的板块将按默认顺序追加到末尾；固定板块始终显示')
+    );
+    $sidebarOrderLeft->setAttribute('class', 'typecho-option cat-group-sidebar');
+    $form->addInput($sidebarOrderLeft);
+
+    $sidebarOrderRight = new \Typecho\Widget\Helper\Form\Element\Text(
+        'sidebarOrderRight',
+        null,
+        'weather,toc,recent,comments,archive,ranking,stats',
+        _t('右侧侧边栏显示顺序'),
+        _t('介绍：用英文逗号分隔板块标识，按填写顺序从上到下显示<br>可选板块：<br><b>weather</b> = 天气卡片<br><b>toc</b> = 文章目录（仅文章页）<br><b>recent</b> = 最新文章<br><b>comments</b> = 最近回复<br><b>archive</b> = 归档<br><b>ranking</b> = 排行榜<br><b>stats</b> = 站点统计（固定）<br>未填写的板块将按默认顺序追加到末尾')
+    );
+    $sidebarOrderRight->setAttribute('class', 'typecho-option cat-group-sidebar');
+    $form->addInput($sidebarOrderRight);
 
     $footerCopyrightEnabled = new \Typecho\Widget\Helper\Form\Element\Radio(
         'footerCopyrightEnabled',
@@ -1184,9 +1204,9 @@ UPDATEJS;
         array('on' => _t('开启'), 'off' => _t('关闭')),
         'on',
         _t('排行榜功能'),
-        _t('介绍：开启后，将在侧边栏显示文章排行榜')
+        _t('介绍：开启后，将在右侧侧边栏显示文章排行榜')
     );
-    $rankingEnabled->setAttribute('class', 'typecho-option cat-group-stats');
+    $rankingEnabled->setAttribute('class', 'typecho-option cat-group-sidebar');
     $form->addInput($rankingEnabled);
 
     $rankingType = new \Typecho\Widget\Helper\Form\Element\Radio(
@@ -1196,7 +1216,7 @@ UPDATEJS;
         _t('排行榜排序方式'),
         _t('介绍：选择侧边栏排行榜的排序依据')
     );
-    $rankingType->setAttribute('class', 'typecho-option cat-group-stats');
+    $rankingType->setAttribute('class', 'typecho-option cat-group-sidebar');
     $form->addInput($rankingType);
 
     $rankingLimit = new \Typecho\Widget\Helper\Form\Element\Text(
@@ -1206,8 +1226,18 @@ UPDATEJS;
         _t('排行榜显示数量'),
         _t('介绍：设置侧边栏排行榜显示的文章数量，默认为5篇')
     );
-    $rankingLimit->setAttribute('class', 'typecho-option cat-group-stats');
+    $rankingLimit->setAttribute('class', 'typecho-option cat-group-sidebar');
     $form->addInput($rankingLimit);
+
+    $weatherEnabled = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'weatherEnabled',
+        array('on' => _t('开启'), 'off' => _t('关闭')),
+        'off',
+        _t('侧边栏天气卡片'),
+        _t('介绍：开启后，将在右侧侧边栏显示精美天气卡片<br>天气数据通过 IP 定位自动获取，无需配置')
+    );
+    $weatherEnabled->setAttribute('class', 'typecho-option cat-group-sidebar');
+    $form->addInput($weatherEnabled);
 
     $seoKeywords = new \Typecho\Widget\Helper\Form\Element\Text(
         'seoKeywords',
@@ -1959,7 +1989,7 @@ HTML;
         _t('留言板功能'),
         _t('介绍：开启后，在左侧导航栏添加留言板入口，用户可以在留言板页面留言<br>留言功能基于 Typecho 评论系统实现，需要先创建一个独立页面并选择"留言板"模板')
     );
-    $guestbookEnabled->setAttribute('class', 'typecho-option cat-group-nav');
+    $guestbookEnabled->setAttribute('class', 'typecho-option cat-group-sidebar');
     $form->addInput($guestbookEnabled);
 
     $guestbookPageId = new \Typecho\Widget\Helper\Form\Element\Text(
@@ -1969,7 +1999,7 @@ HTML;
         _t('留言板页面ID'),
         _t('介绍：填写留言板独立页面的ID（在后台页面管理中查看）<br>如果留空，将尝试自动查找使用留言板模板的页面')
     );
-    $guestbookPageId->setAttribute('class', 'typecho-option cat-group-nav');
+    $guestbookPageId->setAttribute('class', 'typecho-option cat-group-sidebar');
     $form->addInput($guestbookPageId);
 
     $githubUsername = new \Typecho\Widget\Helper\Form\Element\Text(
@@ -3739,20 +3769,293 @@ function shufei_get_seo_og_image($archive = null)
 /**
  * 获取当前页面的 canonical URL
  *
+ * 覆盖范围：文章/页面/分类/标签/作者/归档/首页分页
+ * 分页页面使用各自完整 URL，不被统一指向首页
+ *
  * @return string
  */
 function shufei_get_canonical_url()
 {
     $options = \Typecho\Widget::widget('Widget_Options');
+    $archive = shufei_get_archive();
 
+    // 文章/独立页面：使用 permalink
     if (shufei_is_post() || shufei_is_page()) {
-        $archive = shufei_get_archive();
         if ($archive && !empty($archive->permalink)) {
             return $archive->permalink;
         }
     }
 
+    // 列表型页面：使用 archive 路由生成的 permalink（含分页参数）
+    if ($archive && method_exists($archive, 'permalink') && !shufei_is_404() && !shufei_is_search()) {
+        try {
+            $permalink = $archive->permalink;
+            if (!empty($permalink)) {
+                return $permalink;
+            }
+        } catch (\Exception $e) {}
+    }
+
+    // 兜底使用站点首页
     return $options->siteUrl;
+}
+
+/**
+ * 获取分页页面的 prev/next URL（用于 SEO link rel）
+ *
+ * @return array ['prev' => url|null, 'next' => url|null]
+ */
+function shufei_get_prev_next_page()
+{
+    $result = array('prev' => null, 'next' => null);
+    $archive = shufei_get_archive();
+    if (!$archive) return $result;
+
+    // 仅在列表型页面（首页/分类/标签/作者/归档）生效
+    if (shufei_is_post() || shufei_is_page() || shufei_is_404() || shufei_is_search()) {
+        return $result;
+    }
+
+    try {
+        $currentPage = isset($archive->_currentPage) ? intval($archive->_currentPage) : 1;
+        $totalPage = 0;
+        if (method_exists($archive, 'getTotal') && method_exists($archive, 'parameter') && $archive->parameter) {
+            $pageSize = intval($archive->parameter->pageSize);
+            if ($pageSize > 0) {
+                $totalPage = ceil(intval($archive->getTotal()) / $pageSize);
+            }
+        }
+        if ($totalPage <= 1) return $result;
+
+        // 生成上一页 URL
+        if ($currentPage > 1) {
+            $result['prev'] = shufei_build_page_url($archive, $currentPage - 1);
+        }
+        // 生成下一页 URL
+        if ($currentPage < $totalPage) {
+            $result['next'] = shufei_build_page_url($archive, $currentPage + 1);
+        }
+    } catch (\Exception $e) {}
+
+    return $result;
+}
+
+/**
+ * 根据当前 archive 上下文构建指定页码的 URL
+ *
+ * @param object $archive
+ * @param int $page
+ * @return string
+ */
+function shufei_build_page_url($archive, $page)
+{
+    $options = \Typecho\Widget::widget('Widget_Options');
+    $siteUrl = $options->siteUrl;
+
+    try {
+        // 利用 Typecho 自带的 pageLink 逻辑生成 URL
+        $route = null;
+        if (method_exists($archive, 'getRoute')) {
+            $route = $archive->getRoute();
+        }
+
+        // 简化策略：在当前 permalink 基础上替换页码
+        $currentUrl = $archive->permalink;
+        $currentPage = isset($archive->_currentPage) ? intval($archive->_currentPage) : 1;
+
+        // 常见模式 1: /page/N/
+        if (preg_match('#/page/' . $currentPage . '/?$#', $currentUrl)) {
+            return preg_replace('#/page/' . $currentPage . '/?$#', '/page/' . $page . '/', $currentUrl);
+        }
+        // 常见模式 2: ?page=N（query string）
+        if (preg_match('#[?&]page=' . $currentPage . '($|&)#', $currentUrl)) {
+            return preg_replace('#([?&]page=)' . $currentPage . '#', '${1}' . $page, $currentUrl);
+        }
+        // 第一页通常无页码标记，向下翻页时追加 /page/N/
+        if ($currentPage === 1) {
+            // 去掉 query string 后追加 /page/N/
+            $base = preg_replace('#\?.*$#', '', $currentUrl);
+            $base = rtrim($base, '/') . '/page/' . $page . '/';
+            return $base;
+        }
+    } catch (\Exception $e) {}
+
+    return $siteUrl;
+}
+
+/**
+ * 获取文章字数（纯文本字符数）
+ *
+ * @param object|null $archive
+ * @return int
+ */
+function shufei_get_word_count($archive = null)
+{
+    if (!$archive) $archive = shufei_get_archive();
+    if (!$archive || empty($archive->text)) return 0;
+
+    $text = $archive->text;
+    // 去除 Markdown 标记
+    $text = preg_replace('/```[\s\S]*?```/', '', $text);
+    $text = preg_replace('/`[^`]*`/', '', $text);
+    $text = preg_replace('/!\[.*?\]\(.*?\)/', '', $text);
+    $text = preg_replace('/\[([^\]]*)\]\(.*?\)/', '$1', $text);
+    $text = preg_replace('/^#{1,6}\s+/m', '', $text);
+    $text = preg_replace('/^[>\-\*\+]\s*/m', '', $text);
+    $text = preg_replace('/\$\$[\s\S]+?\$\$/', '', $text);
+    $text = preg_replace('/(?<!\$)\$(?!\$)[^\$\n]+?(?<!\$)\$(?!\$)/', '', $text);
+    $text = strip_tags($text);
+    $text = preg_replace('/\s+/', '', $text);
+
+    return mb_strlen($text, 'UTF-8');
+}
+
+/**
+ * 估算阅读时长（分钟）
+ *
+ * @param object|null $archive
+ * @return int
+ */
+function shufei_get_reading_time($archive = null)
+{
+    $wordCount = shufei_get_word_count($archive);
+    // 中文阅读速度约 300-500 字/分钟
+    $minutes = max(1, intval(ceil($wordCount / 400)));
+    return $minutes;
+}
+
+/**
+ * 获取 OG 图片尺寸信息
+ *
+ * @param string $imageUrl
+ * @return array|null ['width' => int, 'height' => int]
+ */
+function shufei_get_og_image_dimensions($imageUrl)
+{
+    if (empty($imageUrl)) return null;
+
+    // 仅处理本站图片，避免对外部图片发起请求
+    $siteUrl = \Typecho\Widget::widget('Widget_Options')->siteUrl;
+    $siteHost = parse_url($siteUrl, PHP_URL_HOST);
+    $imgHost = parse_url($imageUrl, PHP_URL_HOST);
+
+    // 远程图片无法可靠获取尺寸，返回默认 1200x630
+    if (empty($imgHost) || $imgHost !== $siteHost) {
+        return array('width' => 1200, 'height' => 630);
+    }
+
+    // 本站图片：尝试转换为服务器路径
+    $themeDir = dirname(__FILE__);
+    $rootDir = dirname(dirname(dirname(dirname(__FILE__)))); // usr/themes/ShuFeiCat -> 根目录
+    $imgPath = parse_url($imageUrl, PHP_URL_PATH);
+
+    // 候选路径
+    $candidates = array();
+    if ($imgPath) {
+        $candidates[] = $rootDir . $imgPath;
+        $candidates[] = rtrim($rootDir, '/') . $imgPath;
+    }
+
+    foreach ($candidates as $path) {
+        if (is_file($path)) {
+            $info = @getimagesize($path);
+            if ($info && isset($info[0]) && isset($info[1]) && $info[0] > 0) {
+                return array('width' => $info[0], 'height' => $info[1]);
+            }
+        }
+    }
+
+    // 无法获取时返回默认
+    return array('width' => 1200, 'height' => 630);
+}
+
+/**
+ * 生成面包屑结构化数据
+ *
+ * @return array BreadcrumbList JSON-LD 数组
+ */
+function shufei_get_breadcrumbs_jsonld()
+{
+    $options = \Typecho\Widget::widget('Widget_Options');
+    $siteUrl = $options->siteUrl;
+    $siteTitle = $options->title;
+    $archive = shufei_get_archive();
+
+    $items = array();
+    $items[] = array(
+        '@type' => 'ListItem',
+        'position' => 1,
+        'name' => $siteTitle,
+        'item' => $siteUrl
+    );
+
+    $position = 2;
+
+    if (shufei_is_post() && $archive) {
+        // 首页 > 分类 > 文章
+        if (!empty($archive->categories) && is_array($archive->categories)) {
+            $cat = $archive->categories[0];
+            if (isset($cat['permalink']) && isset($cat['name'])) {
+                $items[] = array(
+                    '@type' => 'ListItem',
+                    'position' => $position++,
+                    'name' => $cat['name'],
+                    'item' => $cat['permalink']
+                );
+            }
+        }
+        $items[] = array(
+            '@type' => 'ListItem',
+            'position' => $position++,
+            'name' => $archive->title,
+            'item' => $archive->permalink
+        );
+    } elseif (shufei_is_page() && $archive) {
+        $items[] = array(
+            '@type' => 'ListItem',
+            'position' => $position++,
+            'name' => $archive->title,
+            'item' => $archive->permalink
+        );
+    } elseif (shufei_is_category() && $archive) {
+        $items[] = array(
+            '@type' => 'ListItem',
+            'position' => $position++,
+            'name' => $archive->name,
+            'item' => $archive->permalink
+        );
+    } elseif (shufei_is_tag() && $archive) {
+        $items[] = array(
+            '@type' => 'ListItem',
+            'position' => $position++,
+            'name' => '标签: ' . $archive->name,
+            'item' => $archive->permalink
+        );
+    } elseif (shufei_is_author() && $archive) {
+        $name = !empty($archive->screenName) ? $archive->screenName : $archive->name;
+        $items[] = array(
+            '@type' => 'ListItem',
+            'position' => $position++,
+            'name' => $name,
+            'item' => $archive->permalink
+        );
+    } elseif (shufei_is_archive() && $archive) {
+        $items[] = array(
+            '@type' => 'ListItem',
+            'position' => $position++,
+            'name' => '归档',
+            'item' => $archive->permalink
+        );
+    }
+
+    // 仅有首页时不输出面包屑
+    if (count($items) <= 1) return null;
+
+    return array(
+        '@context' => 'https://schema.org',
+        '@type' => 'BreadcrumbList',
+        'itemListElement' => $items
+    );
 }
 
 /**

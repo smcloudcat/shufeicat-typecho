@@ -713,6 +713,10 @@
             if (typeof window.initQuoteComment === 'function') {
                 window.initQuoteComment();
             }
+
+            if (typeof window.initWeather === 'function') {
+                window.initWeather();
+            }
         }, 50);
     };
     

@@ -3188,6 +3188,259 @@ window.initCaptchaWidgets = function() {
     }
 };
 
+// ==================== 天气卡片 ====================
+window.initWeather = function(force) {
+    var card = document.getElementById('weather-card');
+    if (!card) return;
+    // 防重复绑定：pjax 切换或 F5 刷新时避免重复请求（force=true 时强制刷新）
+    if (!force && card.getAttribute('data-weather-bound')) return;
+    card.setAttribute('data-weather-bound', '1');
+
+    // 缓存 key（10 分钟有效）
+    var CACHE_KEY = 'sf_weather_cache';
+    var CACHE_TTL = 10 * 60 * 1000;
+
+    function getWeatherIcon(code, isDay) {
+        // 根据 WMO 天气代码返回 FontAwesome 图标
+        if (code === 0) return isDay ? 'fa-sun-o' : 'fa-moon-o';
+        if (code === 1) return isDay ? 'fa-cloud' : 'fa-moon-o';
+        if (code === 2) return isDay ? 'fa-sun-o' : 'fa-moon-o';
+        if (code === 3) return 'fa-cloud';
+        if (code === 45 || code === 48) return 'fa-smog';
+        if (code >= 51 && code <= 57) return 'fa-tint';
+        if (code >= 56 && code <= 57) return 'fa-tint';
+        if (code >= 61 && code <= 65) return 'fa-umbrella';
+        if (code >= 66 && code <= 67) return 'fa-umbrella';
+        if (code >= 71 && code <= 77) return 'fa-snowflake-o';
+        if (code >= 80 && code <= 82) return 'fa-umbrella';
+        if (code >= 85 && code <= 86) return 'fa-snowflake-o';
+        if (code >= 95 && code <= 99) return 'fa-bolt';
+        return isDay ? 'fa-sun-o' : 'fa-moon-o';
+    }
+
+    // 返回天气类型字符串（用于 CSS 动画 class）
+    function getWeatherType(code, isDay) {
+        if (code === 0) return isDay ? 'sunny' : 'night';
+        if (code === 1 || code === 2) return isDay ? 'cloudy' : 'night';
+        if (code === 3) return 'overcast';
+        if (code === 45 || code === 48) return 'fog';
+        if (code >= 51 && code <= 67) return 'rain';
+        if (code >= 71 && code <= 86) return 'snow';
+        if (code >= 95) return 'thunder';
+        return isDay ? 'sunny' : 'night';
+    }
+
+    function getWeatherGradient(code, isDay) {
+        // 根据天气代码和昼夜返回渐变背景
+        if (!isDay) {
+            // 夜间：深蓝紫色调
+            if (code >= 61 && code <= 67) return 'linear-gradient(135deg, #1a2a3a, #2c3e50)';
+            if (code >= 71 && code <= 86) return 'linear-gradient(135deg, #1a2530, #3a4a5a)';
+            if (code >= 95) return 'linear-gradient(135deg, #0d1117, #1a1a2e)';
+            return 'linear-gradient(135deg, #1a2a4a, #2c4a6e)';
+        }
+        // 白天
+        if (code === 0) return 'linear-gradient(135deg, #FFB88C, #DE6262)'; // 晴 - 暖橙红
+        if (code === 1 || code === 2) return 'linear-gradient(135deg, #4facfe, #00f2fe)'; // 多云 - 天蓝
+        if (code === 3) return 'linear-gradient(135deg, #8e9eab, #636e72)'; // 阴 - 灰
+        if (code === 45 || code === 48) return 'linear-gradient(135deg, #bdc3c7, #757f9a)'; // 雾
+        if (code >= 51 && code <= 57) return 'linear-gradient(135deg, #5c6f8a, #3a4a5a)'; // 毛毛雨
+        if (code >= 61 && code <= 67) return 'linear-gradient(135deg, #4b6584, #2c3e50)'; // 雨
+        if (code >= 71 && code <= 77) return 'linear-gradient(135deg, #a1c4fd, #c2e9fb)'; // 雪 - 浅蓝白
+        if (code >= 80 && code <= 82) return 'linear-gradient(135deg, #4b6584, #2c3e50)'; // 阵雨
+        if (code >= 85 && code <= 86) return 'linear-gradient(135deg, #a1c4fd, #c2e9fb)'; // 阵雪
+        if (code >= 95) return 'linear-gradient(135deg, #2c3e50, #1a1a2e)'; // 雷暴
+        return 'linear-gradient(135deg, #FFB88C, #DE6262)';
+    }
+
+    function renderWeather(data) {
+        var w = data.weather;
+        var hasWeather = w && !Array.isArray(w) && w.weather_desc;
+        var location = data.city && data.city !== '0' ? data.city : (data.province && data.province !== '0' ? data.province : data.country);
+
+        if (!hasWeather) {
+            card.innerHTML = '<div class="weather-error">' +
+                '<i class="fa fa-map-marker"></i>' +
+                '<span>暂无天气数据</span>' +
+                '<small>' + escapeHtml(location || '未知地区') + '</small>' +
+            '</div>';
+            return;
+        }
+
+        var tempRaw = w.temperature !== null && w.temperature !== undefined ? Math.round(w.temperature) : null;
+        var temp = tempRaw !== null ? tempRaw : '--';
+        var feelsLike = w.feels_like !== null && w.feels_like !== undefined ? Math.round(w.feels_like) : null;
+        var icon = getWeatherIcon(w.weather_code, w.is_day);
+        var gradient = getWeatherGradient(w.weather_code, w.is_day);
+        var weatherType = getWeatherType(w.weather_code, w.is_day);
+        var isDay = w.is_day;
+        var updateTime = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+
+        // 生成天气详情条项目（仅保留核心两项，保持卡片紧凑）
+        var detailItems = [];
+        if (w.humidity !== null && w.humidity !== undefined) {
+            detailItems.push('<div class="weather-detail-chip"><i class="fa fa-tint"></i><span>湿度 ' + w.humidity + '%</span></div>');
+        }
+        if (w.wind_speed !== null && w.wind_speed !== undefined) {
+            var windText = w.wind_direction ? (w.wind_direction + ' ' + w.wind_speed + 'km/h') : (w.wind_speed + 'km/h');
+            detailItems.push('<div class="weather-detail-chip"><i class="fa fa-flag"></i><span>' + windText + '</span></div>');
+        }
+
+        // 生成动态粒子
+        var particles = generateParticles(weatherType);
+
+        var html = '<div class="weather-glass weather-type-' + weatherType + ' weather-enter">' +
+            '<div class="weather-glass-bg" style="background: ' + gradient + ';"></div>' +
+            '<div class="weather-particles">' + particles + '</div>' +
+            '<div class="weather-glass-shine"></div>' +
+            '<div class="weather-glass-shine-2"></div>' +
+            '<div class="weather-glass-shine-3"></div>' +
+            '<div class="weather-glass-sweep"></div>' +
+            '<div class="weather-top">' +
+                '<div class="weather-location">' +
+                    '<i class="fa fa-map-marker"></i>' +
+                    '<span>' + escapeHtml(location || '未知') + '</span>' +
+                '</div>' +
+                '<div class="weather-desc">' + escapeHtml(w.weather_desc || '') + '</div>' +
+            '</div>' +
+            '<div class="weather-body">' +
+                '<div class="weather-icon-wrap">' +
+                    '<div class="weather-icon"><i class="fa ' + icon + '"></i></div>' +
+                '</div>' +
+                '<div class="weather-info">' +
+                    '<div class="weather-temp weather-temp-enter" data-target="' + (tempRaw !== null ? tempRaw : '') + '">' + temp + '<sup>°</sup></div>' +
+                    '<div class="weather-feels">' + (feelsLike !== null ? '体感 ' + feelsLike + '°' : '') + '</div>' +
+                '</div>' +
+            '</div>' +
+            (detailItems.length > 0 ? '<div class="weather-details-bar">' + detailItems.join('') + '</div>' : '') +
+            '<div class="weather-footer">' +
+                '<div class="weather-update">' +
+                    '<i class="fa fa-clock-o"></i>' +
+                    '<span>' + updateTime + ' 更新</span>' +
+                '</div>' +
+                '<div class="weather-refresh" onclick="window.initWeather(true)" title="刷新天气">' +
+                    '<i class="fa fa-refresh"></i>' +
+                '</div>' +
+            '</div>' +
+        '</div>';
+
+        card.innerHTML = html;
+        card.setAttribute('data-rendered', '1');
+
+        // 温度数字递增动画
+        setTimeout(function() {
+            animateTempNumber(card);
+        }, 50);
+    }
+
+    function generateParticles(type) {
+        var count = 0;
+        var particleClass = '';
+        if (type === 'rain') { count = 12; particleClass = 'weather-particle-rain'; }
+        else if (type === 'snow') { count = 10; particleClass = 'weather-particle-snow'; }
+        else if (type === 'sunny') { count = 4; particleClass = 'weather-particle-ray'; }
+        else if (type === 'night') { count = 8; particleClass = 'weather-particle-star'; }
+        else if (type === 'cloudy' || type === 'overcast') { count = 3; particleClass = 'weather-particle-cloud'; }
+        else if (type === 'thunder') { count = 14; particleClass = 'weather-particle-rain'; }
+
+        if (count === 0) return '';
+        var html = '';
+        for (var i = 0; i < count; i++) {
+            var left = Math.random() * 100;
+            var delay = Math.random() * 3;
+            var duration = 2 + Math.random() * 3;
+            var size = 0.5 + Math.random() * 1.5;
+            html += '<span class="' + particleClass + '" style="left:' + left + '%;animation-delay:' + delay + 's;animation-duration:' + duration + 's;--particle-size:' + size + 'px;"></span>';
+        }
+        return html;
+    }
+
+    function animateTempNumber(card) {
+        var tempEl = card.querySelector('.weather-temp');
+        if (!tempEl) return;
+        var target = tempEl.getAttribute('data-target');
+        if (!target || target === '') return;
+        target = parseInt(target, 10);
+        if (isNaN(target)) return;
+
+        var start = 0;
+        var duration = 800;
+        var startTime = null;
+        function step(timestamp) {
+            if (!startTime) startTime = timestamp;
+            var progress = Math.min((timestamp - startTime) / duration, 1);
+            var ease = 1 - Math.pow(1 - progress, 3);
+            var current = Math.round(start + (target - start) * ease);
+            tempEl.innerHTML = current + '<sup>°</sup>';
+            if (progress < 1) {
+                requestAnimationFrame(step);
+            }
+        }
+        requestAnimationFrame(step);
+    }
+
+    function escapeHtml(str) {
+        if (str === null || str === undefined) return '';
+        return String(str).replace(/[&<>"']/g, function(m) {
+            return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];
+        });
+    }
+
+    function renderError(msg) {
+        card.innerHTML = '<div class="weather-error">' +
+            '<i class="fa fa-exclamation-circle"></i>' +
+            '<span>' + escapeHtml(msg || '天气获取失败') + '</span>' +
+            '<small><a href="javascript:void(0)" onclick="window.initWeather(true)">点击重试</a></small>' +
+        '</div>';
+    }
+
+    // 尝试读取缓存（force 模式跳过缓存）
+    if (!force) {
+        try {
+            var cached = localStorage.getItem(CACHE_KEY);
+            if (cached) {
+                var parsed = JSON.parse(cached);
+                if (Date.now() - parsed.ts < CACHE_TTL) {
+                    renderWeather(parsed.data);
+                    return;
+                }
+            }
+        } catch (e) {}
+    }
+
+    // 请求接口
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', 'https://api.lwcat.cn/api/ip/', true);
+    xhr.timeout = 8000;
+    xhr.onload = function() {
+        if (xhr.status === 200) {
+            try {
+                var resp = JSON.parse(xhr.responseText);
+                if (resp.code === 0 && resp.data) {
+                    // 写入缓存
+                    try {
+                        localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), data: resp.data }));
+                    } catch (e) {}
+                    renderWeather(resp.data);
+                } else {
+                    renderError(resp.message || '天气数据异常');
+                }
+            } catch (e) {
+                renderError('解析天气数据失败');
+            }
+        } else {
+            renderError('天气服务暂不可用');
+        }
+    };
+    xhr.ontimeout = function() {
+        renderError('请求超时，请稍后重试');
+    };
+    xhr.onerror = function() {
+        renderError('网络异常，请稍后重试');
+    };
+    xhr.send();
+};
+
 document.addEventListener('DOMContentLoaded', function() {
     // 初始化夜间模式（优先执行，避免页面闪烁）
     window.initDarkMode();
@@ -3280,5 +3533,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 初始化评论引用文章内容功能
     window.initQuoteComment();
+
+    // 初始化天气卡片
+    window.initWeather();
 
 });
