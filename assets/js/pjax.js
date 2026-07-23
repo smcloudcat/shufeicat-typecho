@@ -662,6 +662,10 @@
                 window.initPostLike();
             }
 
+            if (typeof window.initPostVote === 'function') {
+                window.initPostVote();
+            }
+
             if (typeof window.initPostViews === 'function') {
                 window.initPostViews();
             }

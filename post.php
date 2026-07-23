@@ -142,6 +142,70 @@
         </li>
     </ul>
 
+    <?php
+    // 文章投票卡片：仅在配置了投票问题时显示
+    $_voteConfig = shufei_get_vote_config($this->cid);
+    if ($_voteConfig):
+        $_voteCheck = shufei_check_voted($this->cid);
+        $_voteCounts = shufei_get_vote_counts($this->cid, $_voteConfig['options']);
+        $_voteExpired = ($_voteConfig['deadline'] > 0 && time() > $_voteConfig['deadline']);
+        $_voteShowResults = $_voteCheck['voted'] || $_voteExpired;
+    ?>
+    <div class="post-vote-card" id="post-vote-card"
+         data-cid="<?php echo $this->cid; ?>"
+         data-voted="<?php echo $_voteCheck['voted'] ? '1' : '0'; ?>"
+         data-option="<?php echo $_voteCheck['option'] !== null ? $_voteCheck['option'] : ''; ?>"
+         data-expired="<?php echo $_voteExpired ? '1' : '0'; ?>"
+         data-deadline="<?php echo $_voteConfig['deadline']; ?>">
+        <div class="vote-card-header">
+            <div class="vote-card-title">
+                <i class="fa fa-bar-chart-o"></i>
+                <span><?php echo htmlspecialchars($_voteConfig['question']); ?></span>
+            </div>
+            <?php if ($_voteExpired): ?>
+            <span class="vote-badge vote-badge-ended">已截止</span>
+            <?php elseif ($_voteConfig['deadline'] > 0): ?>
+            <span class="vote-badge vote-badge-active">截止 <?php echo htmlspecialchars($_voteConfig['deadlineText']); ?></span>
+            <?php endif; ?>
+        </div>
+        <div class="vote-card-body">
+            <?php foreach ($_voteConfig['options'] as $_idx => $_opt):
+                $_cnt = isset($_voteCounts['counts'][$_idx]) ? $_voteCounts['counts'][$_idx] : 0;
+                $_pct = $_voteCounts['total'] > 0 ? round(($_cnt / $_voteCounts['total']) * 100) : 0;
+                $_isMine = ($_voteCheck['option'] === $_idx);
+            ?>
+            <div class="vote-option<?php echo $_isMine ? ' vote-option-mine' : ''; ?><?php echo $_voteShowResults ? ' vote-option-readonly' : ''; ?>"
+                 data-index="<?php echo $_idx; ?>">
+                <div class="vote-option-bar" style="width: <?php echo $_voteShowResults ? $_pct : 0; ?>%"></div>
+                <div class="vote-option-content">
+                    <span class="vote-option-label">
+                        <?php if ($_isMine): ?><i class="fa fa-check-circle"></i><?php endif; ?>
+                        <?php echo htmlspecialchars($_opt); ?>
+                    </span>
+                    <?php if ($_voteShowResults): ?>
+                    <span class="vote-option-stats">
+                        <span class="vote-pct"><?php echo $_pct; ?>%</span>
+                        <span class="vote-cnt">(<?php echo $_cnt; ?>票)</span>
+                    </span>
+                    <?php endif; ?>
+                </div>
+            </div>
+            <?php endforeach; ?>
+        </div>
+        <div class="vote-card-footer">
+            <span class="vote-total">
+                <i class="fa fa-users"></i>
+                共 <strong><?php echo $_voteCounts['total']; ?></strong> 人参与
+            </span>
+            <?php if (!$_voteCheck['voted'] && !$_voteExpired): ?>
+            <span class="vote-hint">点击选项进行投票</span>
+            <?php elseif ($_voteCheck['voted']): ?>
+            <span class="vote-hint">您已投票，感谢参与</span>
+            <?php endif; ?>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <?php $this->need('comments.php'); ?>
 </div><!-- end #main-->
 

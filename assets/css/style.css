@@ -1479,6 +1479,297 @@ body.dark-mode .weather-footer::before {
     }
 }
 
+/* ============================================
+ * 文章投票卡片
+ * ============================================ */
+.post-vote-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 3px;
+    padding: 18px 20px;
+    margin-bottom: 20px;
+    box-shadow: var(--shadow-light);
+}
+
+.vote-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+}
+
+.vote-card-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-color);
+    line-height: 1.4;
+}
+
+.vote-card-title i {
+    color: var(--primary-color);
+    font-size: 15px;
+}
+
+.vote-badge {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 3px;
+    white-space: nowrap;
+    font-weight: 500;
+    flex-shrink: 0;
+}
+
+.vote-badge-active {
+    background: color-mix(in srgb, var(--primary-color) 12%, transparent);
+    color: var(--primary-color);
+}
+
+.vote-badge-ended {
+    background: color-mix(in srgb, #8c8c8c 15%, transparent);
+    color: #8c8c8c;
+}
+
+.vote-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.vote-option {
+    position: relative;
+    border: 1px solid var(--border-color);
+    border-radius: 3px;
+    padding: 10px 14px;
+    cursor: pointer;
+    overflow: hidden;
+    transition: border-color 0.2s ease, background 0.2s ease, transform 0.15s ease;
+    background: var(--bg-color);
+    user-select: none;
+}
+
+.vote-option:hover {
+    border-color: var(--primary-color);
+    background: color-mix(in srgb, var(--primary-color) 5%, var(--bg-color));
+}
+
+.vote-option:active {
+    transform: scale(0.99);
+}
+
+.vote-option-loading {
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+.vote-option-readonly {
+    cursor: default;
+    background: var(--bg-color);
+}
+
+.vote-option-readonly:hover {
+    border-color: var(--border-color);
+    background: var(--bg-color);
+    transform: none;
+}
+
+.vote-option-mine {
+    border-color: var(--primary-color);
+    background: color-mix(in srgb, var(--primary-color) 6%, var(--bg-color));
+}
+
+.vote-option-mine:hover {
+    border-color: var(--primary-color);
+    background: color-mix(in srgb, var(--primary-color) 6%, var(--bg-color));
+}
+
+/* 进度条背景 */
+.vote-option-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    background: color-mix(in srgb, var(--primary-color) 18%, transparent);
+    transition: width 0.6s cubic-bezier(0.22, 0.61, 0.36, 1);
+    z-index: 0;
+}
+
+.vote-option-mine .vote-option-bar {
+    background: color-mix(in srgb, var(--primary-color) 28%, transparent);
+}
+
+.vote-option-content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.vote-option-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--text-color);
+    line-height: 1.4;
+}
+
+.vote-option-label i {
+    color: var(--primary-color);
+    font-size: 13px;
+}
+
+.vote-option-stats {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.vote-pct {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+.vote-cnt {
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.vote-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px dashed var(--border-color);
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.vote-total {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.vote-total i {
+    font-size: 11px;
+}
+
+.vote-total strong {
+    color: var(--primary-color);
+    font-weight: 600;
+    margin: 0 2px;
+}
+
+.vote-hint {
+    font-size: 11px;
+    color: var(--text-secondary);
+    opacity: 0.85;
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+    .post-vote-card {
+        padding: 15px 16px;
+    }
+
+    .vote-card-title {
+        font-size: 14px;
+    }
+
+    .vote-option {
+        padding: 9px 12px;
+    }
+
+    .vote-option-label {
+        font-size: 12px;
+    }
+
+    .vote-pct {
+        font-size: 12px;
+    }
+
+    .vote-cnt {
+        font-size: 10px;
+    }
+
+    .vote-card-footer {
+        font-size: 11px;
+    }
+}
+
+@media (max-width: 480px) {
+    .post-vote-card {
+        padding: 13px 14px;
+    }
+
+    .vote-option-content {
+        flex-wrap: wrap;
+    }
+
+    .vote-option-stats {
+        width: 100%;
+        justify-content: flex-end;
+        margin-top: 2px;
+    }
+}
+
+/* 暗色模式适配 */
+body.dark-mode .post-vote-card {
+    background: var(--bg-card-dark, #2a2a2a);
+    border-color: var(--border-color-dark, #3a3a3a);
+}
+
+body.dark-mode .vote-card-title {
+    color: var(--text-color-dark, #e0e0e0);
+}
+
+body.dark-mode .vote-option {
+    border-color: var(--border-color-dark, #3a3a3a);
+    background: rgba(255, 255, 255, 0.03);
+}
+
+body.dark-mode .vote-option:hover {
+    border-color: var(--primary-color);
+    background: color-mix(in srgb, var(--primary-color) 8%, rgba(255, 255, 255, 0.03));
+}
+
+body.dark-mode .vote-option-readonly {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+body.dark-mode .vote-option-readonly:hover {
+    border-color: var(--border-color-dark, #3a3a3a);
+    background: rgba(255, 255, 255, 0.03);
+}
+
+body.dark-mode .vote-option-mine {
+    border-color: var(--primary-color);
+    background: color-mix(in srgb, var(--primary-color) 12%, rgba(255, 255, 255, 0.03));
+}
+
+body.dark-mode .vote-option-label {
+    color: var(--text-color-dark, #e0e0e0);
+}
+
+body.dark-mode .vote-card-footer {
+    border-top-color: var(--border-color-dark, #3a3a3a);
+    color: var(--text-secondary-dark, #8c8c8c);
+}
+
+body.dark-mode .vote-cnt {
+    color: var(--text-secondary-dark, #8c8c8c);
+}
+
 /* 文章目录样式 */
 .toc-widget .toc-nav {
     max-height: 400px;

@@ -16,6 +16,7 @@ if (!defined('__TYPECHO_ROOT_DIR__')) {
 }
 
 require_once dirname(__FILE__) . '/post-stats.php';
+require_once dirname(__FILE__) . '/vote.php';
 
 $action = isset($_GET['action']) ? $_GET['action'] : '';
 
@@ -77,6 +78,54 @@ switch ($action) {
         }
         $views = shufei_add_view($cid);
         echo json_encode(array('success' => true, 'views' => $views));
+        break;
+
+    case 'vote':
+        $cid = isset($_POST['cid']) ? intval($_POST['cid']) : 0;
+        $optionIndex = isset($_POST['option']) ? intval($_POST['option']) : -1;
+        if ($cid <= 0) {
+            echo json_encode(array('success' => false, 'message' => '参数错误'));
+            exit;
+        }
+        $result = shufei_submit_vote($cid, $optionIndex);
+        // 投票成功后返回最新统计
+        if ($result['success']) {
+            $config = shufei_get_vote_config($cid);
+            if ($config) {
+                $counts = shufei_get_vote_counts($cid, $config['options']);
+                $result['counts'] = $counts['counts'];
+                $result['total'] = $counts['total'];
+                $result['option'] = $optionIndex;
+            }
+        }
+        echo json_encode($result);
+        break;
+
+    case 'get_vote_results':
+        $cid = isset($_POST['cid']) ? intval($_POST['cid']) : 0;
+        if ($cid <= 0) {
+            echo json_encode(array('success' => false, 'message' => '参数错误'));
+            exit;
+        }
+        $config = shufei_get_vote_config($cid);
+        if (!$config) {
+            echo json_encode(array('success' => false, 'message' => '未开启投票'));
+            exit;
+        }
+        $check = shufei_check_voted($cid);
+        $counts = shufei_get_vote_counts($cid, $config['options']);
+        $isExpired = ($config['deadline'] > 0 && time() > $config['deadline']);
+        echo json_encode(array(
+            'success'  => true,
+            'question' => $config['question'],
+            'options'  => $config['options'],
+            'counts'   => $counts['counts'],
+            'total'    => $counts['total'],
+            'voted'    => $check['voted'],
+            'option'   => $check['option'],
+            'expired'  => $isExpired,
+            'deadline' => $config['deadline']
+        ));
         break;
 
     default:

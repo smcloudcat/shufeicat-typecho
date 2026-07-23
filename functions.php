@@ -2849,6 +2849,16 @@ function themeFields($layout)
     $layout->addItem($articleAlert);
     $disableLike = new \Typecho\Widget\Helper\Form\Element\Radio('disableLike', array('0' => _t('允许点赞'), '1' => _t('关闭点赞')), '0', _t('点赞功能控制'), _t('选择关闭点赞后，该文章将不显示点赞按钮'));
     $layout->addItem($disableLike);
+
+    // ===== 文章投票功能 =====
+    $voteQuestion = new \Typecho\Widget\Helper\Form\Element\Text('voteQuestion', NULL, NULL, _t('投票问题'), _t('填写后将在文章底部显示投票卡片。留空则不显示投票<br>示例：你觉得这篇文章对你有帮助吗？'));
+    $layout->addItem($voteQuestion);
+
+    $voteOptions = new \Typecho\Widget\Helper\Form\Element\Textarea('voteOptions', NULL, NULL, _t('投票选项'), _t('每行一个选项，至少填写 2 个选项<br>示例：<br>非常有帮助<br>一般般<br>没什么帮助'));
+    $layout->addItem($voteOptions);
+
+    $voteDeadline = new \Typecho\Widget\Helper\Form\Element\Text('voteDeadline', NULL, NULL, _t('投票截止时间'), _t('可选。格式：YYYY-MM-DD 或 YYYY-MM-DD HH:MM<br>示例：2026-12-31 23:59<br>留空表示不限制截止时间'));
+    $layout->addItem($voteDeadline);
 }
 
 /* 加载核心逻辑库（去除 @ 静默加载，改为文件存在性检查） */
@@ -2857,6 +2867,7 @@ $_coreLibs = array(
     dirname(__FILE__) . '/core/ai-moderation.php',
     dirname(__FILE__) . '/core/ai-writer.php',
     dirname(__FILE__) . '/core/post-stats.php',
+    dirname(__FILE__) . '/core/vote.php',
     dirname(__FILE__) . '/core/image-processor.php',
     dirname(__FILE__) . '/core/storage-drivers.php',
     dirname(__FILE__) . '/core/storage-hooks.php',

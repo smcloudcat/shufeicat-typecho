@@ -1150,6 +1150,124 @@ window.initPostLike = function() {
 };
 
 /**
+ * 文章投票功能
+ * - 未投票时：点击选项提交投票
+ * - 已投票/已截止：显示结果
+ */
+window.initPostVote = function() {
+    var card = document.getElementById('post-vote-card');
+    if (!card) return;
+    if (card.getAttribute('data-vote-bound')) return;
+    card.setAttribute('data-vote-bound', '1');
+
+    var cid = card.getAttribute('data-cid');
+    var isVoted = card.getAttribute('data-voted') === '1';
+    var isExpired = card.getAttribute('data-expired') === '1';
+
+    // 已投票或已截止时不可点击
+    if (isVoted || isExpired) return;
+
+    var options = card.querySelectorAll('.vote-option');
+    if (!options.length) return;
+
+    for (var i = 0; i < options.length; i++) {
+        (function(opt) {
+            opt.addEventListener('click', function(e) {
+                e.preventDefault();
+                if (opt.classList.contains('vote-option-readonly')) return;
+                if (opt.classList.contains('vote-option-loading')) return;
+
+                var optionIndex = parseInt(opt.getAttribute('data-index'), 10);
+                if (isNaN(optionIndex)) return;
+
+                var themeUrl = window.themeUrl || '';
+                var csrfToken = window.csrfToken || '';
+
+                opt.classList.add('vote-option-loading');
+
+                var xhr = new XMLHttpRequest();
+                xhr.open('POST', themeUrl + 'core/ajax-handler.php?action=vote', true);
+                xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+                xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+
+                xhr.onreadystatechange = function() {
+                    if (xhr.readyState === 4) {
+                        opt.classList.remove('vote-option-loading');
+                        if (xhr.status === 200) {
+                            try {
+                                var data = JSON.parse(xhr.responseText);
+                                if (data.success) {
+                                    // 渲染投票结果
+                                    renderVoteResults(card, data.option, data.counts, data.total);
+                                } else {
+                                    window.showToast(data.message || '投票失败', 'error');
+                                }
+                            } catch (err) {
+                                window.showToast('投票请求异常', 'error');
+                            }
+                        } else {
+                            window.showToast('网络请求失败', 'error');
+                        }
+                    }
+                };
+
+                xhr.onerror = function() {
+                    opt.classList.remove('vote-option-loading');
+                    window.showToast('网络连接失败', 'error');
+                };
+
+                xhr.send('cid=' + encodeURIComponent(cid) +
+                         '&option=' + encodeURIComponent(optionIndex) +
+                         '&_=' + encodeURIComponent(csrfToken));
+            });
+        })(options[i]);
+    }
+
+    // 渲染投票结果
+    function renderVoteResults(card, votedOption, counts, total) {
+        var optionEls = card.querySelectorAll('.vote-option');
+        for (var i = 0; i < optionEls.length; i++) {
+            var el = optionEls[i];
+            var idx = parseInt(el.getAttribute('data-index'), 10);
+            var cnt = counts[idx] || 0;
+            var pct = total > 0 ? Math.round((cnt / total) * 100) : 0;
+            var isMine = (idx === votedOption);
+
+            el.classList.add('vote-option-readonly');
+            if (isMine) el.classList.add('vote-option-mine');
+
+            // 进度条动画
+            var bar = el.querySelector('.vote-option-bar');
+            if (bar) bar.style.width = pct + '%';
+
+            // 更新内容
+            var content = el.querySelector('.vote-option-content');
+            if (content) {
+                var labelHtml = (isMine ? '<i class="fa fa-check-circle"></i>' : '') +
+                    el.querySelector('.vote-option-label').textContent.trim();
+                content.innerHTML = '<span class="vote-option-label">' + labelHtml + '</span>' +
+                    '<span class="vote-option-stats">' +
+                        '<span class="vote-pct">' + pct + '%</span>' +
+                        '<span class="vote-cnt">(' + cnt + '票)</span>' +
+                    '</span>';
+            }
+        }
+
+        // 更新底部信息
+        var footer = card.querySelector('.vote-card-footer');
+        if (footer) {
+            var totalEl = footer.querySelector('.vote-total strong');
+            if (totalEl) totalEl.textContent = total;
+            var hintEl = footer.querySelector('.vote-hint');
+            if (hintEl) hintEl.textContent = '您已投票，感谢参与';
+        }
+
+        card.setAttribute('data-voted', '1');
+        card.setAttribute('data-option', String(votedOption));
+    }
+};
+
+/**
  * 文章浏览量统计
  */
 window.initPostViews = function() {
@@ -3496,7 +3614,10 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 初始化点赞功能
     window.initPostLike();
-    
+
+    // 初始化文章投票功能
+    window.initPostVote();
+
     // 初始化浏览量统计
     window.initPostViews();
 
