@@ -35,6 +35,17 @@ if (!empty($_ghUsername)) {
     }
 }
 
+$_linksPageEnabled = !empty($this->options->linksPageEnabled) && $this->options->linksPageEnabled === 'on';
+if ($_linksPageEnabled) {
+    $_linksRow = $_db->fetchRow($_db->select('cid')->from('table.contents')
+        ->where('template = ?', 'links.php')
+        ->where('status = ?', 'publish')
+        ->limit(1));
+    if (!empty($_linksRow)) {
+        $_excludePageCids[] = intval($_linksRow['cid']);
+    }
+}
+
 // 留言板 URL
 $_guestbookUrl = $_gbEnabled ? shufei_get_guestbook_url() : '';
 
@@ -49,6 +60,9 @@ if (!empty($_ghUsername)) {
         $_githubPageUrl = $this->options->index . '/' . $_ghPageRow['slug'] . '.html';
     }
 }
+
+// 友链页面 URL
+$_linksPageUrl = $_linksPageEnabled ? shufei_get_links_url() : '';
 
 // 自定义导航
 $_customNavItems = shufei_get_custom_nav_items();
@@ -170,6 +184,19 @@ ob_start();
 $_sidebarSections['github'] = ob_get_clean();
 endif;
 
+// 友链页面入口
+if ($_linksPageEnabled && !empty($_linksPageUrl)):
+ob_start();
+?>
+<section class="widget linkspage-widget">
+    <a href="<?php echo htmlspecialchars($_linksPageUrl); ?>" class="widget-title sidebar-direct-link">
+        <i class="fa fa-link"></i><?php _e('友链'); ?>
+    </a>
+</section>
+<?php
+$_sidebarSections['linkspage'] = ob_get_clean();
+endif;
+
 // 自定义导航
 if (!empty($_customNavItems)):
 ob_start();
@@ -194,26 +221,18 @@ $_sidebarSections['customnav'] = ob_get_clean();
 endif;
 
 // 友链
-if (!empty($this->options->sidebarBlock) && in_array('ShowLinks', $this->options->sidebarBlock) && !empty($this->options->links)):
+$_linksDropdownOn = !isset($this->options->linksDropdownEnabled) || $this->options->linksDropdownEnabled === 'on';
+if (!empty($this->options->sidebarBlock) && in_array('ShowLinks', $this->options->sidebarBlock) && !empty($this->options->links) && $_linksDropdownOn):
 ob_start();
+$_inlineLinks = shufei_parse_links();
 ?>
 <section class="widget links-widget collapsible-widget">
     <h3 class="widget-title collapsible-toggle"><i class="fa fa-link"></i><?php _e('友链'); ?><i class="fa fa-chevron-down collapsible-arrow"></i></h3>
     <div class="collapsible-content">
         <ul class="links-nav-list">
-            <?php
-            $links = explode("\n", $this->options->links);
-            foreach ($links as $link) {
-                $link = trim($link);
-                if (empty($link)) continue;
-                $parts = explode(',', $link, 2);
-                if (count($parts) == 2) {
-                    $name = trim($parts[0]);
-                    $url = trim($parts[1]);
-                    echo '<li class="links-nav-item"><a href="' . htmlspecialchars($url) . '" target="_blank" rel="noopener noreferrer"><i class="fa fa-external-link"></i><span>' . htmlspecialchars($name) . '</span></a></li>';
-                }
-            }
-            ?>
+            <?php foreach ($_inlineLinks as $_link): ?>
+                <li class="links-nav-item"><a href="<?php echo htmlspecialchars($_link['url']); ?>" target="_blank" rel="noopener noreferrer"><i class="fa fa-external-link"></i><span><?php echo htmlspecialchars($_link['name']); ?></span></a></li>
+            <?php endforeach; ?>
         </ul>
     </div>
 </section>
@@ -305,7 +324,7 @@ ob_start();
 $_sidebarSections['footer'] = ob_get_clean();
 
 // ===== 解析显示顺序并输出 =====
-$_defaultLeftOrder = array('author', 'category', 'pages', 'guestbook', 'github', 'customnav', 'links', 'other', 'contacts', 'footer');
+$_defaultLeftOrder = array('author', 'category', 'pages', 'guestbook', 'github', 'linkspage', 'customnav', 'links', 'other', 'contacts', 'footer');
 $_orderRaw = isset($this->options->sidebarOrderLeft) ? trim($this->options->sidebarOrderLeft) : '';
 $_orderList = !empty($_orderRaw) ? array_map('trim', explode(',', $_orderRaw)) : $_defaultLeftOrder;
 

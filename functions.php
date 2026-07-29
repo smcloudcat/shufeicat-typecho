@@ -161,7 +161,7 @@ function shufei_check_theme_update($force = false, $channel = null)
  */
 function shufei_get_theme_version()
 {
-    return '1.5.0-rc.1';
+    return '1.5.0-rc.2';
 }
 
 /**
@@ -958,17 +958,47 @@ UPDATEJS;
         null,
         null,
         _t('友链配置'),
-        _t('介绍：每行一个友链，格式：链接名称,链接地址<br>例如：<br>CC的小窝,https://lwcat.cn<br>谷歌,https://www.google.com')
+        _t('介绍：每行一个友链，支持两种格式：<br>基本格式（逗号分隔）：<code>名称,链接地址</code><br>完整格式（竖线分隔，可带描述和头像）：<code>名称|链接地址|描述|头像地址</code><br>例如：<br>CC的小窝,https://lwcat.cn<br>谷歌|https://www.google.com|全球最大的搜索引擎|https://www.google.com/favicon.ico<br>描述和头像为可选项，留空则不显示；侧边栏列表仅显示名称和链接')
     );
     $links->setAttribute('class', 'typecho-option cat-group-sidebar');
     $form->addInput($links);
 
+    $linksDropdownEnabled = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'linksDropdownEnabled',
+        array('off' => _t('关闭'), 'on' => _t('开启')),
+        'on',
+        _t('侧边栏下拉友链列表'),
+        _t('介绍：控制左侧侧边栏中折叠式友链列表的显示<br>开启独立友链页面后，可关闭此项以避免重复展示<br>注意：还需在上方"侧边栏功能板块"中勾选"显示友链"才会显示')
+    );
+    $linksDropdownEnabled->setAttribute('class', 'typecho-option cat-group-sidebar');
+    $form->addInput($linksDropdownEnabled);
+
+    $linksPageEnabled = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'linksPageEnabled',
+        array('off' => _t('关闭'), 'on' => _t('开启')),
+        'off',
+        _t('友链独立页面'),
+        _t('介绍：开启后，在左侧导航栏添加友链页面入口，用户可在独立页面查看所有友链的卡片展示<br>需要先创建一个独立页面并选择"友链页面"模板')
+    );
+    $linksPageEnabled->setAttribute('class', 'typecho-option cat-group-sidebar');
+    $form->addInput($linksPageEnabled);
+
+    $linksPageId = new \Typecho\Widget\Helper\Form\Element\Text(
+        'linksPageId',
+        null,
+        null,
+        _t('友链页面ID'),
+        _t('介绍：填写友链独立页面的ID（在后台页面管理中查看）<br>如果留空，将尝试自动查找使用友链页面模板的页面')
+    );
+    $linksPageId->setAttribute('class', 'typecho-option cat-group-sidebar');
+    $form->addInput($linksPageId);
+
     $sidebarOrderLeft = new \Typecho\Widget\Helper\Form\Element\Text(
         'sidebarOrderLeft',
         null,
-        'author,category,pages,guestbook,github,customnav,links,other,contacts,footer',
+        'author,category,pages,guestbook,github,linkspage,customnav,links,other,contacts,footer',
         _t('左侧侧边栏显示顺序'),
-        _t('介绍：用英文逗号分隔板块标识，按填写顺序从上到下显示<br>可选板块：<br><b>author</b> = 站长信息（固定）<br><b>category</b> = 分类目录（固定）<br><b>pages</b> = 页面导航（固定）<br><b>guestbook</b> = 留言板入口<br><b>github</b> = GitHub 入口<br><b>customnav</b> = 快捷导航<br><b>links</b> = 友链<br><b>other</b> = 其它杂项<br><b>contacts</b> = 联系方式<br><b>footer</b> = 底部信息（固定）<br>未填写的板块将按默认顺序追加到末尾；固定板块始终显示')
+        _t('介绍：用英文逗号分隔板块标识，按填写顺序从上到下显示<br>可选板块：<br><b>author</b> = 站长信息（固定）<br><b>category</b> = 分类目录（固定）<br><b>pages</b> = 页面导航（固定）<br><b>guestbook</b> = 留言板入口<br><b>github</b> = GitHub 入口<br><b>linkspage</b> = 友链页面入口<br><b>customnav</b> = 快捷导航<br><b>links</b> = 友链列表<br><b>other</b> = 其它杂项<br><b>contacts</b> = 联系方式<br><b>footer</b> = 底部信息（固定）<br>未填写的板块将按默认顺序追加到末尾；固定板块始终显示')
     );
     $sidebarOrderLeft->setAttribute('class', 'typecho-option cat-group-sidebar');
     $form->addInput($sidebarOrderLeft);
@@ -4922,6 +4952,88 @@ function shufei_get_guestbook_url()
     }
 
     return '';
+}
+
+/**
+ * 获取友链独立页面URL
+ * 优先使用配置的页面ID，其次自动查找使用 links.php 模板的页面
+ *
+ * @return string 友链页面URL，未找到返回空字符串
+ */
+function shufei_get_links_url()
+{
+    $options = \Typecho\Widget::widget('Widget_Options');
+    $db = \Typecho\Db::get();
+
+    // 优先使用配置的页面ID
+    $pageId = isset($options->linksPageId) ? trim($options->linksPageId) : '';
+    if (!empty($pageId)) {
+        $row = $db->fetchRow($db->select('cid', 'slug')->from('table.contents')
+            ->where('cid = ?', intval($pageId))
+            ->where('status = ?', 'publish'));
+        if ($row) {
+            return $options->index . '/' . $row['slug'] . '.html';
+        }
+    }
+
+    // 自动查找使用友链页面模板的页面
+    $rows = $db->fetchAll($db->select('cid', 'slug')->from('table.contents')
+        ->where('template = ?', 'links.php')
+        ->where('status = ?', 'publish')
+        ->limit(1));
+
+    if (!empty($rows)) {
+        return $options->index . '/' . $rows[0]['slug'] . '.html';
+    }
+
+    return '';
+}
+
+/**
+ * 解析友链配置，返回结构化的友链数组
+ * 支持两种格式：
+ *   基本格式（逗号）：名称,链接地址
+ *   完整格式（竖线）：名称|链接地址|描述|头像地址
+ * 描述和头像为可选项
+ *
+ * @return array 友链数组，每个元素包含 name, url, description, avatar
+ */
+function shufei_parse_links()
+{
+    $options = \Typecho\Widget::widget('Widget_Options');
+    $linksRaw = isset($options->links) ? trim($options->links) : '';
+    if (empty($linksRaw)) {
+        return array();
+    }
+
+    $result = array();
+    $lines = explode("\n", $linksRaw);
+    foreach ($lines as $line) {
+        $line = trim($line);
+        if (empty($line)) {
+            continue;
+        }
+
+        // 优先使用竖线分隔（完整格式），其次使用逗号分隔（基本格式）
+        if (strpos($line, '|') !== false) {
+            $parts = array_map('trim', explode('|', $line, 4));
+        } else {
+            $parts = array_map('trim', explode(',', $line, 4));
+        }
+
+        if (count($parts) < 2 || empty($parts[0]) || empty($parts[1])) {
+            continue;
+        }
+
+        $result[] = array(
+            'name'        => $parts[0],
+            'url'         => $parts[1],
+            'description' => isset($parts[2]) ? $parts[2] : '',
+            'avatar'      => isset($parts[3]) ? $parts[3] : ''
+        );
+    }
+
+    return $result;
 }
 
 /**
