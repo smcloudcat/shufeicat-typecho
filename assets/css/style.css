@@ -837,6 +837,39 @@ img {
         0 2px 6px rgba(0, 0, 0, 0.06);
 }
 
+/* 白天玻璃：偏明亮通透 */
+.weather-time-day {
+    background: rgba(255, 255, 255, 0.16);
+    border-color: rgba(255, 255, 255, 0.32);
+}
+
+/* 夜晚玻璃：偏深沉，加一层暗色覆盖增强氛围 */
+.weather-time-night {
+    background: rgba(20, 28, 48, 0.42);
+    border-color: rgba(255, 255, 255, 0.14);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.16),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.18),
+        0 6px 22px rgba(0, 0, 0, 0.28),
+        0 2px 8px rgba(0, 0, 0, 0.18);
+}
+
+/* 夜晚文字阴影加强，提升可读性 */
+.weather-time-night .weather-location,
+.weather-time-night .weather-desc,
+.weather-time-night .weather-feels,
+.weather-time-night .weather-update {
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+
+.weather-time-night .weather-temp {
+    text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+}
+
+.weather-time-night .weather-icon {
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+}
+
 /* 动态粒子层 */
 .weather-particles {
     position: absolute;
@@ -974,8 +1007,30 @@ img {
     inset: 0;
     filter: blur(24px) saturate(160%);
     transform: scale(1.3);
-    opacity: 0.45;
+    opacity: 0.5;
     z-index: -1;
+}
+
+/* 白天：背景层透明度略高，色彩饱和 */
+.weather-time-day .weather-glass-bg {
+    opacity: 0.55;
+}
+
+/* 夜晚：背景层更浓郁，营造深沉感 */
+.weather-time-night .weather-glass-bg {
+    opacity: 0.7;
+    filter: blur(28px) saturate(140%);
+}
+
+/* 雪天/雾天：降低背景层透明度，避免过亮 */
+.weather-type-snow .weather-glass-bg,
+.weather-type-fog .weather-glass-bg {
+    opacity: 0.35;
+}
+
+.weather-time-night.weather-type-snow .weather-glass-bg,
+.weather-time-night.weather-type-fog .weather-glass-bg {
+    opacity: 0.55;
 }
 
 /* 玻璃高光效果 */
@@ -1338,6 +1393,45 @@ img {
     45% { opacity: 0.7; text-shadow: 0 0 12px rgba(255, 255, 100, 0.6), 0 2px 8px rgba(0, 0, 0, 0.2); }
     50% { opacity: 1; text-shadow: 0 0 22px rgba(255, 255, 100, 1), 0 2px 8px rgba(0, 0, 0, 0.2); }
     55% { opacity: 0.8; text-shadow: 0 0 12px rgba(255, 255, 100, 0.6), 0 2px 8px rgba(0, 0, 0, 0.2); }
+}
+
+/* 雷暴：全卡片闪电闪光层（伪元素） */
+.weather-type-thunder::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(255, 255, 220, 0);
+    pointer-events: none;
+    z-index: 0;
+    animation: weather-lightning-flash 9s ease-in-out infinite;
+}
+
+@keyframes weather-lightning-flash {
+    0%, 90%, 100% { background: rgba(255, 255, 220, 0); }
+    91% { background: rgba(255, 255, 220, 0.35); }
+    92% { background: rgba(255, 255, 220, 0.05); }
+    93% { background: rgba(255, 255, 220, 0.55); }
+    94% { background: rgba(255, 255, 220, 0.1); }
+    95% { background: rgba(255, 255, 220, 0); }
+}
+
+/* 夜晚晴朗：月光辐射氛围层（伪元素） */
+.weather-time-night.weather-type-night::after {
+    content: '';
+    position: absolute;
+    top: -20px;
+    right: -20px;
+    width: 100px;
+    height: 100px;
+    background: radial-gradient(circle, rgba(255, 250, 205, 0.22) 0%, rgba(255, 250, 205, 0) 65%);
+    pointer-events: none;
+    z-index: 0;
+    animation: weather-moon-aura 6s ease-in-out infinite;
+}
+
+@keyframes weather-moon-aura {
+    0%, 100% { opacity: 0.7; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.1); }
 }
 
 /* 卡片入场动画 */

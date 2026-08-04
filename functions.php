@@ -2494,10 +2494,28 @@ function shufei_render_storage_profile_ui()
             var val = (existingConfig && existingConfig[f.name] !== undefined) ? existingConfig[f.name] : (f.default || '');
             if (f.type === 'select') {
                 input = document.createElement('select');
-                (f.options || []).forEach(function(opt){
+                // 兼容 PHP 关联数组 json_encode 后的对象（{key:value}）与索引数组（[{value,label}]）
+                var opts = f.options || [];
+                if (!Array.isArray(opts)) {
+                    // 对象 {value:label} 转为数组 [{value:value, label:label}]
+                    var arr = [];
+                    Object.keys(opts).forEach(function(k){
+                        var v = opts[k];
+                        if (v && typeof v === 'object') {
+                            arr.push(v);
+                        } else {
+                            arr.push({ value: k, label: v });
+                        }
+                    });
+                    opts = arr;
+                }
+                opts.forEach(function(opt){
                     var o = document.createElement('option');
-                    o.value = opt.value; o.textContent = opt.label;
-                    if (String(val) === String(opt.value)) o.selected = true;
+                    // opt 可能是 {value,label} 或字符串
+                    var ov = (typeof opt === 'object') ? opt.value : opt;
+                    var ol = (typeof opt === 'object') ? opt.label : opt;
+                    o.value = ov; o.textContent = ol;
+                    if (String(val) === String(ov)) o.selected = true;
                     input.appendChild(o);
                 });
             } else if (f.type === 'password') {
@@ -2527,7 +2545,7 @@ function shufei_render_storage_profile_ui()
         var driverId = $('shufei-storage-profile-driver').value;
         var desc = {
             local: '本地存储：图片保存至 usr/uploads/，遵循 Typecho 原生目录结构。',
-            lsky: 'Lsky Pro 兰空图床：支持 v1（/api/upload）与 v2（/api/v1/）接口。',
+            lsky: 'Lsky Pro 兰空图床：支持 v1（/api/v1/upload）与 v2（/api/v2/upload）接口，v2 支持图片列表与删除。',
             s3: 'AWS S3 兼容：AWS S3、MinIO、Cloudflare R2、阿里云 OSS（S3 兼容模式）。',
             webdav: 'WebDAV：标准 WebDAV 协议，支持 Nextcloud / 坚果云 / 群晖等。',
             aliyunoss: '阿里云 OSS：使用 V1 签名直传，需提供 Endpoint/Bucket/AccessKey。',

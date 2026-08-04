@@ -3349,26 +3349,30 @@ window.initWeather = function(force) {
     }
 
     function getWeatherGradient(code, isDay) {
-        // 根据天气代码和昼夜返回渐变背景
+        // 根据天气代码和昼夜返回渐变背景（柔化处理，避免过亮）
         if (!isDay) {
-            // 夜间：深蓝紫色调
-            if (code >= 61 && code <= 67) return 'linear-gradient(135deg, #1a2a3a, #2c3e50)';
-            if (code >= 71 && code <= 86) return 'linear-gradient(135deg, #1a2530, #3a4a5a)';
-            if (code >= 95) return 'linear-gradient(135deg, #0d1117, #1a1a2e)';
-            return 'linear-gradient(135deg, #1a2a4a, #2c4a6e)';
+            // 夜间：深沉色调，营造月夜氛围
+            if (code === 0) return 'linear-gradient(135deg, #1a2151, #2c3e7a)'; // 晴夜 - 深蓝
+            if (code === 1 || code === 2) return 'linear-gradient(135deg, #1c2545, #2e385f)'; // 多云夜
+            if (code === 3) return 'linear-gradient(135deg, #1f2937, #374151)'; // 阴夜
+            if (code === 45 || code === 48) return 'linear-gradient(135deg, #2a3447, #3d4a5f)'; // 雾夜
+            if (code >= 51 && code <= 67) return 'linear-gradient(135deg, #16212e, #283446)'; // 雨夜
+            if (code >= 71 && code <= 86) return 'linear-gradient(135deg, #1f2d45, #3a4f73)'; // 雪夜
+            if (code >= 95) return 'linear-gradient(135deg, #0d1421, #1f2937)'; // 雷暴夜
+            return 'linear-gradient(135deg, #1a2151, #2c3e7a)';
         }
-        // 白天
-        if (code === 0) return 'linear-gradient(135deg, #FFB88C, #DE6262)'; // 晴 - 暖橙红
-        if (code === 1 || code === 2) return 'linear-gradient(135deg, #4facfe, #00f2fe)'; // 多云 - 天蓝
-        if (code === 3) return 'linear-gradient(135deg, #8e9eab, #636e72)'; // 阴 - 灰
-        if (code === 45 || code === 48) return 'linear-gradient(135deg, #bdc3c7, #757f9a)'; // 雾
-        if (code >= 51 && code <= 57) return 'linear-gradient(135deg, #5c6f8a, #3a4a5a)'; // 毛毛雨
-        if (code >= 61 && code <= 67) return 'linear-gradient(135deg, #4b6584, #2c3e50)'; // 雨
-        if (code >= 71 && code <= 77) return 'linear-gradient(135deg, #a1c4fd, #c2e9fb)'; // 雪 - 浅蓝白
-        if (code >= 80 && code <= 82) return 'linear-gradient(135deg, #4b6584, #2c3e50)'; // 阵雨
-        if (code >= 85 && code <= 86) return 'linear-gradient(135deg, #a1c4fd, #c2e9fb)'; // 阵雪
-        if (code >= 95) return 'linear-gradient(135deg, #2c3e50, #1a1a2e)'; // 雷暴
-        return 'linear-gradient(135deg, #FFB88C, #DE6262)';
+        // 白天：柔化色调，避免过亮
+        if (code === 0) return 'linear-gradient(135deg, #F3986A, #E15B6B)'; // 晴 - 柔暖橙红
+        if (code === 1 || code === 2) return 'linear-gradient(135deg, #5BA8E8, #5DC8E8)'; // 多云 - 柔天蓝
+        if (code === 3) return 'linear-gradient(135deg, #7B8794, #5A6473)'; // 阴 - 中灰
+        if (code === 45 || code === 48) return 'linear-gradient(135deg, #8E9BAC, #6B7A8F)'; // 雾 - 中灰蓝
+        if (code >= 51 && code <= 57) return 'linear-gradient(135deg, #5A7A9E, #3F5878)'; // 毛毛雨
+        if (code >= 61 && code <= 67) return 'linear-gradient(135deg, #4A6B8A, #2C3E50)'; // 雨
+        if (code >= 71 && code <= 77) return 'linear-gradient(135deg, #7AA8D6, #9CC2E2)'; // 雪 - 柔雪蓝
+        if (code >= 80 && code <= 82) return 'linear-gradient(135deg, #4A6B8A, #2C3E50)'; // 阵雨
+        if (code >= 85 && code <= 86) return 'linear-gradient(135deg, #7AA8D6, #9CC2E2)'; // 阵雪
+        if (code >= 95) return 'linear-gradient(135deg, #3D4A5F, #1F2937)'; // 雷暴
+        return 'linear-gradient(135deg, #F3986A, #E15B6B)';
     }
 
     function renderWeather(data) {
@@ -3407,7 +3411,9 @@ window.initWeather = function(force) {
         // 生成动态粒子
         var particles = generateParticles(weatherType);
 
-        var html = '<div class="weather-glass weather-type-' + weatherType + ' weather-enter">' +
+        var timeClass = isDay ? 'weather-time-day' : 'weather-time-night';
+
+        var html = '<div class="weather-glass weather-type-' + weatherType + ' ' + timeClass + ' weather-enter">' +
             '<div class="weather-glass-bg" style="background: ' + gradient + ';"></div>' +
             '<div class="weather-particles">' + particles + '</div>' +
             '<div class="weather-glass-shine"></div>' +
