@@ -339,9 +339,15 @@
     $themeColor = !empty($this->options->themeColor) ? $this->options->themeColor : '#FF6B6B';
     $bgColor = !empty($this->options->bgColor) ? $this->options->bgColor : '#f8f9fc';
     $bgImage = !empty($this->options->bgImage) ? $this->options->bgImage : '';
-    $cardOpacity = isset($this->options->cardOpacity) && $this->options->cardOpacity !== '' ? floatval($this->options->cardOpacity) : 1;
+    $bgGradientEnabled = !empty($this->options->bgGradientEnabled) && $this->options->bgGradientEnabled === 'on';
+    $bgGradient = !empty($this->options->bgGradient) ? trim($this->options->bgGradient) : '';
+    $bgGradientDark = !empty($this->options->bgGradientDark) ? trim($this->options->bgGradientDark) : '';
+    $bgGradientAttachment = !empty($this->options->bgGradientAttachment) && $this->options->bgGradientAttachment === 'scroll' ? 'scroll' : 'fixed';
+    // 渐变背景仅在未设置背景图片时生效
+    $bgGradientActive = $bgGradientEnabled && $bgGradient && !$bgImage;
+    $cardOpacity = isset($this->options->cardOpacity) && $this->options->cardOpacity !== '' ? floatval($this->options->cardOpacity) : 0.7;
     $cardOpacity = max(0, min(1, $cardOpacity));
-    $hasCustomStyle = ($themeColor !== '#FF6B6B' || $bgColor !== '#f8f9fc' || $bgImage || $cardOpacity < 1);
+    $hasCustomStyle = ($themeColor !== '#FF6B6B' || $bgColor !== '#f8f9fc' || $bgImage || $bgGradientActive || $cardOpacity < 1);
     if ($hasCustomStyle):
     ?>
     <style>
@@ -359,6 +365,23 @@
         background-position: center center;
         background-repeat: no-repeat;
     }
+    <?php elseif ($bgGradientActive): ?>
+    body {
+        background-image: <?php echo htmlspecialchars($bgGradient); ?>;
+        background-attachment: <?php echo $bgGradientAttachment; ?>;
+        background-size: cover;
+        background-position: center center;
+        background-repeat: no-repeat;
+    }
+    <?php if ($bgGradientDark): ?>
+    [data-theme="dark"] body {
+        background-image: <?php echo htmlspecialchars($bgGradientDark); ?>;
+    }
+    <?php else: ?>
+    [data-theme="dark"] body {
+        background-image: none;
+    }
+    <?php endif; ?>
     <?php endif; ?>
     <?php if ($cardOpacity < 1): ?>
     #header {
@@ -367,9 +390,19 @@
         -webkit-backdrop-filter: blur(12px);
     }
     .left-sidebar {
-        background: rgba(255, 255, 255, <?php echo $cardOpacity; ?>) !important;
+        background: rgba(255, 255, 255, <?php echo round($cardOpacity * 0.2, 2); ?>) !important;
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
+        border-right: 1px solid rgba(255, 255, 255, 0.25) !important;
+    }
+    .left-sidebar .sidebar-panel {
+        background: rgba(255, 255, 255, <?php echo round($cardOpacity * 0.55, 2); ?>) !important;
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.35) !important;
+    }
+    .left-sidebar .sidebar-panel-menu {
+        background: rgba(255, 255, 255, <?php echo round($cardOpacity * 0.3, 2); ?>) !important;
     }
     .left-sidebar .widget {
         background: transparent !important;
@@ -377,27 +410,138 @@
     .left-sidebar .links-nav-list {
         background: transparent !important;
     }
+    .left-sidebar .widget-title {
+        background: rgba(255, 255, 255, 0.12) !important;
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+    }
+    .left-sidebar .widget-title:hover {
+        background: rgba(255, 255, 255, 0.2) !important;
+    }
+    .left-sidebar .widget:hover {
+        background: rgba(255, 255, 255, <?php echo round($cardOpacity * 0.15, 2); ?>) !important;
+    }
+    .author-card {
+        background: transparent !important;
+    }
+    .sidebar-footer {
+        background: transparent !important;
+    }
     .post {
-        background: rgba(255, 255, 255, <?php echo $cardOpacity; ?>) !important;
+        background-color: rgba(255, 255, 255, <?php echo $cardOpacity; ?>) !important;
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
+    }
+    .post-list-classic .post.has-thumbnail {
+        background-color: transparent !important;
+    }
+    .left-sidebar .widget-title,
+    .left-sidebar .sidebar-direct-link {
+        color: #222;
+    }
+    .left-sidebar .category-nav-item a,
+    .left-sidebar .links-widget .links-nav-item a,
+    .left-sidebar .page-nav-widget .page-nav-list li a,
+    .left-sidebar .other-widget .widget-list li a,
+    .left-sidebar .widget-list li a {
+        color: #333;
+    }
+    .left-sidebar .category-nav-item a i,
+    .left-sidebar .links-widget .links-nav-item a i,
+    .left-sidebar .page-nav-widget .page-nav-list li a i {
+        color: #666;
+    }
+    .left-sidebar .collapsible-arrow {
+        color: #999;
+    }
+    .author-signature,
+    .author-stat-label {
+        color: #666;
+    }
+    .sidebar-footer {
+        color: #888;
+    }
+    .sidebar-contacts a {
+        color: #666;
     }
     .widget {
         background: rgba(255, 255, 255, <?php echo $cardOpacity; ?>) !important;
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
     }
+    #footer {
+        background: rgba(255, 255, 255, <?php echo $cardOpacity; ?>) !important;
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+    }
+    .page-navigator a,
+    .page-navigator span {
+        background: rgba(255, 255, 255, <?php echo $cardOpacity; ?>) !important;
+    }
+    .page-navigator a:hover {
+        background: rgba(255, 255, 255, <?php echo round(min(1, $cardOpacity + 0.08), 2); ?>) !important;
+    }
+    .page-navigator .current a,
+    .page-navigator .current span {
+        background: var(--primary-color) !important;
+        color: #fff;
+    }
     [data-theme="dark"] #header {
         background: rgba(26, 26, 36, <?php echo $cardOpacity; ?>) !important;
     }
     [data-theme="dark"] .left-sidebar {
-        background: rgba(26, 26, 36, <?php echo $cardOpacity; ?>) !important;
+        background: rgba(26, 26, 36, <?php echo round($cardOpacity * 0.2, 2); ?>) !important;
+        border-right-color: rgba(255, 255, 255, 0.08) !important;
     }
-    [data-theme="dark"] .post,
+    [data-theme="dark"] .left-sidebar .sidebar-panel {
+        background: rgba(26, 26, 36, <?php echo round($cardOpacity * 0.55, 2); ?>) !important;
+        border-color: rgba(255, 255, 255, 0.08) !important;
+    }
+    [data-theme="dark"] .left-sidebar .sidebar-panel-menu {
+        background: rgba(26, 26, 36, <?php echo round($cardOpacity * 0.3, 2); ?>) !important;
+    }
+    [data-theme="dark"] .post {
+        background-color: rgba(26, 26, 36, <?php echo $cardOpacity; ?>) !important;
+    }
+    [data-theme="dark"] .post-list-classic .post.has-thumbnail {
+        background-color: transparent !important;
+    }
     [data-theme="dark"] .widget {
         background: rgba(26, 26, 36, <?php echo $cardOpacity; ?>) !important;
     }
+    [data-theme="dark"] #footer {
+        background: rgba(26, 26, 36, <?php echo $cardOpacity; ?>) !important;
+    }
+    [data-theme="dark"] .page-navigator a,
+    [data-theme="dark"] .page-navigator span {
+        background: rgba(26, 26, 36, <?php echo $cardOpacity; ?>) !important;
+    }
+    [data-theme="dark"] .page-navigator a:hover {
+        background: color-mix(in srgb, var(--primary-color) 12%, transparent) !important;
+    }
+    [data-theme="dark"] .page-navigator .current a,
+    [data-theme="dark"] .page-navigator .current span {
+        background: var(--primary-color) !important;
+        color: #fff;
+    }
     [data-theme="dark"] .left-sidebar .links-nav-list {
+        background: transparent !important;
+    }
+    [data-theme="dark"] .left-sidebar .widget-title {
+        background: rgba(255, 255, 255, 0.05) !important;
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+    }
+    [data-theme="dark"] .left-sidebar .widget-title:hover {
+        background: rgba(255, 255, 255, 0.1) !important;
+    }
+    [data-theme="dark"] .left-sidebar .widget:hover {
+        background: rgba(255, 255, 255, 0.03) !important;
+    }
+    [data-theme="dark"] .author-card {
+        background: transparent !important;
+    }
+    [data-theme="dark"] .sidebar-footer {
         background: transparent !important;
     }
     <?php endif; ?>

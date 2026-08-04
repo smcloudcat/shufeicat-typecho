@@ -347,9 +347,48 @@ foreach ($_defaultLeftOrder as $key) {
 ?>
 <div class="left-sidebar" id="left-sidebar">
     <div class="sidebar-inner">
-        <?php foreach ($_outputOrder as $_key): ?>
-        <?php echo $_sidebarSections[$_key]; ?>
-        <?php endforeach; ?>
+        <?php
+        // 将侧边栏板块分成三个盒子：作者 / 菜单按钮 / 其它+底部
+        $_panelMap = array(
+            'author'    => 'author',
+            'category'  => 'menu',
+            'pages'     => 'menu',
+            'guestbook' => 'menu',
+            'github'    => 'menu',
+            'linkspage' => 'menu',
+            'customnav' => 'menu',
+            'links'     => 'menu',
+            'other'     => 'menu',
+            'contacts'  => 'other',
+            'footer'    => 'other'
+        );
+        $_panels = array('author' => array(), 'menu' => array(), 'other' => array());
+        foreach ($_outputOrder as $_key) {
+            $_group = isset($_panelMap[$_key]) ? $_panelMap[$_key] : 'other';
+            $_panels[$_group][] = $_key;
+        }
+        ?>
+        <?php if (!empty($_panels['author'])): ?>
+        <div class="sidebar-panel sidebar-panel-author">
+            <?php foreach ($_panels['author'] as $_key): ?>
+            <?php echo $_sidebarSections[$_key]; ?>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+        <?php if (!empty($_panels['menu'])): ?>
+        <div class="sidebar-panel sidebar-panel-menu">
+            <?php foreach ($_panels['menu'] as $_key): ?>
+            <?php echo $_sidebarSections[$_key]; ?>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+        <?php if (!empty($_panels['other'])): ?>
+        <div class="sidebar-panel sidebar-panel-other">
+            <?php foreach ($_panels['other'] as $_key): ?>
+            <?php echo $_sidebarSections[$_key]; ?>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
     </div>
     <script>
     (function() {

@@ -161,7 +161,7 @@ function shufei_check_theme_update($force = false, $channel = null)
  */
 function shufei_get_theme_version()
 {
-    return '1.5.0-rc.2';
+    return '1.5.0-rc.3';
 }
 
 /**
@@ -1154,12 +1154,52 @@ UPDATEJS;
     $bgImage->setAttribute('class', 'typecho-option cat-group-appearance');
     $form->addInput($bgImage->addRule('url', _t('请填写一个合法的URL地址')));
 
+    $bgGradientEnabled = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'bgGradientEnabled',
+        array('off' => _t('关闭'), 'on' => _t('启用')),
+        'on',
+        _t('渐变背景'),
+        _t('介绍：启用后使用自定义渐变色作为页面背景<br>渐变背景优先级高于背景颜色，但低于背景图片<br>夜间模式下可单独设置渐变色，留空则夜间关闭渐变')
+    );
+    $bgGradientEnabled->setAttribute('class', 'typecho-option cat-group-appearance');
+    $form->addInput($bgGradientEnabled);
+
+    $bgGradient = new \Typecho\Widget\Helper\Form\Element\Text(
+        'bgGradient',
+        null,
+        'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        _t('渐变背景 CSS 值'),
+        _t('介绍：填写合法的 CSS 渐变值，应用于白天模式<br>示例：<br>linear-gradient(135deg, #667eea 0%, #764ba2 100%)<br>linear-gradient(to right, #f6d365 0%, #fda085 100%)<br>radial-gradient(circle, #1a2980 0%, #26d0ce 100%)')
+    );
+    $bgGradient->setAttribute('class', 'typecho-option cat-group-appearance');
+    $form->addInput($bgGradient);
+
+    $bgGradientDark = new \Typecho\Widget\Helper\Form\Element\Text(
+        'bgGradientDark',
+        null,
+        'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)',
+        _t('夜间模式渐变背景'),
+        _t('介绍：夜间模式下的渐变背景 CSS 值，留空则夜间模式关闭渐变使用纯色<br>示例：linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)')
+    );
+    $bgGradientDark->setAttribute('class', 'typecho-option cat-group-appearance');
+    $form->addInput($bgGradientDark);
+
+    $bgGradientAttachment = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'bgGradientAttachment',
+        array('fixed' => _t('固定（推荐）'), 'scroll' => _t('跟随滚动')),
+        'fixed',
+        _t('渐变背景滚动方式'),
+        _t('介绍：固定背景在滚动时保持不动，视觉效果更佳<br>跟随滚动则背景随页面滚动，长页面可能出现渐变接缝')
+    );
+    $bgGradientAttachment->setAttribute('class', 'typecho-option cat-group-appearance');
+    $form->addInput($bgGradientAttachment);
+
     $cardOpacity = new \Typecho\Widget\Helper\Form\Element\Text(
         'cardOpacity',
         null,
-        '1',
+        '0.7',
         _t('盒子透明度'),
-        _t('介绍：设置页面中各盒子（导航栏、侧边栏、文章卡片等）的透明度<br>取值范围 0 ~ 1，1 为完全不透明，0 为完全透明<br>默认：1（不透明）<br>设置背景图片后建议调低透明度，例如 0.85，让背景图片透出')
+        _t('介绍：设置页面中各盒子（导航栏、侧边栏、文章卡片等）的透明度<br>取值范围 0 ~ 1，1 为完全不透明，0 为完全透明<br>默认：0.7（半透明）<br>设置背景图片或渐变背景后建议调低透明度，让背景透出')
     );
     $cardOpacity->setAttribute('class', 'typecho-option cat-group-appearance');
     $form->addInput($cardOpacity);
@@ -1177,7 +1217,7 @@ UPDATEJS;
     $pjaxLoad = new \Typecho\Widget\Helper\Form\Element\Radio(
         'pjaxLoad',
         array('off' => _t('关闭'), 'on' => _t('开启')),
-        'off',
+        'on',
         _t('Pjax加载'),
         _t('介绍：开启后，全站页面切换将使用Pjax方式，实现无刷新加载，提升用户体验')
     );
@@ -1277,7 +1317,7 @@ UPDATEJS;
     $weatherEnabled = new \Typecho\Widget\Helper\Form\Element\Radio(
         'weatherEnabled',
         array('on' => _t('开启'), 'off' => _t('关闭')),
-        'off',
+        'on',
         _t('侧边栏天气卡片'),
         _t('介绍：开启后，将在右侧侧边栏显示精美天气卡片<br>天气数据通过 IP 定位自动获取，无需配置')
     );
@@ -1959,7 +1999,7 @@ HTML;
     $mermaidEnabled = new \Typecho\Widget\Helper\Form\Element\Radio(
         'mermaidEnabled',
         array('on' => _t('开启'), 'off' => _t('关闭')),
-        'off',
+        'on',
         _t('Mermaid 图表渲染'),
         _t('介绍：开启后，支持在文章中使用 ```mermaid 代码块渲染流程图、时序图、甘特图等<br>使用方法：在代码块标记后加上 mermaid，例如：<br>```mermaid<br>graph TD<br>&nbsp;&nbsp;&nbsp;&nbsp;A[开始] --> B[结束]<br>```<br>支持所有 Mermaid 官方图表类型')
     );
@@ -1969,7 +2009,7 @@ HTML;
     $echartsEnabled = new \Typecho\Widget\Helper\Form\Element\Radio(
         'echartsEnabled',
         array('on' => _t('开启'), 'off' => _t('关闭')),
-        'off',
+        'on',
         _t('ECharts 图表渲染'),
         _t('介绍：开启后，支持在文章中使用 ```echarts 代码块渲染 ECharts 图表<br>使用方法：在代码块标记后加上 echarts，代码内容为标准 ECharts option JSON 配置<br>例如：```echarts<br>{"xAxis":{"type":"category","data":["A","B","C"]},"yAxis":{"type":"value"},"series":[{"data":[120,200,150],"type":"bar"}]}<br>```<br>支持所有 ECharts 官方图表类型和配置参数')
     );

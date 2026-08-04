@@ -132,6 +132,36 @@ img {
     background: rgba(255, 255, 255, 0.6);
 }
 
+/* 左侧边栏三盒子布局 */
+.left-sidebar .sidebar-panel {
+    background: var(--card-bg);
+    border-radius: 14px;
+    margin: 10px;
+    padding: 0;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+}
+
+.left-sidebar .sidebar-panel .widget:last-child {
+    border-bottom: none;
+}
+
+.left-sidebar .sidebar-panel .author-card {
+    background: var(--card-bg);
+    border-bottom: none;
+}
+
+.left-sidebar .sidebar-panel .sidebar-footer {
+    background: transparent;
+}
+
+[data-theme="dark"] .left-sidebar .sidebar-panel {
+    background: #1a1a24;
+    border-color: #2a2a36;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
 /* 左侧边栏其它区域样式 */
 .left-sidebar .other-widget .widget-list {
     text-align: center;
