@@ -2140,6 +2140,43 @@ body.dark-mode .vote-cnt {
     border-radius: 8px;
 }
 
+/* ===== LOGO 与标题显示模式控制 ===== */
+/* 仅显示 LOGO：隐藏标题文字 */
+.logo-mode-logo-only #logo .site-title-text {
+    display: none;
+}
+.logo-mode-logo-only #logo {
+    gap: 0;
+}
+
+/* 仅显示标题：隐藏 LOGO 图片 */
+.logo-mode-title-only #logo img {
+    display: none;
+}
+.logo-mode-title-only #logo {
+    gap: 0;
+}
+
+/* 同时显示 / 智能模式（PC端）：紧凑布局，避免拥挤 */
+.logo-mode-both #logo,
+.logo-mode-auto #logo {
+    gap: 8px;
+    font-size: 20px;
+}
+
+.logo-mode-both #logo img,
+.logo-mode-auto #logo img {
+    max-height: 38px;
+}
+
+/* 标题文字溢出处理 */
+#logo .site-title-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+}
+
 .description {
     color: var(--text-secondary);
     font-size: 13px;
@@ -4905,6 +4942,23 @@ pre[class*="language-"].line-numbers > code {
         flex-shrink: 0;
     }
 
+    /* 移动端：智能模式仅显示 LOGO，避免与标题文字拥挤 */
+    .logo-mode-auto #logo .site-title-text {
+        display: none;
+    }
+    .logo-mode-auto #logo {
+        gap: 0;
+    }
+
+    /* 移动端同时显示模式：进一步紧凑 */
+    .logo-mode-both #logo {
+        gap: 6px;
+        font-size: 15px;
+    }
+    .logo-mode-both #logo img {
+        max-height: 28px;
+    }
+
     .site-search {
         max-width: 200px;
     }
@@ -4995,6 +5049,15 @@ pre[class*="language-"].line-numbers > code {
 
     #logo img {
         max-height: 28px;
+    }
+
+    /* 480px 以下：同时显示模式进一步缩小，避免挤压 */
+    .logo-mode-both #logo {
+        gap: 5px;
+        font-size: 14px;
+    }
+    .logo-mode-both #logo img {
+        max-height: 24px;
     }
 
     .site-search {

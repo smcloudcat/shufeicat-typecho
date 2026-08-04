@@ -567,16 +567,17 @@
                 <span class="hamburger-line"></span>
             </button>
             
-            <div class="site-name">
+            <?php $logoDisplayMode = !empty($this->options->logoDisplayMode) ? $this->options->logoDisplayMode : 'auto'; ?>
+            <div class="site-name logo-mode-<?php echo htmlspecialchars($logoDisplayMode); ?>">
                 <?php if ($this->options->logoUrl): ?>
                     <a id="logo" href="<?php $this->options->siteUrl(); ?>">
                         <img src="<?php $this->options->logoUrl() ?>" alt="<?php $this->options->title() ?>"/>
-                        <span><?php $this->options->title() ?></span>
+                        <span class="site-title-text"><?php $this->options->title() ?></span>
                     </a>
                 <?php else: ?>
                     <a id="logo" href="<?php $this->options->siteUrl(); ?>">
                         <i class="fa fa-home"></i>
-                        <span><?php $this->options->title() ?></span>
+                        <span class="site-title-text"><?php $this->options->title() ?></span>
                     </a>
                 <?php endif; ?>
             </div>

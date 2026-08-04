@@ -764,6 +764,21 @@ GITHUBJS;
     $logoUrl->setAttribute('class', 'typecho-option cat-group-basic');
     $form->addInput($logoUrl->addRule('url', _t('请填写一个合法的URL地址')));
 
+    $logoDisplayMode = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'logoDisplayMode',
+        array(
+            'auto' => _t('智能模式（推荐）'),
+            'both' => _t('同时显示'),
+            'logo-only' => _t('仅显示 LOGO'),
+            'title-only' => _t('仅显示标题'),
+        ),
+        'auto',
+        _t('LOGO 与标题显示方式'),
+        _t('介绍：当 LOGO 与网站标题同时存在时的显示方式<br>智能模式：电脑端同时显示（紧凑布局），移动端仅显示 LOGO，避免拥挤<br>同时显示：所有设备均同时显示 LOGO 和标题<br>仅显示 LOGO：隐藏标题文字<br>仅显示标题：隐藏 LOGO 图片')
+    );
+    $logoDisplayMode->setAttribute('class', 'typecho-option cat-group-basic');
+    $form->addInput($logoDisplayMode);
+
     $faviconUrl = new \Typecho\Widget\Helper\Form\Element\Text(
         'faviconUrl',
         null,
