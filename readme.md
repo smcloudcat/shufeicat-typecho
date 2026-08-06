@@ -125,7 +125,7 @@ shufeicat-typecho/
 
 ## 📄 许可证
 
-本项目采用 [GPL-3.0 license](LICENSE) 开源协议。
+本项目采用 [AGPL-3.0 license](LICENSE) 开源协议。
 
 ## 📞 联系方式
 

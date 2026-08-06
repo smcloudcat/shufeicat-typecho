@@ -4404,66 +4404,57 @@ pre[class*="language-"].line-numbers > code {
  * ============================================ */
 .protected {
     text-align: center;
-    padding: 40px;
-    background: #fff;
-    border-radius: 16px;
-    box-shadow: 0 5px 30px rgba(0, 0, 0, 0.08);
-    border: 1px solid #eee;
-    max-width: 500px;
-    margin: 30px auto;
+    padding: 4px 0;
+    margin: 16px auto;
 }
 
 .protected .word {
-    font-size: 18px;
-    font-weight: 600;
-    color: #333;
-    margin: 0 0 25px 0;
+    font-size: 14px;
+    font-weight: 500;
+    color: #595959;
+    margin: 0 0 14px 0;
 }
 
 .protected p {
-    margin: 0 0 20px 0;
+    margin: 0 0 12px 0;
 }
 
 .protected input[type="password"] {
     width: 100%;
-    max-width: 320px;
-    padding: 16px 20px;
-    border: 2px solid #e8e8e8;
-    border-radius: 12px;
-    font-size: 15px;
-    color: #333;
-    background: #fafafa;
-    transition: all 0.3s ease;
+    max-width: 280px;
+    padding: 9px 14px;
+    border: 1px solid #d9d9d9;
+    border-radius: 4px;
+    font-size: 14px;
+    color: #262626;
+    background: #fff;
+    text-align: center;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
     outline: none;
-    margin-bottom: 15px;
+    margin-bottom: 12px;
+    box-sizing: border-box;
 }
 
 .protected input[type="password"]:focus {
     border-color: var(--primary-color);
     background: #fff;
-    box-shadow: 0 0 0 4px rgba(255, 107, 107, 0.1);
-    box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary-color) 10%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 12%, transparent);
 }
 
 .protected input[type="submit"] {
-    padding: 14px 35px;
-    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%);
+    padding: 9px 28px;
+    background: var(--primary-color);
     color: #fff;
     border: none;
-    border-radius: 12px;
-    font-size: 15px;
-    font-weight: 600;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 500;
     cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
-    box-shadow: 0 4px 15px color-mix(in srgb, var(--primary-color) 30%, transparent);
+    transition: background 0.2s ease;
 }
 
 .protected input[type="submit"]:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 25px rgba(255, 107, 107, 0.4);
-    box-shadow: 0 6px 25px color-mix(in srgb, var(--primary-color) 40%, transparent);
-    background: linear-gradient(135deg, var(--primary-hover) 0%, var(--primary-color) 100%);
+    background: var(--primary-hover);
 }
 
 .protected input[type="hidden"] {
@@ -4566,69 +4557,59 @@ pre[class*="language-"].line-numbers > code {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 60px 40px;
-    background: #fff;
-    border-radius: 16px;
-    box-shadow: 0 5px 30px rgba(0, 0, 0, 0.08);
+    padding: 32px 28px;
+    background: var(--card-bg);
+    border-radius: var(--border-radius);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
     border: 1px solid #eee;
-    max-width: 500px;
-    margin: 30px auto;
+    max-width: 420px;
+    margin: 24px auto;
 }
 
 .password-lock-icon {
-    width: 90px;
-    height: 90px;
-    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%);
+    width: 52px;
+    height: 52px;
+    background: var(--primary-color);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 25px;
-    box-shadow: 0 10px 35px color-mix(in srgb, var(--primary-color) 30%, transparent);
-    animation: lock-float 3s ease-in-out infinite;
-}
-
-@keyframes lock-float {
-    0%, 100% {
-        transform: translateY(0);
-    }
-    50% {
-        transform: translateY(-10px);
-    }
+    margin-bottom: 16px;
 }
 
 .password-lock-icon i {
-    font-size: 42px;
+    font-size: 22px;
     color: #fff;
 }
 
 .password-title {
-    font-size: 24px;
+    font-size: 17px;
     font-weight: 600;
-    color: #333;
-    margin: 0 0 12px 0;
+    color: #262626;
+    margin: 0 0 8px 0;
     text-align: center;
 }
 
 .password-desc {
-    font-size: 14px;
-    color: #888;
-    margin: 0 0 30px 0;
+    font-size: 13px;
+    color: #8c8c8c;
+    margin: 0 0 20px 0;
     text-align: center;
     line-height: 1.6;
 }
 
 .password-hint {
-    margin-top: 25px;
-    padding-top: 20px;
+    margin-top: 18px;
+    padding-top: 14px;
     border-top: 1px solid #f0f0f0;
-    font-size: 13px;
-    color: #aaa;
+    font-size: 12px;
+    color: #8c8c8c;
     text-align: center;
+    width: 100%;
 }
 
 .password-hint i {
-    margin-right: 5px;
+    margin-right: 4px;
 }
 
 /* ============================================
@@ -4760,44 +4741,35 @@ pre[class*="language-"].line-numbers > code {
     }
     
     .password-protection {
-        padding: 40px 25px;
-        margin: 20px 15px;
+        padding: 24px 20px;
+        margin: 16px 10px;
     }
-    
+
     .password-lock-icon {
-        width: 70px;
-        height: 70px;
+        width: 44px;
+        height: 44px;
     }
-    
+
     .password-lock-icon i {
-        font-size: 32px;
+        font-size: 18px;
     }
-    
+
     .password-title {
-        font-size: 20px;
-    }
-    
-    .password-desc {
-        font-size: 13px;
-    }
-    
-    .protected {
-        padding: 30px 20px;
-        margin: 20px 15px;
-    }
-    
-    .protected .word {
         font-size: 16px;
     }
-    
+
+    .password-desc {
+        font-size: 12px;
+    }
+
     .protected input[type="password"] {
-        padding: 14px 18px;
+        padding: 10px 14px;
         font-size: 14px;
     }
-    
+
     .protected input[type="submit"] {
-        padding: 12px 28px;
-        font-size: 14px;
+        padding: 10px 24px;
+        font-size: 13px;
     }
 
     .reply-hidden-box {
@@ -7460,19 +7432,32 @@ article.post {
     box-shadow: 0 5px 30px rgba(0, 0, 0, 0.3);
     border-color: #2a2a36;
 }
-[data-theme="dark"] .protected {
+[data-theme="dark"] .password-protection {
     background: #1a1a24;
-    box-shadow: 0 5px 30px rgba(0, 0, 0, 0.3);
     border-color: #2a2a36;
+}
+[data-theme="dark"] .password-title {
+    color: #d4d4d8;
+}
+[data-theme="dark"] .password-desc {
+    color: #909098;
+}
+[data-theme="dark"] .password-hint {
+    border-top-color: #2a2a36;
+    color: #909098;
+}
+[data-theme="dark"] .protected .word {
+    color: #b0b0b8;
 }
 [data-theme="dark"] .protected input[type="password"] {
     background: #1e1e2a;
     border-color: #2a2a36;
+    color: #d4d4d8;
 }
 [data-theme="dark"] .protected input[type="password"]:focus {
     border-color: var(--primary-color);
     background: #1e1e2a;
-    box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary-color) 10%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 12%, transparent);
 }
 [data-theme="dark"] .encrypted-content-preview {
     background: linear-gradient(135deg, #1a1a24 0%, #1e1e2a 100%);
