@@ -201,10 +201,18 @@ function themeConfig($form)
         '.cat-config-main ul li label:hover { border-color: #467B96; color: #467B96; }' .
         '.cat-config-main ul li input[type=radio], .cat-config-main ul li input[type=checkbox] { margin-right: 4px; accent-color: #467B96; }' .
         '.cat-config-main ul li:has(input:checked) label { border-color: #467B96; color: #467B96; background: #eef5f8; font-weight: 500; }' .
-        // ===== 提交按钮区 =====
-        '.typecho-option-submit { background: #fbfbfb; padding: 16px 20px; border: 1px solid #e8e8e8; border-radius: 4px; text-align: right; margin-top: 12px; }' .
+        // ===== 提交按钮区：悬浮固定底部 =====
+        '.typecho-option-submit { position: sticky; bottom: 0; z-index: 100; background: rgba(255,255,255,0.92); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); padding: 12px 20px; border: 1px solid #e8e8e8; border-radius: 4px; text-align: right; margin-top: 12px; box-shadow: 0 -2px 10px rgba(0,0,0,0.06); }' .
         '.typecho-option-submit button { background: #467B96 !important; border: none !important; color: #fff !important; padding: 0 28px !important; height: 38px !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; border-radius: 4px !important; cursor: pointer !important; font-weight: 500 !important; font-size: 13px !important; transition: background .15s !important; vertical-align: middle !important; margin: 0 !important; line-height: 1 !important; text-decoration: none !important; outline: none !important; }' .
         '.typecho-option-submit button:hover { background: #3a6478 !important; }' .
+        '.typecho-option-submit button:disabled { opacity: 0.6; cursor: not-allowed; }' .
+        // ===== 保存结果 Toast 提示 =====
+        '.cat-save-toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); padding: 10px 20px; border-radius: 4px; font-size: 13px; z-index: 10000; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.15); font-weight: 500; }' .
+        '.cat-save-toast.show { display: block; animation: catToastIn .2s ease; }' .
+        '.cat-save-toast.success { background: #f6ffed; border: 1px solid #b7eb8f; color: #389e0d; }' .
+        '.cat-save-toast.error { background: #fff2f0; border: 1px solid #ffccc7; color: #cf1322; }' .
+        '.cat-save-toast i { margin-right: 6px; }' .
+        '@keyframes catToastIn { from { opacity: 0; transform: translateX(-50%) translateY(-10px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }' .
         // ===== API 状态提示框 =====
         '.api-status-box { padding: 10px 14px; border-radius: 4px; margin-bottom: 16px; font-size: 12px; border: 1px solid transparent; line-height: 1.6; }' .
         '.api-success { background: #f6ffed; border-color: #b7eb8f; color: #389e0d; }' .
@@ -337,6 +345,30 @@ function themeConfig($form)
                     'var targetPane = document.getElementById(this.getAttribute("data-id"));' .
                     'if (targetPane) targetPane.classList.add("active");' .
                 '};' .
+            '});' .
+            // ===== AJAX 表单提交：无需刷新页面 =====
+            'f.addEventListener("submit", function(e) {' .
+                'e.preventDefault();' .
+                'var btn = f.querySelector(".typecho-option-submit button");' .
+                'if (!btn) return;' .
+                'var orig = btn.innerHTML;' .
+                'btn.disabled = true;' .
+                'btn.innerHTML = "<i class=\\"fa fa-spinner fa-pulse\\"></i> 保存中…";' .
+                'var toast = document.createElement("div");' .
+                'toast.className = "cat-save-toast";' .
+                'document.body.appendChild(toast);' .
+                'function showMsg(msg, type) {' .
+                    'toast.className = "cat-save-toast show " + type;' .
+                    'toast.innerHTML = (type === "success" ? "<i class=\\"fa fa-check-circle\\"></i>" : "<i class=\\"fa fa-exclamation-circle\\"></i>") + " " + msg;' .
+                    'setTimeout(function() { toast.classList.remove("show"); setTimeout(function() { toast.remove(); }, 300); }, 2500);' .
+                '}' .
+                'fetch(f.action, { method: "POST", body: new FormData(f), credentials: "same-origin", redirect: "follow" })' .
+                '.then(function(r) {' .
+                    'if (r.ok) { showMsg("保存成功", "success"); }' .
+                    'else { showMsg("保存失败 (HTTP " + r.status + ")", "error"); }' .
+                '})' .
+                '.catch(function(err) { showMsg("保存失败: " + err.message, "error"); })' .
+                '.finally(function() { btn.innerHTML = orig; btn.disabled = false; });' .
             '});' .
         '});' .
     '})();' .
@@ -2397,7 +2429,7 @@ function shufei_render_storage_profile_ui()
     </div>
     <div class="shufei-storage-modal-footer">
         <button type="button" class="shufei-storage-btn" id="shufei-storage-test-btn">测试并上传</button>
-        <button type="button" class="shufei-storage-btn primary" id="shufei-storage-save-btn">保存</button>
+        <button type="button" class="shufei-storage-btn primary" id="shufei-storage-save-btn">确认</button>
         <button type="button" class="shufei-storage-btn" id="shufei-storage-cancel-btn">取消</button>
     </div>
 </div>
