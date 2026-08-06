@@ -85,7 +85,10 @@ ob_start();
         <img class="author-avatar" src="<?php echo htmlspecialchars(!empty($this->options->authorAvatar) ? $this->options->authorAvatar : 'https://q1.qlogo.cn/g?b=qq&nk=3522934828&s=100'); ?>" alt="<?php echo htmlspecialchars(!empty($this->options->authorName) ? $this->options->authorName : '云猫'); ?>">
     </div>
     <div class="author-name"><?php echo htmlspecialchars(!empty($this->options->authorName) ? $this->options->authorName : '云猫'); ?></div>
-    <div class="author-signature"><?php echo htmlspecialchars(!empty($this->options->authorSignature) ? $this->options->authorSignature : 'Hello,world'); ?></div>
+    <?php $_authorSig = !empty($this->options->authorSignature) ? trim($this->options->authorSignature) : ''; ?>
+    <?php if ($_authorSig !== ''): ?>
+    <div class="author-signature"><?php echo htmlspecialchars($_authorSig); ?></div>
+    <?php endif; ?>
     <div class="author-stats">
         <?php $stat = \Widget\Stat::alloc(); ?>
         <div class="author-stat-item">

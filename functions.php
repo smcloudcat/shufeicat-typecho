@@ -812,9 +812,9 @@ GITHUBJS;
     $authorSignature = new \Typecho\Widget\Helper\Form\Element\Text(
         'authorSignature',
         null,
-        'Hello,world',
+        '',
         _t('站长签名'),
-        _t('在这里填入站长个性签名，显示在左侧侧边栏名称下方<br>默认：Hello,world')
+        _t('在这里填入站长个性签名，显示在左侧侧边栏名称下方<br>留空则不显示签名<br>默认：Hello,world')
     );
     $authorSignature->setAttribute('class', 'typecho-option cat-group-basic');
     $form->addInput($authorSignature);
@@ -822,7 +822,7 @@ GITHUBJS;
     $authorEmail = new \Typecho\Widget\Helper\Form\Element\Text(
         'authorEmail',
         null,
-        'yuncat@email.lwcat.cn',
+        '',
         _t('站长邮箱'),
         _t('在这里填入站长邮箱地址，显示在左侧侧边栏底部联系方式中<br>留空则不显示邮箱<br>默认：yuncat@email.lwcat.cn')
     );
@@ -832,7 +832,7 @@ GITHUBJS;
     $authorGithub = new \Typecho\Widget\Helper\Form\Element\Text(
         'authorGithub',
         null,
-        'https://github.com/smcloudcat/shufeicat-typecho',
+        '',
         _t('站长GitHub'),
         _t('在这里填入GitHub主页地址，显示在左侧侧边栏底部联系方式中<br>留空则不显示GitHub<br>默认：https://github.com/smcloudcat/shufeicat-typecho')
     );
