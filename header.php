@@ -384,6 +384,10 @@
     <?php endif; ?>
     <?php endif; ?>
     <?php if ($cardOpacity < 1): ?>
+    /* 暗黑模式下覆盖 --card-bg 变量，避免半透明白色背景导致文字看不清 */
+    [data-theme="dark"] {
+        --card-bg: #1a1a24;
+    }
     #header {
         background: rgba(255, 255, 255, <?php echo $cardOpacity; ?>) !important;
         backdrop-filter: blur(12px);
@@ -487,34 +491,34 @@
         color: #fff;
     }
     [data-theme="dark"] #header {
-        background: rgba(26, 26, 36, <?php echo $cardOpacity; ?>) !important;
+        background: rgba(26, 26, 36, <?php echo max($cardOpacity, 0.95); ?>) !important;
     }
     [data-theme="dark"] .left-sidebar {
-        background: rgba(26, 26, 36, <?php echo round($cardOpacity * 0.2, 2); ?>) !important;
+        background: rgba(26, 26, 36, <?php echo max(round($cardOpacity * 0.2, 2), 0.18); ?>) !important;
         border-right-color: rgba(255, 255, 255, 0.08) !important;
     }
     [data-theme="dark"] .left-sidebar .sidebar-panel {
-        background: rgba(26, 26, 36, <?php echo round($cardOpacity * 0.55, 2); ?>) !important;
+        background: rgba(26, 26, 36, <?php echo max(round($cardOpacity * 0.55, 2), 0.5); ?>) !important;
         border-color: rgba(255, 255, 255, 0.08) !important;
     }
     [data-theme="dark"] .left-sidebar .sidebar-panel-menu {
-        background: rgba(26, 26, 36, <?php echo round($cardOpacity * 0.3, 2); ?>) !important;
+        background: rgba(26, 26, 36, <?php echo max(round($cardOpacity * 0.3, 2), 0.28); ?>) !important;
     }
     [data-theme="dark"] .post {
-        background-color: rgba(26, 26, 36, <?php echo $cardOpacity; ?>) !important;
+        background-color: #1a1a24 !important;
     }
     [data-theme="dark"] .post-list-classic .post.has-thumbnail {
         background-color: transparent !important;
     }
     [data-theme="dark"] .widget {
-        background: rgba(26, 26, 36, <?php echo $cardOpacity; ?>) !important;
+        background: #1a1a24 !important;
     }
     [data-theme="dark"] #footer {
-        background: rgba(26, 26, 36, <?php echo $cardOpacity; ?>) !important;
+        background: #1a1a24 !important;
     }
     [data-theme="dark"] .page-navigator a,
     [data-theme="dark"] .page-navigator span {
-        background: rgba(26, 26, 36, <?php echo $cardOpacity; ?>) !important;
+        background: #1a1a24 !important;
     }
     [data-theme="dark"] .page-navigator a:hover {
         background: color-mix(in srgb, var(--primary-color) 12%, transparent) !important;
@@ -543,6 +547,36 @@
     }
     [data-theme="dark"] .sidebar-footer {
         background: transparent !important;
+    }
+    /* 暗黑模式下覆盖侧边栏文字颜色，避免透明模式内联的亮色样式导致文字看不清 */
+    [data-theme="dark"] .left-sidebar .widget-title,
+    [data-theme="dark"] .left-sidebar .sidebar-direct-link {
+        color: #d4d4d8 !important;
+    }
+    [data-theme="dark"] .left-sidebar .category-nav-item a,
+    [data-theme="dark"] .left-sidebar .links-widget .links-nav-item a,
+    [data-theme="dark"] .left-sidebar .page-nav-widget .page-nav-list li a,
+    [data-theme="dark"] .left-sidebar .other-widget .widget-list li a,
+    [data-theme="dark"] .left-sidebar .widget-list li a {
+        color: #b0b0b8 !important;
+    }
+    [data-theme="dark"] .left-sidebar .category-nav-item a i,
+    [data-theme="dark"] .left-sidebar .links-widget .links-nav-item a i,
+    [data-theme="dark"] .left-sidebar .page-nav-widget .page-nav-list li a i {
+        color: #909098 !important;
+    }
+    [data-theme="dark"] .left-sidebar .collapsible-arrow {
+        color: #909098 !important;
+    }
+    [data-theme="dark"] .author-signature,
+    [data-theme="dark"] .author-stat-label {
+        color: #b0b0b8 !important;
+    }
+    [data-theme="dark"] .sidebar-footer {
+        color: #909098 !important;
+    }
+    [data-theme="dark"] .sidebar-contacts a {
+        color: #b0b0b8 !important;
     }
     <?php endif; ?>
     </style>
