@@ -41,19 +41,25 @@ if (!defined('__TYPECHO_ROOT_DIR__')) {
 
 // 手动定义 __TYPECHO_ROOT_URL__ 以让 Cookie 前缀与后台一致
 if (!defined('__TYPECHO_ROOT_URL__')) {
-    $isSecure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-        || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
-    $protocol = $isSecure ? 'https' : 'http';
-    $host = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : (isset($_SERVER['SERVER_NAME']) ? $_SERVER['SERVER_NAME'] : '');
-    $scriptName = isset($_SERVER['SCRIPT_NAME']) ? $_SERVER['SCRIPT_NAME'] : '';
-    $knownSuffix = '/usr/themes/ShuFeiCat/core/storage-ajax.php';
-    $basePath = '';
-    if (substr($scriptName, -strlen($knownSuffix)) === $knownSuffix) {
-        $basePath = substr($scriptName, 0, -strlen($knownSuffix));
+    if (defined('__TYPECHO_SITE_URL__')) {
+        // 最可靠：使用 config.inc.php 中配置的站点 URL，不依赖请求路径或主题目录名
+        define('__TYPECHO_ROOT_URL__', __TYPECHO_SITE_URL__);
     } else {
-        $basePath = dirname(dirname(dirname(dirname(dirname($scriptName)))));
+        // 兜底：从请求中推导，通过 __TYPECHO_ROOT_DIR__ + __FILE__ 计算相对路径
+        $isSecure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+            || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
+        $protocol = $isSecure ? 'https' : 'http';
+        $host = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : (isset($_SERVER['SERVER_NAME']) ? $_SERVER['SERVER_NAME'] : '');
+        $scriptName = isset($_SERVER['SCRIPT_NAME']) ? $_SERVER['SCRIPT_NAME'] : '';
+        $basePath = '';
+        if ($scriptName && defined('__TYPECHO_ROOT_DIR__')) {
+            $relPath = str_replace('\\', '/', substr(__FILE__, strlen(__TYPECHO_ROOT_DIR__)));
+            if ($relPath && substr($scriptName, -strlen($relPath)) === $relPath) {
+                $basePath = substr($scriptName, 0, -strlen($relPath));
+            }
+        }
+        define('__TYPECHO_ROOT_URL__', rtrim($protocol . '://' . $host . $basePath, '/'));
     }
-    define('__TYPECHO_ROOT_URL__', rtrim($protocol . '://' . $host . $basePath, '/'));
 }
 
 try {
@@ -110,6 +116,10 @@ switch ($action) {
 
     case 'delete_image':
         handleDeleteImage();
+        break;
+
+    case 'clear_cache':
+        handleClearCache();
         break;
 
     default:
@@ -606,4 +616,48 @@ function handleDeleteImage()
         return;
     }
     echo json_encode(array('success' => true, 'message' => '已删除'));
+}
+
+/**
+ * 清空主题缓存（文章内容缓存 + 统计缓存）
+ */
+function handleClearCache()
+{
+    $cacheDir = dirname(__DIR__) . '/cache';
+    $cleared = 0;
+    $errors = 0;
+
+    if (is_dir($cacheDir)) {
+        $files = @glob($cacheDir . '/*');
+        if (is_array($files)) {
+            foreach ($files as $file) {
+                if (!is_file($file)) {
+                    continue;
+                }
+                $name = basename($file);
+                $ext = pathinfo($file, PATHINFO_EXTENSION);
+                // 清理主题生成的缓存文件：
+                //   content_*.html        —— 文章内容缓存（shufei_render_post_content）
+                //   *.cache               —— 排行榜统计缓存（shufei_get_ranking_posts）
+                //   update_check_*.json   —— 主题更新检查缓存（shufei_check_theme_update）
+                $isContentCache = ($ext === 'html' && strpos($name, 'content_') === 0);
+                $isStatsCache = ($ext === 'cache');
+                $isUpdateCache = ($ext === 'json' && strpos($name, 'update_check_') === 0);
+                if ($isContentCache || $isStatsCache || $isUpdateCache) {
+                    if (@unlink($file)) {
+                        $cleared++;
+                    } else {
+                        $errors++;
+                    }
+                }
+            }
+        }
+    }
+
+    echo json_encode(array(
+        'success' => true,
+        'message' => sprintf('已清空 %d 个缓存文件', $cleared),
+        'cleared' => $cleared,
+        'errors' => $errors
+    ));
 }

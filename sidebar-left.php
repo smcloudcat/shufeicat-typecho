@@ -68,7 +68,7 @@ $_linksPageUrl = $_linksPageEnabled ? shufei_get_links_url() : '';
 $_customNavItems = shufei_get_custom_nav_items();
 
 // 联系方式
-$_opts = \Typecho\Widget::widget('Widget_Options');
+$_opts = $this->options;
 $_authorEmail = isset($_opts->authorEmail) ? trim($_opts->authorEmail) : '';
 $_authorGithub = isset($_opts->authorGithub) ? trim($_opts->authorGithub) : '';
 $_authorQQ = isset($_opts->authorQQ) ? trim($_opts->authorQQ) : '';

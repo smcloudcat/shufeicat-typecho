@@ -10,7 +10,7 @@ if (!defined('__TYPECHO_ROOT_DIR__')) exit;
 $this->need('header.php');
 $this->need('sidebar-left.php');
 
-$options = \Typecho\Widget::widget('Widget_Options');
+$options = $this->options;
 $githubUsername = isset($options->githubUsername) ? trim($options->githubUsername) : '';
 $repos = !empty($githubUsername) ? shufei_get_github_repos() : array();
 ?>

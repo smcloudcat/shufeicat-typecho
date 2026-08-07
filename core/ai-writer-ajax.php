@@ -35,21 +35,25 @@ if (!defined('__TYPECHO_ROOT_DIR__')) {
  * 使 Cookie 前缀与后台登录时一致。
  */
 if (!defined('__TYPECHO_ROOT_URL__')) {
-    $isSecure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-        || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
-    $protocol = $isSecure ? 'https' : 'http';
-    $host = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : (isset($_SERVER['SERVER_NAME']) ? $_SERVER['SERVER_NAME'] : '');
-    $scriptName = isset($_SERVER['SCRIPT_NAME']) ? $_SERVER['SCRIPT_NAME'] : '';
-    // 本脚本相对站点根的路径
-    $knownSuffix = '/usr/themes/ShuFeiCat/core/ai-writer-ajax.php';
-    $basePath = '';
-    if (substr($scriptName, -strlen($knownSuffix)) === $knownSuffix) {
-        $basePath = substr($scriptName, 0, -strlen($knownSuffix));
+    if (defined('__TYPECHO_SITE_URL__')) {
+        // 最可靠：使用 config.inc.php 中配置的站点 URL，不依赖请求路径或主题目录名
+        define('__TYPECHO_ROOT_URL__', __TYPECHO_SITE_URL__);
     } else {
-        // 兜底：向上取 5 层目录
-        $basePath = dirname(dirname(dirname(dirname(dirname($scriptName)))));
+        // 兜底：从请求中推导，通过 __TYPECHO_ROOT_DIR__ + __FILE__ 计算相对路径
+        $isSecure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+            || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
+        $protocol = $isSecure ? 'https' : 'http';
+        $host = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : (isset($_SERVER['SERVER_NAME']) ? $_SERVER['SERVER_NAME'] : '');
+        $scriptName = isset($_SERVER['SCRIPT_NAME']) ? $_SERVER['SCRIPT_NAME'] : '';
+        $basePath = '';
+        if ($scriptName && defined('__TYPECHO_ROOT_DIR__')) {
+            $relPath = str_replace('\\', '/', substr(__FILE__, strlen(__TYPECHO_ROOT_DIR__)));
+            if ($relPath && substr($scriptName, -strlen($relPath)) === $relPath) {
+                $basePath = substr($scriptName, 0, -strlen($relPath));
+            }
+        }
+        define('__TYPECHO_ROOT_URL__', rtrim($protocol . '://' . $host . $basePath, '/'));
     }
-    define('__TYPECHO_ROOT_URL__', rtrim($protocol . '://' . $host . $basePath, '/'));
 }
 
 try {

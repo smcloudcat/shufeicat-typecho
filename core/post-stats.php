@@ -387,8 +387,10 @@ function shufei_get_ranking_posts($type = 'views', $limit = 5)
     if (file_exists($cacheFile)) {
         $cacheTime = filemtime($cacheFile);
         if ($cacheTime && (time() - $cacheTime) < 300) {
-            $cached = @unserialize(file_get_contents($cacheFile));
-            if ($cached !== false) {
+            // 使用 json_decode 替代 unserialize，避免对象注入风险
+            // 旧格式（serialize）缓存 json_decode 会返回 null，自然失效重建
+            $cached = @json_decode(@file_get_contents($cacheFile), true);
+            if (is_array($cached)) {
                 return $cached;
             }
         }
@@ -465,7 +467,7 @@ function shufei_get_ranking_posts($type = 'views', $limit = 5)
     if (!is_dir($cacheDir)) {
         @mkdir($cacheDir, 0755, true);
     }
-    @file_put_contents($cacheFile, serialize($posts));
+    @file_put_contents($cacheFile, json_encode($posts, JSON_UNESCAPED_UNICODE));
 
     return $posts;
 }

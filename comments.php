@@ -80,7 +80,7 @@ function threadedComments($comments, $options) {
             </div>
             <div class="comment-content" itemprop="commentText">
                 <?php
-                $commentOptions = \Typecho\Widget::widget('Widget_Options');
+                $commentOptions = $options;
                 if ($commentOptions->commentsMarkdown) {
                     $commentText = $comments->text;
                     if ($commentText !== null) {

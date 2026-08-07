@@ -473,6 +473,16 @@
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
     }
+    /* 天气卡片已有自身玻璃背景，避免与 widget 半透明白色叠加导致偏白 */
+    .weather-widget {
+        background: transparent !important;
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+    }
+    .weather-loading,
+    .weather-error {
+        background: transparent !important;
+    }
     #footer {
         background: rgba(255, 255, 255, <?php echo $cardOpacity; ?>) !important;
         backdrop-filter: blur(12px);

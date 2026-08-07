@@ -45,6 +45,12 @@ $baseUrl = rtrim($siteUrl, '/');
 if (empty($options->rewrite)) {
     $baseUrl .= '/index.php';
 }
+
+// 初始化路由器（独立脚本未经过 Widget\Init，需手动载入路由表）
+// 之后通过 \Typecho\Router::url() 生成 URL，自动适配站点的永久链接设置
+if (!empty($options->routingTable)) {
+    \Typecho\Router::setRoutes($options->routingTable);
+}
 $now = date('c');
 
 $urls = array();
@@ -69,10 +75,17 @@ try {
     );
 
     foreach ($posts as $post) {
-        $permalink = $baseUrl . '/archives/' . $post['cid'] . '/';
-        // 优先使用 slug 路径（更友好）
-        if (!empty($post['slug'])) {
-            $permalink = $baseUrl . '/archives/' . $post['slug'] . '/';
+        // 通过路由表生成 URL，自动适配站点永久链接风格（cid / slug / 日期 等）
+        $permalink = \Typecho\Router::url('post', array(
+            'cid'   => $post['cid'],
+            'slug'  => $post['slug'],
+            'year'  => date('Y', $post['created']),
+            'month' => date('m', $post['created']),
+            'day'   => date('d', $post['created']),
+        ), $baseUrl);
+        // 路由表缺失时回退到 cid 风格
+        if ($permalink === '#') {
+            $permalink = $baseUrl . '/archives/' . $post['cid'] . '/';
         }
         $lastmod = date('c', max($post['modified'], $post['created']));
         $urls[] = array(
@@ -96,7 +109,14 @@ try {
     );
 
     foreach ($pages as $page) {
-        $permalink = $baseUrl . '/' . $page['slug'] . '.html';
+        $permalink = \Typecho\Router::url('page', array(
+            'cid'  => $page['cid'],
+            'slug' => $page['slug'],
+        ), $baseUrl);
+        // 路由表缺失时回退到 slug.html 风格
+        if ($permalink === '#') {
+            $permalink = $baseUrl . '/' . $page['slug'] . '.html';
+        }
         $lastmod = date('c', max($page['modified'], $page['created']));
         $urls[] = array(
             'loc' => $permalink,
@@ -118,7 +138,10 @@ try {
 
     foreach ($categories as $cat) {
         if ($cat['count'] > 0) {
-            $permalink = $baseUrl . '/category/' . $cat['slug'] . '/';
+            $permalink = \Typecho\Router::url('category', array('slug' => $cat['slug']), $baseUrl);
+            if ($permalink === '#') {
+                $permalink = $baseUrl . '/category/' . $cat['slug'] . '/';
+            }
             $urls[] = array(
                 'loc' => $permalink,
                 'changefreq' => 'weekly',
@@ -140,7 +163,10 @@ try {
     );
 
     foreach ($tags as $tag) {
-        $permalink = $baseUrl . '/tag/' . $tag['slug'] . '/';
+        $permalink = \Typecho\Router::url('tag', array('slug' => $tag['slug']), $baseUrl);
+        if ($permalink === '#') {
+            $permalink = $baseUrl . '/tag/' . $tag['slug'] . '/';
+        }
         $urls[] = array(
             'loc' => $permalink,
             'changefreq' => 'weekly',
@@ -158,7 +184,10 @@ try {
     );
 
     foreach ($authors as $author) {
-        $permalink = $baseUrl . '/author/' . $author['uid'] . '/';
+        $permalink = \Typecho\Router::url('author', array('uid' => $author['uid']), $baseUrl);
+        if ($permalink === '#') {
+            $permalink = $baseUrl . '/author/' . $author['uid'] . '/';
+        }
         $urls[] = array(
             'loc' => $permalink,
             'changefreq' => 'weekly',
