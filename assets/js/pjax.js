@@ -1,7 +1,7 @@
 /**
  * Pjax加载功能
  * 用于全站无刷新页面切换，提升用户体验
- * 支持三种加载动画样式：progress、circle、dots
+ * 支持五种加载动画样式：progress、circle、dots、wave、spin-ring
  * 支持AJAX无刷新提交评论
  */
 
@@ -75,14 +75,70 @@
 
         return container;
     }
-    
+
+    function createWaveStyle() {
+        var container = document.createElement('div');
+        container.id = 'pjax-loading-wave';
+        container.className = 'pjax-loading pjax-wave';
+
+        var wrapper = document.createElement('div');
+        wrapper.className = 'pjax-wave-wrapper';
+
+        var text = document.createElement('div');
+        text.className = 'pjax-wave-text';
+
+        var chars = '加载中'.split('');
+        for (var i = 0; i < chars.length; i++) {
+            var c = document.createElement('span');
+            c.className = 'pjax-wave-char';
+            c.textContent = chars[i];
+            text.appendChild(c);
+        }
+
+        wrapper.appendChild(text);
+        container.appendChild(wrapper);
+
+        return container;
+    }
+
+    function createSpinRingStyle() {
+        var container = document.createElement('div');
+        container.id = 'pjax-loading-spin-ring';
+        container.className = 'pjax-loading pjax-spin-ring';
+
+        var wrapper = document.createElement('div');
+        wrapper.className = 'pjax-spin-ring-wrapper';
+
+        var ring = document.createElement('div');
+        ring.className = 'pjax-spin-ring-ring';
+
+        var text = document.createElement('div');
+        text.className = 'pjax-spin-ring-text';
+        text.textContent = '加载中...';
+
+        wrapper.appendChild(ring);
+        wrapper.appendChild(text);
+        container.appendChild(wrapper);
+
+        return container;
+    }
+
     function createLoadingIndicator() {
-        if (pjaxLoadStyle === 'circle') {
-            loadingContainer = createCircleStyle();
-        } else if (pjaxLoadStyle === 'dots') {
-            loadingContainer = createDotsStyle();
-        } else {
-            loadingContainer = createProgressStyle();
+        switch (pjaxLoadStyle) {
+            case 'circle':
+                loadingContainer = createCircleStyle();
+                break;
+            case 'dots':
+                loadingContainer = createDotsStyle();
+                break;
+            case 'wave':
+                loadingContainer = createWaveStyle();
+                break;
+            case 'spin-ring':
+                loadingContainer = createSpinRingStyle();
+                break;
+            default:
+                loadingContainer = createProgressStyle();
         }
         document.body.appendChild(loadingContainer);
     }

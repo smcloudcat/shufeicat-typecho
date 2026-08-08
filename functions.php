@@ -719,7 +719,13 @@ function themeConfig($form)
 
     $pjaxLoadStyle = new \Typecho\Widget\Helper\Form\Element\Radio(
         'pjaxLoadStyle',
-        array('progress' => _t('顶部进度条'), 'circle' => _t('圆形旋转器'), 'dots' => _t('底部圆点')),
+        array(
+            'progress' => _t('顶部进度条'),
+            'circle' => _t('圆形旋转器'),
+            'dots' => _t('底部圆点'),
+            'wave' => _t('波浪文字'),
+            'spin-ring' => _t('渐变圆环')
+        ),
         'progress',
         _t('Pjax加载动画'),
         _t('介绍：选择Pjax加载时的动画效果样式')
