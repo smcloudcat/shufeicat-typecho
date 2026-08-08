@@ -47,8 +47,8 @@
                 notice.innerHTML = "当前已是最新版本";
             }
         } else {
-            notice.className = "shufei-update-notice error";
-            notice.innerHTML = esc(data.msg || "检测失败，请稍后重试");
+            notice.className = "shufei-update-notice info";
+            notice.innerHTML = esc(data.msg || "当前已是最新版本");
         }
     }
 
