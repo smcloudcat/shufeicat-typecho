@@ -662,6 +662,10 @@
                 window.initPostLike();
             }
 
+            if (typeof window.initPasswordForms === 'function') {
+                window.initPasswordForms();
+            }
+
             if (typeof window.initPostVote === 'function') {
                 window.initPostVote();
             }

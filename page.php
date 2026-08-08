@@ -24,7 +24,11 @@
         </header>
         
         <div class="post-content" itemprop="articleBody">
-            <?php echo shufei_render_post_content($this); ?>
+            <?php if ($this->hidden): ?>
+                <?php echo shufei_render_password_protection($this, '此页面已加密~', _t('这是一个受密码保护的页面，请输入正确的密码来查看全部内容。')); ?>
+            <?php else: ?>
+                <?php echo shufei_render_post_content($this); ?>
+            <?php endif; ?>
         </div>
     </article>
     

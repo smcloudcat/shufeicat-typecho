@@ -1150,6 +1150,109 @@ window.initPostLike = function() {
 };
 
 /**
+ * 密码文章/页面表单 AJAX 提交（无刷新验证）
+ * - 密码正确：写入 cookie 后通过 Pjax 局部加载文章内容（未开启 Pjax 时整页跳转）
+ * - 密码错误：密码卡片内直接显示错误提示，页面不刷新
+ * 表单 action 保留指向 password-verify.php 作为无 JS 时的兜底。
+ */
+window.initPasswordForms = function() {
+    var forms = document.querySelectorAll('form.protected[data-ajax="1"]');
+    if (!forms.length) return;
+
+    for (var i = 0; i < forms.length; i++) {
+        var form = forms[i];
+        if (form.getAttribute('data-pwd-bound')) continue;
+        form.setAttribute('data-pwd-bound', '1');
+
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            var currentForm = this;
+            var cidInput = this.querySelector('input[name="cid"]');
+            var pwdInput = this.querySelector('input[name="password"]');
+            var returnInput = this.querySelector('input[name="return"]');
+            var submitBtn = this.querySelector('input[type="submit"]');
+            var password = pwdInput ? pwdInput.value : '';
+            var cid = cidInput ? cidInput.value : '';
+            var returnUrl = returnInput ? returnInput.value : window.location.href;
+
+            if (!password) {
+                showPwdError(currentForm, '请输入访问密码');
+                return;
+            }
+
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.value = '验证中...';
+            }
+
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', (window.themeUrl || '') + 'core/ajax-handler.php?action=password_verify', true);
+            xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState !== 4) return;
+
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.value = '提交';
+                }
+
+                if (xhr.status === 200) {
+                    try {
+                        var data = JSON.parse(xhr.responseText);
+                        if (data.success) {
+                            // 密码正确：优先 Pjax 无刷新加载文章内容
+                            if (window.shufeiPjax && typeof window.shufeiPjax.loadUrl === 'function') {
+                                window.shufeiPjax.loadUrl(returnUrl);
+                            } else {
+                                window.location.href = returnUrl;
+                            }
+                        } else {
+                            showPwdError(currentForm, data.message || '密码错误，请重新输入');
+                        }
+                    } catch (err) {
+                        showPwdError(currentForm, '密码验证异常，请重试');
+                    }
+                } else {
+                    showPwdError(currentForm, '网络请求失败，请重试');
+                }
+            };
+
+            xhr.onerror = function() {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.value = '提交';
+                }
+                showPwdError(currentForm, '网络连接失败，请重试');
+            };
+
+            xhr.send('cid=' + encodeURIComponent(cid) +
+                '&password=' + encodeURIComponent(password) +
+                '&_=' + encodeURIComponent(window.csrfToken || ''));
+        });
+    }
+};
+
+/**
+ * 在密码卡片内显示/更新错误提示
+ */
+function showPwdError(form, msg) {
+    var card = (typeof form.closest === 'function') ? form.closest('.password-protection') : null;
+    var errBox = card ? card.querySelector('.password-error') : null;
+
+    if (!errBox) {
+        errBox = document.createElement('p');
+        errBox.className = 'password-error';
+        var anchor = card || form.parentNode;
+        anchor.insertBefore(errBox, form);
+    }
+    errBox.innerHTML = '<i class="fa fa-times-circle"></i> ' + msg;
+    errBox.style.display = 'flex';
+}
+
+/**
  * 文章投票功能
  * - 未投票时：点击选项提交投票
  * - 已投票/已截止：显示结果
@@ -3608,6 +3711,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 初始化移动端菜单
     window.initMobileMenu();
+    
+    // 初始化密码文章表单（AJAX 验证）
+    window.initPasswordForms();
     
     // 延迟执行以确保Prism完全加载
     setTimeout(window.initPrismHighlight, 200);

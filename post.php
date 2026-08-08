@@ -66,15 +66,7 @@
         
         <div class="post-content" itemprop="articleBody">
             <?php if ($this->hidden): ?>
-                <div class="password-protection">
-                    <div class="password-lock-icon">
-                        <i class="fa fa-lock"></i>
-                    </div>
-                    <h2 class="password-title">文章已加密~</h2>
-                    <p class="password-desc">这是一篇受密码保护的文章，请输入正确的密码来查看全文内容。</p>
-                    <?php $this->content(); ?>
-                    <p class="password-hint"><i class="fa fa-info-circle"></i> 请联系博主获取访问密码</p>
-                </div>
+                <?php echo shufei_render_password_protection($this); ?>
             <?php else: ?>
                 <?php echo shufei_render_post_content($this); ?>
             <?php endif; ?>

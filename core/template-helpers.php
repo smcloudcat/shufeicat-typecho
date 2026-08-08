@@ -396,3 +396,49 @@ function shufei_parse_links()
     return $result;
 }
 
+/**
+ * 渲染密码保护表单（纯主题实现，不走 Typecho 核心的密码 POST 流程）
+ *
+ * 密码提交到 core/password-verify.php 由主题自行验证：
+ *  - 密码正确：写入 protectPassword_{cid} cookie 并跳回内容页
+ *  - 密码错误：跳回内容页并附带 pw_error=1，此处显示"密码错误"提示
+ * 这样可避免触发 Typecho 核心在密码错误时抛出的 403 异常（调试模式下显示堆栈）。
+ *
+ * @param object $widget 当前 Archive 对象（模板中的 $this）
+ * @param string $title  标题
+ * @param string $desc   描述文字
+ * @return string
+ */
+function shufei_render_password_protection($widget, $title = '文章已加密~', $desc = '')
+{
+    if ($desc === '') {
+        $desc = _t('这是一篇受密码保护的内容，请输入正确的密码来查看全文。');
+    }
+
+    $html = '<div class="password-protection">';
+    $html .= '<div class="password-lock-icon"><i class="fa fa-lock"></i></div>';
+    $html .= '<h2 class="password-title">' . $title . '</h2>';
+    $html .= '<p class="password-desc">' . $desc . '</p>';
+
+    if ($widget->request->get('pw_error')) {
+        $html .= '<p class="password-error"><i class="fa fa-times-circle"></i> ' . _t('密码错误，请重新输入') . '</p>';
+    }
+
+    // 注意：$widget->options 为 protected 属性，在独立函数（类外部作用域）中访问会触发
+    // Widget::__get() 返回 null，故此处使用全局 Options 单例；
+    // 属性式 themeUrl 不带尾部斜杠，需 rtrim 后补斜杠再拼接
+    $options = \Typecho\Widget::widget('Widget_Options');
+    $themeRoot = rtrim($options->themeUrl, '/') . '/';
+    $html .= '<form class="protected" data-ajax="1" action="' . $themeRoot . 'core/password-verify.php" method="post">';
+    $html .= '<p><input type="password" class="text" name="password" placeholder="' . _t('请输入访问密码') . '" />';
+    $html .= '<input type="hidden" name="cid" value="' . $widget->cid . '" />';
+    $html .= '<input type="hidden" name="return" value="' . $widget->permalink . '" />';
+    $html .= '<input type="submit" class="submit" value="' . _t('提交') . '" /></p>';
+    $html .= '</form>';
+
+    $html .= '<p class="password-hint"><i class="fa fa-info-circle"></i> ' . _t('请联系博主获取访问密码') . '</p>';
+    $html .= '</div>';
+
+    return $html;
+}
+

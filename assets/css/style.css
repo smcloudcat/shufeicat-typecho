@@ -4612,6 +4612,26 @@ pre[class*="language-"].line-numbers > code {
     margin-right: 4px;
 }
 
+.password-error {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 8px 12px;
+    margin-bottom: 14px;
+    background: #fff1f0;
+    border: 1px solid #ffccc7;
+    border-radius: 4px;
+    font-size: 12px;
+    color: #cf1322;
+    line-height: 1.5;
+    text-align: center;
+}
+
+.password-error i {
+    margin-right: 6px;
+}
+
 /* ============================================
  * 回复可见功能样式
  * ============================================ */
@@ -7445,6 +7465,11 @@ article.post {
 [data-theme="dark"] .password-hint {
     border-top-color: #2a2a36;
     color: #909098;
+}
+[data-theme="dark"] .password-error {
+    background: rgba(207, 19, 34, 0.12);
+    border-color: rgba(207, 19, 34, 0.35);
+    color: #ff7875;
 }
 [data-theme="dark"] .protected .word {
     color: #b0b0b8;
