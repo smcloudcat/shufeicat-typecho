@@ -1646,6 +1646,9 @@ function themeConfig($form)
     shufei_render_storage_profile_ui();
     // 输出图片管理 UI
     shufei_render_storage_images_ui();
+
+    // 输出推荐设置提醒弹窗
+    shufei_render_style_reminder();
 }
 
 
@@ -1708,6 +1711,11 @@ if (file_exists(dirname(__FILE__) . '/core/update.php')) {
     require_once dirname(__FILE__) . '/core/update.php';
 } else {
     error_log('[ShuFeiCat] 核心模块缺失: core/update.php');
+}
+if (file_exists(dirname(__FILE__) . '/core/style-version.php')) {
+    require_once dirname(__FILE__) . '/core/style-version.php';
+} else {
+    error_log('[ShuFeiCat] 核心模块缺失: core/style-version.php');
 }
 if (file_exists(dirname(__FILE__) . '/core/storage-ui.php')) {
     require_once dirname(__FILE__) . '/core/storage-ui.php';

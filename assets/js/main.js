@@ -616,15 +616,67 @@ window._enhanceLightbox = function() {
         if (!cur || !cur.link) return;
         var url = cur.link;
         var filename = url.split('/').pop().split('?')[0] || 'image';
-        // 同源直接用 a 标签下载
-        var a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        a.target = '_blank';
-        a.rel = 'noopener';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+
+        function saveBlob(blob) {
+            var blobUrl = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(function() { URL.revokeObjectURL(blobUrl); }, 5000);
+        }
+
+        // 同源：直接 a[download] 下载
+        if (url.indexOf(location.origin) === 0) {
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            return;
+        }
+
+        // 拉取目标为 Blob，且必须是图片内容才算成功
+        function fetchBlob(target) {
+            return fetch(target, { credentials: 'omit' }).then(function(r) {
+                if (!r.ok) throw new Error('http ' + r.status);
+                return r.blob();
+            }).then(function(blob) {
+                if (!blob || !blob.size || blob.type.indexOf('image/') !== 0) {
+                    throw new Error('not image');
+                }
+                return blob;
+            });
+        }
+
+        // 主题服务器端下载代理（同源，可中转跨域图片）
+        function proxyUrl(target) {
+            return (window.themeUrl || '') + 'core/download-proxy.php?url=' + encodeURIComponent(target) + '&_=' + encodeURIComponent(window.csrfToken || '');
+        }
+
+        // 公共 CORS 代理（兜底，部分源可用）
+        function corsProxyUrl(target) {
+            return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(target);
+        }
+
+        // 跨域：依次尝试 直连Blob(需CORS) → 服务器代理 → 公共CORS代理 → 新窗口打开
+        var attempts = [url, proxyUrl(url), corsProxyUrl(url)];
+
+        function tryNext(i) {
+            if (i >= attempts.length) {
+                window.open(url, '_blank', 'noopener');
+                return;
+            }
+            fetchBlob(attempts[i]).then(function(blob) {
+                saveBlob(blob);
+            }).catch(function() {
+                tryNext(i + 1);
+            });
+        }
+        tryNext(0);
     }
 
     // ---------- 全屏 ----------
