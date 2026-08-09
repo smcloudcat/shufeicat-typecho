@@ -211,7 +211,7 @@ function shufei_render_style_reminder()
     echo '<span class="shufei-style-badge">样式版本 v' . htmlspecialchars($version) . '</span>';
     echo '</div>';
     echo '<div class="shufei-style-body">';
-    echo '<p class="shufei-style-desc">当前模板推荐应用以下设置，点击「立即设置」即可一键完成，不会改动其他配置项：</p>';
+    echo '<p class="shufei-style-desc">当前模板推荐应用以下设置，使用可以获得更好的视觉效果，点击「立即设置」即可一键完成，不会改动其他配置项：</p>';
     echo '<ul class="shufei-style-list">' . $listHtml . '</ul>';
     echo '<div class="shufei-style-note"><i class="fa fa-info-circle" style="margin-right:6px;color:#467B96;"></i>仅在“后台-外观-设置外观”页面提醒，不会打扰访客。</div>';
     echo '</div>';
