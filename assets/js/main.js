@@ -640,8 +640,9 @@ window._enhanceLightbox = function() {
         }
 
         // 拉取目标为 Blob，且必须是图片内容才算成功
+        // same-origin：同源（主题下载代理）会携带 session cookie，保证 CSRF 校验通过；跨源仍不带凭证
         function fetchBlob(target) {
-            return fetch(target, { credentials: 'omit' }).then(function(r) {
+            return fetch(target, { credentials: 'same-origin' }).then(function(r) {
                 if (!r.ok) throw new Error('http ' + r.status);
                 return r.blob();
             }).then(function(blob) {
