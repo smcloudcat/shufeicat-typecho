@@ -160,6 +160,6 @@ function shufei_check_theme_update($force = false, $channel = null)
  */
 function shufei_get_theme_version()
 {
-    return '1.5.0-rc.3';
+    return '1.5.0-rc.4';
 }
 

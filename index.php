@@ -4,7 +4,7 @@
  *
  * @package ShuFeiCat
  * @author YunCat
- * @version 1.5.0-rc.3
+ * @version 1.5.0-rc.4
  * @link https://lwcat.cn
  * @license https://www.gnu.org/licenses/agpl-3.0.html AGPL-3.0
  */
