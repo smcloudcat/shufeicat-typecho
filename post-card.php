@@ -18,6 +18,7 @@
 <article class="post <?php echo $hasThumb ? 'has-thumbnail' : ''; ?> <?php echo $isSticky ? 'post-sticky' : ''; ?>"
          data-cid="<?php echo $post->cid; ?>"
          itemscope itemtype="http://schema.org/BlogPosting"
+         <?php if ($hasThumb): ?>data-thumb="<?php echo shufei_sanitize_url($thumbnail); ?>" data-thumb-fallback="<?php echo shufei_sanitize_url(shufei_get_random_thumbnail()); ?>"<?php endif; ?>
          style="<?php echo $hasThumb ? 'background-image: url(' . shufei_sanitize_url($thumbnail) . ');' : ''; ?>">
     <a href="<?php echo $post->permalink(); ?>" class="post-link" aria-label="<?php $post->title(); ?>"></a>
 
@@ -105,7 +106,7 @@
     <?php if ($hasThumb): ?>
     <div class="post-thumbnail-side">
         <a href="<?php $post->permalink(); ?>" class="thumbnail-link-side" title="<?php $post->title(); ?>">
-            <img src="<?php echo shufei_sanitize_url($thumbnail); ?>" alt="<?php $post->title(); ?>" class="thumbnail-img-side" />
+            <img src="<?php echo shufei_sanitize_url($thumbnail); ?>" alt="<?php $post->title(); ?>" class="thumbnail-img-side" data-fallback="<?php echo shufei_sanitize_url(shufei_get_random_thumbnail()); ?>" onerror="this.onerror=null;this.src=this.getAttribute('data-fallback');" />
         </a>
     </div>
     <?php endif; ?>

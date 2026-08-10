@@ -1191,6 +1191,27 @@ window.initPostVote = function() {
 /**
  * 文章浏览量统计
  */
+window.initPostThumbFallback = function() {
+    var cards = document.querySelectorAll('.post.has-thumbnail[data-thumb]:not([data-thumb-done])');
+    if (!cards.length) return;
+    for (var i = 0; i < cards.length; i++) {
+        (function(card) {
+            card.setAttribute('data-thumb-done', '1');
+            var src = card.getAttribute('data-thumb');
+            var fallback = card.getAttribute('data-thumb-fallback');
+            if (!src) return;
+            var img = new Image();
+            img.onerror = function() {
+                if (!fallback) return;
+                card.style.backgroundImage = 'url(' + fallback + ')';
+                var imgEl = card.querySelector('img.thumbnail-img-side');
+                if (imgEl) imgEl.src = fallback;
+            };
+            img.src = src;
+        })(cards[i]);
+    }
+};
+
 window.initPostViews = function() {
     var viewsCount = document.querySelector('.post-views-count');
     if (!viewsCount) return;
@@ -3585,6 +3606,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 初始化浏览量统计
     window.initPostViews();
+
+    // 初始化缩略图失效回退（图片失效时替换为随机图片）
+    window.initPostThumbFallback();
 
     // 初始化评论点赞和排序
     window.initCommentLike();

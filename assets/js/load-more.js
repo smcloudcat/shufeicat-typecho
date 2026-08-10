@@ -47,6 +47,7 @@
 
         var fns = [
             'initPostViews',
+            'initPostThumbFallback',
             'initListReadingMarks',
             'initPostLike',
             'initLightbox',

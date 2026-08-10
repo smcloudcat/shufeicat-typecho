@@ -737,6 +737,10 @@
                 window.initPostViews();
             }
 
+            if (typeof window.initPostThumbFallback === 'function') {
+                window.initPostThumbFallback();
+            }
+
             if (typeof window.initCommentLike === 'function') {
                 window.initCommentLike();
             }
