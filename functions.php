@@ -216,6 +216,24 @@ function themeConfig($form)
     echo '<script src="' . $options->themeUrl . '/assets/js/admin/github-selector.js?v=' . shufei_get_theme_version() . '"></script>';
 
 
+    // 邮件测试功能
+    $mailTestAjaxUrl = rtrim($options->themeUrl, '/') . '/core/mail-test-ajax.php';
+    $mailTestHtml = '<div class="typecho-option cat-group-mail" id="cat-mail-test-wrap" style="display:none" data-ajax="' . htmlspecialchars($mailTestAjaxUrl) . '">' .
+        '<label class="typecho-label">发送测试邮件</label>' .
+        '<div class="description" style="margin-bottom:12px;">填写一个测试接收邮箱，点击下方按钮即可使用当前已保存的 SMTP 配置发送一封测试邮件，用于验证邮件功能是否正常。<b>修改下方 SMTP 配置后，请先点击页面底部「保存设置」再测试。</b></div>' .
+        '<div class="cat-data-section" style="padding:0;border:none;">' .
+            '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">' .
+                '<input type="text" id="cat-mail-test-to" placeholder="例如：test@example.com" style="flex:1;min-width:220px;padding:8px 10px;font-size:13px;border:1px solid #ddd;border-radius:4px;box-sizing:border-box;" />' .
+                '<button type="button" class="cat-data-btn cat-data-btn-primary" id="cat-mail-test-btn"><i class="fa fa-paper-plane" style="margin-right:6px"></i>发送测试邮件</button>' .
+            '</div>' .
+            '<div class="cat-data-status" id="cat-mail-test-status"></div>' .
+        '</div>' .
+    '</div>';
+    echo $mailTestHtml;
+
+    echo '<script src="' . $options->themeUrl . '/assets/js/admin/mail-test.js?v=' . shufei_get_theme_version() . '"></script>';
+
+
     $currentVersion = shufei_get_theme_version();
     $updateCfg = shufei_get_update_config();
     $updateChannel = $updateCfg['channel'];

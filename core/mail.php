@@ -16,11 +16,16 @@ class ShuFeiCat_Email
             return;
         }
         
-        // 包含本地PHPMailer文件
-        require_once(dirname(__FILE__) . '/phpmailer.php');
-        require_once(dirname(__FILE__) . '/smtp.php');
-        
-        $mail = new PHPMailer(true);
+        // 包含本地 PHPMailer 7.1.1 文件（命名空间方式）
+        require_once(dirname(__FILE__) . '/phpmailer/Exception.php');
+        require_once(dirname(__FILE__) . '/phpmailer/OAuthTokenProvider.php');
+        require_once(dirname(__FILE__) . '/phpmailer/OAuth.php');
+        require_once(dirname(__FILE__) . '/phpmailer/SMTP.php');
+        require_once(dirname(__FILE__) . '/phpmailer/POP3.php');
+        require_once(dirname(__FILE__) . '/phpmailer/DSNConfigurator.php');
+        require_once(dirname(__FILE__) . '/phpmailer/PHPMailer.php');
+
+        $mail = new \PHPMailer\PHPMailer\PHPMailer(true);
         try {
             $mail->isSMTP();
             $mail->SMTPAuth = true;

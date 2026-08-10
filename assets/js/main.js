@@ -688,12 +688,22 @@ window.initCopyButtons = function() {
     const preBlocks = document.querySelectorAll('.post-content pre');
     preBlocks.forEach(function(pre) {
         pre.setAttribute('tabindex', '0');
-        
-        var existingBtn = pre.querySelector('.copy-code-btn');
+
+        // 将 pre 包一层容器，复制按钮定位到外层容器，避免随代码横向滚动
+        let box = pre.parentNode;
+        if (!box || box.nodeType !== 1 || !box.classList.contains('code-box')) {
+            box = document.createElement('div');
+            box.className = 'code-box';
+            pre.parentNode.insertBefore(box, pre);
+            box.appendChild(pre);
+        }
+        box.style.position = 'relative';
+
+        const existingBtn = box.querySelector('.copy-code-btn');
         if (existingBtn) {
             existingBtn.remove();
         }
-        
+
         const copyBtn = document.createElement('button');
         copyBtn.className = 'copy-code-btn';
         copyBtn.innerHTML = '<i class="fa fa-copy"></i> 复制';
@@ -725,8 +735,7 @@ window.initCopyButtons = function() {
             }
         });
         
-        pre.style.position = 'relative';
-        pre.appendChild(copyBtn);
+        box.appendChild(copyBtn);
     });
 };
 

@@ -3328,6 +3328,11 @@ pre[class*="language-"].line-numbers > code {
     border-radius: 0 0 6px 6px;
 }
 
+/* 代码块外层容器：复制按钮定位在此容器上，避免随代码横向滚动 */
+.code-box {
+    position: relative;
+}
+
 /* 复制按钮 */
 .copy-code-btn {
     position: absolute;
@@ -3357,7 +3362,7 @@ pre[class*="language-"].line-numbers > code {
 }
 
 /* 复制按钮 - JS 动态创建时使用的完整样式 */
-.post-content pre .copy-code-btn {
+.post-content .code-box .copy-code-btn {
     position: absolute;
     top: 10px;
     right: 10px;
@@ -3371,11 +3376,11 @@ pre[class*="language-"].line-numbers > code {
     z-index: 10;
 }
 
-.post-content pre .copy-code-btn:hover {
+.post-content .code-box .copy-code-btn:hover {
     background: rgba(102, 126, 234, 1);
 }
 
-.post-content pre .copy-code-btn.copied {
+.post-content .code-box .copy-code-btn.copied {
     background: #28a745;
 }
 

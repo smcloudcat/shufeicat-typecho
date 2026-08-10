@@ -92,9 +92,8 @@ shufeicat-typecho/
 │   ├── ajax-handler.php     # AJAX 请求处理
 │   ├── captcha.php          # 验证码
 │   ├── mail.php             # 邮件通知
-│   ├── phpmailer.php        # PHPMailer 库
-│   ├── post-stats.php       # 文章统计
-│   └── smtp.php             # SMTP 库
+│   ├── phpmailer/           # PHPMailer 7.1.1 库
+│   └── post-stats.php       # 文章统计
 ├── image/            # 主题默认图片
 ├── img/              # 图标资源
 ├── *.php             # 主题模板文件
