@@ -455,7 +455,8 @@
     .left-sidebar .page-nav-widget .page-nav-list li a i {
         color: #666;
     }
-    .left-sidebar .collapsible-arrow {
+    .left-sidebar .collapsible-arrow,
+    .left-sidebar .category-nav-item a .cat-toggle {
         color: #999;
     }
     .author-signature,

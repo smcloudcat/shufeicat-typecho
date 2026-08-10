@@ -246,10 +246,17 @@ img {
     opacity: 0;
 }
 
+/* 折叠状态下标题下边框紧贴板块下边框会重叠成粗线，折叠时去掉标题下边框 */
+.left-sidebar .collapsible-widget.collapsed > .widget-title {
+    border-bottom: none;
+}
+
 /* 侧边栏直接跳转链接样式（基于 widget-title） */
 .left-sidebar .sidebar-direct-link {
     text-decoration: none;
     color: #444;
+    /* 直接跳转板块内容高度为 0，去掉标题下边框避免与板块下边框叠加成粗线 */
+    border-bottom: none;
 }
 
 .left-sidebar .sidebar-direct-link:hover {
@@ -407,6 +414,95 @@ img {
 .left-sidebar .layui-this .category-count {
     background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%);
     color: #fff;
+}
+
+/* ===== 分类子分类：层级缩进展示 ===== */
+.category-nav-list .category-sub-list {
+    padding: 2px 0 4px 18px;
+    margin: 0;
+    position: relative;
+}
+
+.category-nav-list .category-sub-list::before {
+    content: '';
+    position: absolute;
+    left: 8px;
+    top: 4px;
+    bottom: 4px;
+    width: 1px;
+    background: color-mix(in srgb, var(--primary-color) 18%, transparent);
+}
+
+.category-nav-list .category-sub-list .category-nav-item {
+    margin: 2px 8px 2px 10px;
+}
+
+.category-nav-list .category-sub-list .category-nav-item::before {
+    display: none;
+}
+
+.category-nav-list .category-sub-list .category-nav-item a {
+    height: 34px;
+    line-height: 34px;
+    font-size: 13px;
+    padding: 0 10px 0 12px;
+}
+
+.category-nav-list .category-sub-list .category-nav-item a i {
+    font-size: 13px;
+    width: 16px;
+    margin-right: 8px;
+}
+
+.category-nav-list .category-sub-list .category-nav-item a:hover {
+    padding-left: 16px;
+}
+
+.category-nav-list .category-sub-list .category-nav-item.active a,
+.category-nav-list .category-sub-list .category-nav-item.layui-this a {
+    padding-left: 16px;
+}
+
+/* 更深层子分类：逐级再缩进 */
+.category-sub-list .category-sub-list {
+    padding-left: 14px;
+}
+
+/* ===== 分类子分类：可折叠 ===== */
+.category-nav-item.has-children > a {
+    padding-right: 6px;
+}
+
+/* 子分类折叠箭头：样式与总分类目录箭头一致，由 flex 容器垂直居中 */
+.left-sidebar .category-nav-item .cat-toggle,
+.category-nav-item .cat-toggle {
+    margin-left: auto;
+    font-size: 11px;
+    line-height: 1;
+    color: #ccc;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s ease;
+}
+
+.category-nav-item .cat-toggle:hover {
+    color: var(--primary-color);
+}
+
+.category-nav-item.collapsed > .category-sub-list {
+    display: none;
+}
+
+.category-nav-item.collapsed > a .cat-toggle {
+    transform: rotate(-90deg);
+}
+
+[data-theme="dark"] .category-nav-item .cat-toggle {
+    color: #555;
+}
+
+[data-theme="dark"] .category-nav-item .cat-toggle:hover {
+    color: var(--primary-color);
 }
 
 /* 站长信息卡片 */

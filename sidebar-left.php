@@ -114,19 +114,57 @@ ob_start();
 <section class="widget category-widget collapsible-widget">
     <h3 class="widget-title collapsible-toggle"><i class="fa fa-navicon"></i><?php _e('分类目录'); ?><i class="fa fa-chevron-down collapsible-arrow"></i></h3>
     <div class="collapsible-content">
-        <ul class="category-nav-list">
-            <?php
-            $categories = \Widget\Metas\Category\Rows::alloc();
-            while ($categories->next()):
-            ?>
-                <li class="category-nav-item <?php if($this->is('category', $categories->slug)): ?>active<?php endif; ?>">
-                    <a href="<?php $categories->permalink(); ?>">
-                        <i class="fa <?php echo shufei_get_category_icon($categories->slug); ?>"></i>
-                        <span><?php $categories->name(); ?></span>
-                    </a>
-                </li>
-            <?php endwhile; ?>
-        </ul>
+        <?php
+        // ===== 分类目录：支持父子层级展示 =====
+        $_catDb = \Typecho\Db::get();
+        $_catRows = $_catDb->fetchAll($_catDb->select('mid', 'name', 'slug', 'parent')
+            ->from('table.metas')
+            ->where('type = ?', 'category')
+            ->order('table.metas.order', \Typecho\Db::SORT_ASC));
+        $_catMap = array();
+        foreach ($_catRows as $_c) {
+            $_catMap[intval($_c['mid'])] = $_c;
+        }
+        $_catChildren = array();
+        foreach ($_catMap as $_cid => $_c) {
+            $_p = intval($_c['parent']);
+            if ($_p && isset($_catMap[$_p])) {
+                $_catChildren[$_p][] = $_cid;
+            }
+        }
+        $_catTop = array();
+        foreach ($_catMap as $_cid => $_c) {
+            $_p = intval($_c['parent']);
+            if (!$_p || !isset($_catMap[$_p])) {
+                $_catTop[] = $_cid;
+            }
+        }
+        $_catIndexUrl = $this->options->index;
+        $renderCatTree = function ($_cids, $_isChild = false) use (&$renderCatTree, $_catMap, $_catChildren, $_catIndexUrl) {
+            echo '<ul class="category-nav-list' . ($_isChild ? ' category-sub-list' : '') . '">';
+            foreach ($_cids as $_cid) {
+                $_c = $_catMap[$_cid];
+                $_slug = $_c['slug'];
+                $_url = \Typecho\Router::url('category', array('slug' => $_slug), $_catIndexUrl);
+                $_active = $this->is('category', $_slug) ? ' active' : '';
+                $_hasChildren = !empty($_catChildren[$_cid]);
+                echo '<li class="category-nav-item' . $_active . ($_hasChildren ? ' has-children' : '') . '">';
+                echo '<a href="' . htmlspecialchars($_url) . '">';
+                echo '<i class="fa ' . htmlspecialchars(shufei_get_category_icon($_slug)) . '"></i>';
+                echo '<span>' . htmlspecialchars($_c['name']) . '</span>';
+                if ($_hasChildren) {
+                    echo '<i class="fa fa-chevron-down cat-toggle" data-slug="' . htmlspecialchars($_slug) . '" title="展开/折叠子分类"></i>';
+                }
+                echo '</a>';
+                if ($_hasChildren) {
+                    $renderCatTree($_catChildren[$_cid], true);
+                }
+                echo '</li>';
+            }
+            echo '</ul>';
+        };
+        $renderCatTree($_catTop);
+        ?>
     </div>
 </section>
 <?php

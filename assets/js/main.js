@@ -796,6 +796,53 @@ window.initCollapsibleSidebar = function() {
     });
 };
 
+window.initCategoryCollapse = function() {
+    var sidebar = document.getElementById('left-sidebar');
+    if (!sidebar) return;
+
+    function getCatKey(slug) {
+        return 'shufei_cat_collapsed_' + slug;
+    }
+
+    // 使用 document 捕获阶段事件委托，只绑定一次；捕获阶段先于 PJAX 处理，避免点击箭头触发跳转
+    if (!window._categoryCollapseBound) {
+        window._categoryCollapseBound = true;
+        document.addEventListener('click', function(e) {
+            var toggle = e.target.closest('.cat-toggle');
+            if (!toggle) return;
+            e.preventDefault();
+            e.stopImmediatePropagation();
+
+            var li = toggle.closest('.category-nav-item');
+            if (!li) return;
+            var isCollapsed = li.classList.contains('collapsed');
+            if (isCollapsed) {
+                li.classList.remove('collapsed');
+                try { localStorage.setItem(getCatKey(toggle.getAttribute('data-slug')), '0'); } catch (e) {}
+            } else {
+                li.classList.add('collapsed');
+                try { localStorage.setItem(getCatKey(toggle.getAttribute('data-slug')), '1'); } catch (e) {}
+            }
+        }, true);
+    }
+
+    // 恢复折叠状态
+    var toggles = sidebar.querySelectorAll('.cat-toggle');
+    toggles.forEach(function(toggle) {
+        var li = toggle.closest('.category-nav-item');
+        if (!li) return;
+        try {
+            if (localStorage.getItem(getCatKey(toggle.getAttribute('data-slug'))) === '1') {
+                li.classList.add('collapsed');
+            } else {
+                li.classList.remove('collapsed');
+            }
+        } catch (e) {
+            li.classList.remove('collapsed');
+        }
+    });
+};
+
 // 初始化移动端菜单功能 - 控制左侧边栏
 // 使用 document 级别事件委托 + 实时 DOM 查询，避免 PJAX 替换元素后闭包引用失效
 (function() {
@@ -3559,6 +3606,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 初始化侧边栏折叠功能
     window.initCollapsibleSidebar();
+
+    // 初始化分类子分类折叠功能
+    window.initCategoryCollapse();
 
     // 返回顶部功能
     const backToTop = document.getElementById('back-to-top');

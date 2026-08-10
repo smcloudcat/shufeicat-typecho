@@ -689,6 +689,10 @@
             if (typeof window.initCollapsibleSidebar === 'function') {
                 window.initCollapsibleSidebar();
             }
+
+            if (typeof window.initCategoryCollapse === 'function') {
+                window.initCategoryCollapse();
+            }
             
             if (typeof window.initPrismHighlight === 'function') {
                 window.initPrismHighlight();
