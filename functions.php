@@ -1444,6 +1444,16 @@ function themeConfig($form)
     $markdownExtEnabled->setAttribute('class', 'typecho-option cat-group-enhance');
     $form->addInput($markdownExtEnabled);
 
+    $commentIpRegionEnabled = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'commentIpRegionEnabled',
+        array('on' => _t('开启'), 'off' => _t('关闭')),
+        'off',
+        _t('评论 IP 归属地显示'),
+        _t('介绍：开启后，评论列表会在评论时间后显示评论者 IP 归属地（如：广东省中山市）<br>归属地通过 https://api.lwcat.cn/api/ip/ 接口查询，仅对填写了 IP 的评论生效')
+    );
+    $commentIpRegionEnabled->setAttribute('class', 'typecho-option cat-group-enhance');
+    $form->addInput($commentIpRegionEnabled);
+
     // ===== 导航增强配置 =====
     $customNavItems = new \Typecho\Widget\Helper\Form\Element\Textarea(
         'customNavItems',

@@ -61,10 +61,16 @@ function threadedComments($comments, $options) {
                     <a href="<?php $comments->permalink(); ?>">
                     <?php endif; ?>
                         <time itemprop="commentTime" datetime="<?php $comments->date('c'); ?>">
-                            <?php $comments->date($options->dateFormat); ?>
+                            <?php $comments->date('Y/m/d H:i'); ?>
                         </time>
                     <?php if ($comments->levels <= 0): ?>
                     </a>
+                    <?php endif; ?>
+                    <?php if (!empty($comments->ip) && !empty($options->commentIpRegionEnabled) && 'on' === $options->commentIpRegionEnabled): ?>
+                    <span class="comment-ip-region" data-ip="<?php echo htmlspecialchars($comments->ip, ENT_QUOTES, 'UTF-8'); ?>" title="<?php _e('IP 归属地'); ?>">
+                        <i class="fa fa-map-marker"></i>
+                        <span class="ip-region-text"></span>
+                    </span>
                     <?php endif; ?>
                 </span>
                 <?php if ('approved' !== $comments->status): ?>
@@ -138,7 +144,7 @@ function threadedComments($comments, $options) {
         </div>
 
         <ol class="comment-list" id="comment-list">
-        <?php $comments->listComments(['before' => '', 'after' => '']); ?>
+        <?php $comments->listComments(['before' => '', 'after' => '', 'commentIpRegionEnabled' => $this->options->commentIpRegionEnabled]); ?>
         </ol>
 
         <nav class="page-navigator">

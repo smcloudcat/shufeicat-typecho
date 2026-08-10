@@ -3884,6 +3884,17 @@ pre[class*="language-"].line-numbers > code {
     color: var(--primary-color);
 }
 
+.comment-ip-region {
+    margin-left: 8px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.comment-ip-region i {
+    margin-right: 3px;
+}
+
 .comment-awaiting-moderation {
     font-size: 12px;
     font-style: normal;

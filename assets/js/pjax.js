@@ -745,6 +745,10 @@
                 window.initCommentSort();
             }
 
+            if (typeof window.initCommentIpRegions === 'function') {
+                window.initCommentIpRegions();
+            }
+
             if (typeof window.initMermaid === 'function') {
                 window.initMermaid();
             }

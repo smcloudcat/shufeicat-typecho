@@ -1232,6 +1232,41 @@ window.initPostViews = function() {
 /**
  * 评论点赞功能
  */
+window.initCommentIpRegions = function() {
+    var spans = document.querySelectorAll('.comment-ip-region:not([data-region-done])');
+    if (!spans.length) return;
+    for (var i = 0; i < spans.length; i++) {
+        (function(span) {
+            span.setAttribute('data-region-done', '1');
+            var ip = span.getAttribute('data-ip');
+            if (!ip) return;
+            var textEl = span.querySelector('.ip-region-text');
+            if (!textEl) return;
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', 'https://api.lwcat.cn/api/ip/?ip=' + encodeURIComponent(ip), true);
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState !== 4) return;
+                var region = '';
+                if (xhr.status === 200) {
+                    try {
+                        var data = JSON.parse(xhr.responseText);
+                        if (data && data.code === 0 && data.data) {
+                            var d = data.data;
+                            var parts = [];
+                            if (d.country && d.country !== '中国') parts.push(d.country);
+                            if (d.province && d.province !== '0') parts.push(d.province);
+                            if (d.city && d.city !== '0' && d.city !== d.province) parts.push(d.city);
+                            region = parts.join(d.country === '中国' ? '' : ' ');
+                        }
+                    } catch (err) {}
+                }
+                textEl.textContent = region || '未知';
+            };
+            xhr.send();
+        })(spans[i]);
+    }
+};
+
 window.initCommentLike = function() {
     var likeBtns = document.querySelectorAll('.comment-like-btn:not([data-like-bound])');
     if (!likeBtns.length) return;
@@ -3554,6 +3589,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // 初始化评论点赞和排序
     window.initCommentLike();
     window.initCommentSort();
+
+    // 初始化评论 IP 归属地显示
+    window.initCommentIpRegions();
     
     // 初始化 Mermaid 图表渲染
     setTimeout(window.initMermaid, 350);
