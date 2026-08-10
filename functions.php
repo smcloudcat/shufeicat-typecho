@@ -886,6 +886,19 @@ function themeConfig($form)
     );
     $remoteImages->setAttribute('class', 'typecho-option cat-group-article');
     $form->addInput($remoteImages);
+
+    $postListPager = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'postListPager',
+        array(
+            'page'     => _t('页码分页'),
+            'loadmore' => _t('加载更多')
+        ),
+        'page',
+        _t('文章列表翻页方式'),
+        _t('介绍：选择首页/分类/标签/搜索等文章列表的翻页方式<br>页码分页：底部显示上一页/下一页等页码按钮<br>加载更多：底部显示"加载更多"按钮，点击后直接在当前页下方追加下一页文章，无需切换页面')
+    );
+    $postListPager->setAttribute('class', 'typecho-option cat-group-article');
+    $form->addInput($postListPager);
     
     $commentMailEnabled = new \Typecho\Widget\Helper\Form\Element\Radio(
         'commentMailEnabled',

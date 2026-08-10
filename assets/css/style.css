@@ -4349,6 +4349,54 @@ pre[class*="language-"].line-numbers > code {
 }
 
 /* ============================================
+ * 加载更多
+ * ============================================ */
+.load-more-wrap {
+    margin: 30px 0;
+    text-align: center;
+}
+
+.load-more-btn {
+    display: inline-block;
+    padding: 10px 28px;
+    border: 1px solid var(--primary-color);
+    border-radius: 22px;
+    background: var(--card-bg);
+    color: var(--primary-color);
+    font-size: 14px;
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.load-more-btn:hover {
+    background: var(--primary-color);
+    color: #fff;
+}
+
+.load-more-btn:disabled {
+    opacity: .6;
+    cursor: not-allowed;
+}
+
+.load-more-tip {
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.load-more-end {
+    margin: 30px 0;
+    padding: 20px;
+    text-align: center;
+    font-size: 13px;
+    color: var(--text-secondary);
+    background: var(--card-bg);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-light);
+}
+
+
+/* ============================================
  * 归档标题
  * ============================================ */
 .archive-title {
@@ -5793,67 +5841,22 @@ pre[class*="language-"].line-numbers > code {
     opacity: 1;
 }
 
-/* Lightbox2 容器优化 */
-#lightbox {
-    transition: top 0.2s ease-out;
-}
+/* ============================================
+ * Lightbox3 图片灯箱优化
+ * ============================================ */
 
-/* flex 居中：让灯箱始终在视口中央，切换图片时位置稳定 */
-#lightbox.sf-lb-centered {
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    width: 100% !important;
-    height: 100vh !important;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: left !important;
-    line-height: normal !important;
-}
-
-/* 让 outerContainer 不再撑满宽度，由 flex 居中 */
-#lightbox.sf-lb-centered .lb-outerContainer {
-    margin: 0 auto;
-}
-
-/* 隐藏 Lightbox2 原生数据容器和导航（由自定义 UI 替代） */
-.lb-dataContainer,
-.lb-nav a.lb-prev,
-.lb-nav a.lb-next {
-    display: none !important;
-}
-
-/* 图片本体：支持变换过渡 */
-.lb-image {
-    transition: transform 0.2s ease-out;
-    transform-origin: center center;
-    will-change: transform;
-    border-radius: 4px;
+/* 灯箱图片圆角与阴影（选择器加前缀确保覆盖 lightbox3.css） */
+.lightbox3-overlay .lightbox3-image {
+    border-radius: var(--lb-image-border-radius, 24px);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
 }
 
-/* 外容器：去除默认黑底，让图片更通透 */
-.lb-outerContainer {
-    background: transparent !important;
-}
-
-/* 容器内边距收紧 */
-.lb-container {
-    padding: 4px !important;
-}
-
-/* 加载动画 */
-.lb-loader {
-    margin: 0 auto;
-}
-
-/* ---------- 自定义工具栏 ---------- */
+/* ---------- 自定义工具栏（置于 Lightbox3 遮罩之上） ---------- */
 .sf-lb-toolbar {
     position: fixed;
     top: 16px;
     right: 16px;
-    z-index: 10000;
+    z-index: 1000000;
     display: flex;
     align-items: center;
     gap: 4px;
@@ -5898,108 +5901,8 @@ pre[class*="language-"].line-numbers > code {
     color: #fff;
 }
 
-.sf-lb-btn.sf-lb-close {
-    margin-left: 4px;
-    color: rgba(255, 110, 110, 0.9);
-}
-
-.sf-lb-btn.sf-lb-close:hover {
-    background: rgba(255, 110, 110, 0.2);
-    color: #ff6e6e;
-}
-
-/* ---------- 自定义左右导航 ---------- */
-.sf-lb-nav {
-    position: fixed;
-    top: 50%;
-    transform: translateY(-50%);
-    z-index: 10000;
-    width: 44px;
-    height: 44px;
-    padding: 0;
-    border: none;
-    border-radius: 50%;
-    background: rgba(20, 20, 20, 0.7);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    color: rgba(255, 255, 255, 0.9);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 22px;
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.2s ease, background 0.2s ease, visibility 0.2s;
-    pointer-events: none;
-}
-
-.sf-lb-nav.sf-lb-visible {
-    opacity: 1;
-    visibility: visible;
-    pointer-events: auto;
-}
-
-.sf-lb-nav:hover {
-    background: rgba(20, 20, 20, 0.9);
-    color: #fff;
-}
-
-.sf-lb-prev {
-    left: 16px;
-}
-
-.sf-lb-next {
-    right: 16px;
-}
-
-/* ---------- 底部信息条 ---------- */
-.sf-lb-info {
-    position: fixed;
-    bottom: 16px;
-    left: 50%;
-    transform: translateX(-50%) translateY(6px);
-    z-index: 10000;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 2px;
-    max-width: calc(100vw - 32px);
-    padding: 8px 14px;
-    background: rgba(20, 20, 20, 0.7);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 4px;
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s;
-    pointer-events: none;
-}
-
-.sf-lb-info.sf-lb-visible {
-    opacity: 1;
-    visibility: visible;
-    transform: translateX(-50%) translateY(0);
-}
-
-.sf-lb-caption {
-    font-size: 13px;
-    color: #fff;
-    text-align: center;
-    line-height: 1.4;
-    word-break: break-word;
-    max-width: 80vw;
-}
-
-.sf-lb-meta {
-    font-size: 11px;
-    color: rgba(255, 255, 255, 0.6);
-    text-align: center;
-}
-
-/* ---------- 全屏状态下样式 ---------- */
-.lb-image:fullscreen {
+/* 旋转后的图片在全屏状态下的底色 */
+.lightbox3-image:fullscreen {
     background: #000;
     object-fit: contain;
     width: 100vw;
@@ -6022,33 +5925,6 @@ pre[class*="language-"].line-numbers > code {
         height: 30px;
         font-size: 13px;
     }
-
-    .sf-lb-nav {
-        width: 38px;
-        height: 38px;
-        font-size: 18px;
-    }
-
-    .sf-lb-prev {
-        left: 8px;
-    }
-
-    .sf-lb-next {
-        right: 8px;
-    }
-
-    .sf-lb-info {
-        bottom: 8px;
-        padding: 6px 10px;
-    }
-
-    .sf-lb-caption {
-        font-size: 12px;
-    }
-
-    .sf-lb-meta {
-        font-size: 10px;
-    }
 }
 
 @media (max-width: 480px) {
@@ -6058,13 +5934,8 @@ pre[class*="language-"].line-numbers > code {
     .sf-lb-btn[data-action="fullscreen"] {
         display: none;
     }
-
-    .sf-lb-nav {
-        width: 34px;
-        height: 34px;
-        font-size: 16px;
-    }
 }
+
 
 /* ============================================
  * 底部版权设置样式
@@ -6710,7 +6581,8 @@ article.post {
     border-bottom: none;
 }
 
-.ranking-item a {
+.ranking-item a,
+.ranking-widget .ranking-item a {
     display: flex;
     align-items: center;
     gap: 10px;
@@ -6721,7 +6593,8 @@ article.post {
     min-width: 0;
 }
 
-.ranking-item a:hover {
+.ranking-item a:hover,
+.ranking-widget .ranking-item a:hover {
     color: var(--primary-color);
     background-color: color-mix(in srgb, var(--primary-color) 5%, transparent);
     border-radius: 4px;

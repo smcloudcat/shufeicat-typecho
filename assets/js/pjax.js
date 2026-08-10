@@ -415,6 +415,13 @@
                     initTurnstile();
                     initCaptcha();
                     initGeetest();
+                    // 重新绑定新评论的点赞按钮和排序控件
+                    if (typeof window.initCommentLike === 'function') {
+                        window.initCommentLike();
+                    }
+                    if (typeof window.initCommentSort === 'function') {
+                        window.initCommentSort();
+                    }
                     // 重新渲染评论区中的扩展内容
                     if (typeof window.initMermaid === 'function') {
                         window.initMermaid();

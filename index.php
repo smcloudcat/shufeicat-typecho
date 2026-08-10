@@ -139,9 +139,35 @@ $this->need('header.php');
         </article>
     <?php endif; ?>
 
-    <nav class="page-navigator" id="ajax-page-nav">
-        <?php $this->pageNav('<i class="fa fa-angle-left"></i> ' . _t('上一页'), _t('下一页') . ' <i class="fa fa-angle-right"></i>', 2); ?>
-    </nav>
+    <?php if (!empty($this->options->postListPager) && $this->options->postListPager === 'loadmore'): ?>
+        <?php
+        $lmCurrent = intval($this->_currentPage);
+        $lmTotal = intval($this->getTotalPage());
+        $lmNext = '';
+        if ($lmCurrent < $lmTotal) {
+            ob_start();
+            $this->pageLink('__NEXT__', 'next');
+            $lmHtml = ob_get_clean();
+            if (preg_match('/href="([^"]+)"/i', $lmHtml, $lmM)) {
+                $lmNext = htmlspecialchars($lmM[1]);
+            }
+        }
+        ?>
+        <div class="load-more-wrap" id="load-more-wrap"<?php echo $lmNext ? ' data-next="' . $lmNext . '"' : ''; ?>>
+            <?php if ($lmNext): ?>
+            <button type="button" class="load-more-btn" id="load-more-btn">
+                <i class="fa fa-chevron-down"></i> <?php _e('加载更多'); ?>
+            </button>
+            <div class="load-more-tip"><?php _e('已加载'); ?> <?php echo $lmCurrent; ?> <?php _e('/'); ?> <?php echo $lmTotal; ?> <?php _e('页'); ?></div>
+            <?php else: ?>
+            <div class="load-more-end"><?php _e('没有更多内容了'); ?></div>
+            <?php endif; ?>
+        </div>
+    <?php else: ?>
+        <nav class="page-navigator" id="ajax-page-nav">
+            <?php $this->pageNav('<i class="fa fa-angle-left"></i> ' . _t('上一页'), _t('下一页') . ' <i class="fa fa-angle-right"></i>', 2); ?>
+        </nav>
+    <?php endif; ?>
 </div><!-- end #main-->
 
 <?php $this->need('sidebar-right.php'); ?>

@@ -130,15 +130,17 @@ $themeDir = dirname(__FILE__);
 $mainJsMtime = filemtime($themeDir . '/assets/js/main.js');
 $ajaxJsMtime = filemtime($themeDir . '/assets/js/ajax.js');
 $pjaxJsMtime = filemtime($themeDir . '/assets/js/pjax.js');
+$loadMoreJsMtime = filemtime($themeDir . '/assets/js/load-more.js');
 $jsUrls = [
     'jquery' => $themeUrl . 'assets/vendor/jquery/jquery.min.js',
     'main' => $themeUrl . 'assets/js/main.js?v=' . ($mainJsMtime ?: shufei_get_theme_version()),
     'ajax' => $themeUrl . 'assets/js/ajax.js?v=' . ($ajaxJsMtime ?: shufei_get_theme_version()),
     'pjax' => $themeUrl . 'assets/js/pjax.js?v=' . ($pjaxJsMtime ?: shufei_get_theme_version()),
+    'loadmore' => $themeUrl . 'assets/js/load-more.js?v=' . ($loadMoreJsMtime ?: shufei_get_theme_version()),
     'pjax_lib' => $themeUrl . 'assets/vendor/pjax/pjax.min.js',
     'prism' => $themeUrl . 'assets/vendor/prismjs/prism.js',
     'prismAutoloader' => $themeUrl . 'assets/vendor/prismjs/plugins/autoloader/prism-autoloader.min.js',
-    'lightbox' => $themeUrl . 'assets/vendor/lightbox2/js/lightbox.min.js',
+    'lightbox' => $themeUrl . 'assets/vendor/lightbox3/lightbox3.min.js',
     'mermaid' => $themeUrl . 'assets/vendor/mermaid/mermaid.min.js',
     'echarts' => $themeUrl . 'assets/vendor/echarts/echarts.min.js',
     'katex' => $themeUrl . 'assets/vendor/katex/katex.min.js',
@@ -154,7 +156,7 @@ if ($resourceMode === 'cdn') {
     $jsUrls['pjax_lib'] = 'https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js';
     $jsUrls['prism'] = 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js';
     $jsUrls['prismAutoloader'] = 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/autoloader/prism-autoloader.min.js';
-    $jsUrls['lightbox'] = 'https://cdn.jsdelivr.net/npm/lightbox2@2.11.4/dist/js/lightbox.min.js';
+    $jsUrls['lightbox'] = 'https://cdn.jsdelivr.net/npm/lightbox3@1.1.0/dist/lightbox3.min.js';
     $jsUrls['mermaid'] = 'https://cdn.jsdelivr.net/npm/mermaid@10.9.6/dist/mermaid.min.js';
     $jsUrls['echarts'] = 'https://cdn.jsdelivr.net/npm/echarts@6.1.0/dist/echarts.min.js';
     $jsUrls['katex'] = 'https://cdn.jsdelivr.net/npm/katex@0.17.0/dist/katex.min.js';
@@ -165,10 +167,11 @@ if ($resourceMode === 'cdn') {
     $jsUrls['main'] = $customCdn . '/assets/js/main.js?v=' . ($mainJsMtime ?: shufei_get_theme_version());
     $jsUrls['ajax'] = $customCdn . '/assets/js/ajax.js?v=' . ($ajaxJsMtime ?: shufei_get_theme_version());
     $jsUrls['pjax'] = $customCdn . '/assets/js/pjax.js?v=' . ($pjaxJsMtime ?: shufei_get_theme_version());
+    $jsUrls['loadmore'] = $customCdn . '/assets/js/load-more.js?v=' . ($loadMoreJsMtime ?: shufei_get_theme_version());
     $jsUrls['pjax_lib'] = $customCdn . '/assets/vendor/pjax/pjax.min.js';
     $jsUrls['prism'] = $customCdn . '/assets/vendor/prismjs/prism.js';
     $jsUrls['prismAutoloader'] = $customCdn . '/assets/vendor/prismjs/plugins/autoloader/prism-autoloader.min.js';
-    $jsUrls['lightbox'] = $customCdn . '/assets/vendor/lightbox2/js/lightbox.min.js';
+    $jsUrls['lightbox'] = $customCdn . '/assets/vendor/lightbox3/lightbox3.min.js';
     $jsUrls['mermaid'] = $customCdn . '/assets/vendor/mermaid/mermaid.min.js';
     $jsUrls['echarts'] = $customCdn . '/assets/vendor/echarts/echarts.min.js';
     $jsUrls['katex'] = $customCdn . '/assets/vendor/katex/katex.min.js';
@@ -180,7 +183,7 @@ if ($resourceMode === 'cdn') {
 ?>
 
 <!-- 以下重型库均改为按需加载：仅当页面存在对应内容时，由 main.js 动态注入脚本 -->
-<!-- jQuery / Lightbox2 / Prism.js / Mermaid / ECharts / KaTeX -->
+<!-- jQuery / Lightbox3 / Prism.js / Mermaid / ECharts / KaTeX -->
 
 <!-- Pjax加载配置 + 按需加载资源地址 -->
 <?php
@@ -226,6 +229,9 @@ window.vendorScripts = {
 <!-- Pjax加载脚本 -->
 <script src="<?php echo $jsUrls['pjax']; ?>" defer></script>
 <?php endif; ?>
+
+<!-- 加载更多脚本（开启"加载更多"翻页时生效） -->
+<script src="<?php echo $jsUrls['loadmore']; ?>" defer></script>
 
 </body>
 </html>

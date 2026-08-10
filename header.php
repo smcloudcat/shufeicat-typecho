@@ -262,7 +262,7 @@
         'style' => $themeUrl . 'assets/css/style.css',
         'fontawesome' => $themeUrl . 'assets/vendor/font-awesome/css/font-awesome.min.css',
         'prism' => $themeUrl . 'assets/vendor/prismjs/themes/prism-tomorrow.min.css',
-        'lightbox' => $themeUrl . 'assets/vendor/lightbox2/css/lightbox.min.css',
+        'lightbox' => $themeUrl . 'assets/vendor/lightbox3/lightbox3.css',
         'katex' => $themeUrl . 'assets/vendor/katex/katex.min.css',
         'emoji' => $themeUrl . 'assets/vendor/jquery-emoji/css/jquery.emoji.css'
     ];
@@ -272,7 +272,7 @@
         // 使用官方CDN
         $cssUrls['fontawesome'] = 'https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css';
         $cssUrls['prism'] = 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css';
-        $cssUrls['lightbox'] = 'https://cdn.jsdelivr.net/npm/lightbox2@2.11.4/dist/css/lightbox.min.css';
+        $cssUrls['lightbox'] = 'https://cdn.jsdelivr.net/npm/lightbox3@1.1.0/dist/lightbox3.css';
         $cssUrls['katex'] = 'https://cdn.jsdelivr.net/npm/katex@0.17.0/dist/katex.min.css';
     } elseif ($resourceMode === 'custom' && $customCdn) {
         // 使用自建CDN
@@ -281,7 +281,7 @@
         $cssUrls['style'] = $customCdn . '/assets/css/style.css';
         $cssUrls['fontawesome'] = $customCdn . '/assets/vendor/font-awesome/css/font-awesome.min.css';
         $cssUrls['prism'] = $customCdn . '/assets/vendor/prismjs/themes/prism-tomorrow.min.css';
-        $cssUrls['lightbox'] = $customCdn . '/assets/vendor/lightbox2/css/lightbox.min.css';
+        $cssUrls['lightbox'] = $customCdn . '/assets/vendor/lightbox3/lightbox3.css';
         $cssUrls['katex'] = $customCdn . '/assets/vendor/katex/katex.min.css';
         $cssUrls['emoji'] = $customCdn . '/assets/vendor/jquery-emoji/css/jquery.emoji.css';
     }
@@ -302,7 +302,7 @@
     
     <!-- Prism.js 代码高亮样式 - 按需加载（存在代码块时由 JS 动态注入） -->
     
-    <!-- Lightbox2 图片灯箱样式 - 按需加载（存在图片时由 JS 动态注入） -->
+    <!-- Lightbox3 图片灯箱样式 - 按需加载（存在图片时由 JS 动态注入） -->
     
     <!-- KaTeX 数学公式样式 - 按需加载（存在公式时由 JS 动态注入） -->
 

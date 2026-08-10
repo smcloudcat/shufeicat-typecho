@@ -353,20 +353,15 @@ window.initLightbox = function(retryCount) {
     var vs = window.vendorScripts || {};
     var vc = window.vendorCssUrls || {};
 
-    // jQuery 未加载时，先动态加载 jQuery，再加载 Lightbox
-    if (typeof window.jQuery === 'undefined') {
-        if (!vs.jquery) return;
-        window.loadScriptOnce(vs.jquery, function() { window.initLightbox(retryCount); });
-        return;
-    }
-    // Lightbox 未加载时，动态加载 Lightbox 脚本与样式
-    if (typeof window.lightbox === 'undefined') {
+    // Lightbox3 未加载时，动态加载脚本与样式
+    if (typeof window.Lightbox3 === 'undefined' || !window.Lightbox3.Lightbox) {
         if (!vs.lightbox) return;
         if (vc.lightbox) window.loadStyleOnce(vc.lightbox);
         window.loadScriptOnce(vs.lightbox, function() { window.initLightbox(retryCount); });
         return;
     }
 
+    // 包装未被链接包裹的文章图片
     const postContent = document.querySelector('.post-content');
     if (postContent) {
         const images = postContent.querySelectorAll('img');
@@ -402,48 +397,58 @@ window.initLightbox = function(retryCount) {
         });
     }
 
-    if (typeof lightbox !== 'undefined' && typeof lightbox.option === 'function') {
-        lightbox.option({
-            'resizeDuration': 200,
-            'wrapAround': true,
-            'fadeDuration': 200,
-            'imageFadeDuration': 200,
-            'disableScrolling': true,
-            'fitImagesInViewport': true,
-            'positionFromTop': 50
-        });
+    // 初始化 Lightbox3（事件委托方式，后续新增的 data-lightbox 链接自动生效）
+    var Lb = window.Lightbox3.Lightbox;
+    var lb = Lb.init({
+        loop: true,
+        padding: 40
+    });
 
-        // 仅增强一次，避免 pjax 切换时重复包装
-        if (!lightbox._enhanced) {
-            lightbox._enhanced = true;
-            window._enhanceLightbox();
-        }
+    // 仅增强一次，避免 pjax 切换时重复包装
+    if (!window._lb3Enhanced) {
+        window._lb3Enhanced = true;
+        window._enhanceLightbox(lb);
     }
 };
 
 /**
- * 灯箱增强：自定义工具栏、旋转、缩放、下载、全屏、拖动、键盘快捷键
- * 仅在 Lightbox2 已加载后调用一次
+ * 灯箱增强：自定义工具栏（旋转、缩放、复位、全屏、下载）、键盘快捷键
+ * 仅在 Lightbox3 已加载后调用一次
  */
-window._enhanceLightbox = function() {
-    var $ = window.jQuery;
-    if (!$ || !window.lightbox) return;
-    var lb = window.lightbox;
+window._enhanceLightbox = function(lb) {
+    var Lb = window.Lightbox3 && window.Lightbox3.Lightbox;
+    if (!lb) {
+        if (!Lb) return;
+        lb = Lb.init();
+    }
 
     // 灯箱状态
     var state = {
-        rotation: 0,        // 旋转角度（度）
-        scale: 1,           // 缩放倍数
-        offsetX: 0,         // X 偏移（拖动）
-        offsetY: 0,         // Y 偏移（拖动）
-        naturalWidth: 0,    // 原始宽度
-        naturalHeight: 0,   // 原始高度
-        isDragging: false,
-        dragStartX: 0,
-        dragStartY: 0,
-        startOffsetX: 0,
-        startOffsetY: 0
+        rotation: 0,     // 旋转角度（度）
+        scale: 1,        // 缩放倍数
+        currentSrc: ''   // 当前图片地址
     };
+
+    // 获取当前灯箱中的图片元素
+    function getImage() {
+        var overlay = document.querySelector('.lightbox3-overlay');
+        return overlay ? overlay.querySelector('.lightbox3-image') : null;
+    }
+
+    // 应用旋转/缩放：使用独立的 rotate/scale 属性，
+    // 与 Lightbox3 内部基于 transform 的缩放/拖动互不冲突
+    function applyTransform() {
+        var img = getImage();
+        if (!img) return;
+        img.style.rotate = state.rotation ? state.rotation + 'deg' : '';
+        img.style.scale = state.scale !== 1 ? state.scale : '';
+    }
+
+    function resetTransform() {
+        state.rotation = 0;
+        state.scale = 1;
+        applyTransform();
+    }
 
     // ---------- 注入自定义工具栏（只注入一次） ----------
     function injectToolbar() {
@@ -473,148 +478,31 @@ window._enhanceLightbox = function() {
             '</button>' +
             '<button type="button" class="sf-lb-btn" data-action="download" title="下载 (D)" aria-label="下载">' +
               '<i class="fa fa-download"></i>' +
-            '</button>' +
-            '<button type="button" class="sf-lb-btn sf-lb-close" data-action="close" title="关闭 (Esc)" aria-label="关闭">' +
-              '<i class="fa fa-times"></i>' +
             '</button>';
         document.body.appendChild(toolbar);
 
         toolbar.addEventListener('click', function(e) {
             var btn = e.target.closest('.sf-lb-btn');
             if (!btn) return;
-            var action = btn.getAttribute('data-action');
-            handleAction(action);
-        });
-    }
-
-    // ---------- 注入底部信息条 ----------
-    function injectInfoBar() {
-        if (document.getElementById('sf-lb-info')) return;
-        var info = document.createElement('div');
-        info.id = 'sf-lb-info';
-        info.className = 'sf-lb-info';
-        info.innerHTML =
-            '<span class="sf-lb-caption"></span>' +
-            '<span class="sf-lb-meta"></span>';
-        document.body.appendChild(info);
-    }
-
-    // ---------- 自定义左右导航 ----------
-    function injectNav() {
-        if (document.getElementById('sf-lb-prev')) return;
-        var prev = document.createElement('button');
-        prev.type = 'button';
-        prev.id = 'sf-lb-prev';
-        prev.className = 'sf-lb-nav sf-lb-prev';
-        prev.setAttribute('aria-label', '上一张');
-        prev.innerHTML = '<i class="fa fa-angle-left"></i>';
-
-        var next = document.createElement('button');
-        next.type = 'button';
-        next.id = 'sf-lb-next';
-        next.className = 'sf-lb-nav sf-lb-next';
-        next.setAttribute('aria-label', '下一张');
-        next.innerHTML = '<i class="fa fa-angle-right"></i>';
-
-        document.body.appendChild(prev);
-        document.body.appendChild(next);
-
-        prev.addEventListener('click', function(e) {
             e.stopPropagation();
-            if (lb.currentImageIndex === 0) {
-                lb.changeImage(lb.album.length - 1);
-            } else {
-                lb.changeImage(lb.currentImageIndex - 1);
-            }
-        });
-        next.addEventListener('click', function(e) {
-            e.stopPropagation();
-            if (lb.currentImageIndex === lb.album.length - 1) {
-                lb.changeImage(0);
-            } else {
-                lb.changeImage(lb.currentImageIndex + 1);
-            }
+            handleAction(btn.getAttribute('data-action'));
         });
     }
 
-    // ---------- 更新变换 ----------
-    function applyTransform() {
-        var img = document.querySelector('.lb-image');
-        if (!img) return;
-        // 当缩放 > 1 时启用拖动光标
-        if (state.scale > 1.05) {
-            img.style.cursor = 'grab';
-        } else {
-            img.style.cursor = '';
-        }
-        img.style.transform =
-            'rotate(' + state.rotation + 'deg) ' +
-            'scale(' + state.scale + ') ' +
-            'translate(' + state.offsetX + 'px, ' + state.offsetY + 'px)';
-    }
-
-    // ---------- 重置变换状态 ----------
-    function resetTransform() {
-        state.rotation = 0;
-        state.scale = 1;
-        state.offsetX = 0;
-        state.offsetY = 0;
-        applyTransform();
-    }
-
-    // ---------- 显示工具栏/信息条/导航 ----------
-    function showOverlays() {
+    function showToolbar() {
         var t = document.getElementById('sf-lb-toolbar');
-        var i = document.getElementById('sf-lb-info');
-        var p = document.getElementById('sf-lb-prev');
-        var n = document.getElementById('sf-lb-next');
         if (t) t.classList.add('sf-lb-visible');
-        if (i) i.classList.add('sf-lb-visible');
-        if (p) p.classList.add('sf-lb-visible');
-        if (n) n.classList.add('sf-lb-visible');
-        // 单张时隐藏导航
-        var single = !lb.album || lb.album.length <= 1;
-        if (p) p.style.display = single ? 'none' : '';
-        if (n) n.style.display = single ? 'none' : '';
     }
 
-    function hideOverlays() {
+    function hideToolbar() {
         var t = document.getElementById('sf-lb-toolbar');
-        var i = document.getElementById('sf-lb-info');
-        var p = document.getElementById('sf-lb-prev');
-        var n = document.getElementById('sf-lb-next');
         if (t) t.classList.remove('sf-lb-visible');
-        if (i) i.classList.remove('sf-lb-visible');
-        if (p) p.classList.remove('sf-lb-visible');
-        if (n) n.classList.remove('sf-lb-visible');
-    }
-
-    // ---------- 更新信息条内容 ----------
-    function updateInfoBar() {
-        var info = document.getElementById('sf-lb-info');
-        if (!info || !lb.album || lb.currentImageIndex == null) return;
-        var cur = lb.album[lb.currentImageIndex];
-        if (!cur) return;
-        var captionEl = info.querySelector('.sf-lb-caption');
-        var metaEl = info.querySelector('.sf-lb-meta');
-        if (captionEl) captionEl.textContent = cur.title || '';
-        var meta = '';
-        if (lb.album.length > 1) {
-            meta += (lb.currentImageIndex + 1) + ' / ' + lb.album.length;
-        }
-        if (state.naturalWidth && state.naturalHeight) {
-            if (meta) meta += ' · ';
-            meta += state.naturalWidth + '×' + state.naturalHeight;
-        }
-        if (metaEl) metaEl.textContent = meta;
     }
 
     // ---------- 下载 ----------
     function downloadImage() {
-        if (!lb.album || lb.currentImageIndex == null) return;
-        var cur = lb.album[lb.currentImageIndex];
-        if (!cur || !cur.link) return;
-        var url = cur.link;
+        if (!state.currentSrc) return;
+        var url = state.currentSrc;
         var filename = url.split('/').pop().split('?')[0] || 'image';
 
         function saveBlob(blob) {
@@ -682,7 +570,7 @@ window._enhanceLightbox = function() {
 
     // ---------- 全屏 ----------
     function toggleFullscreen() {
-        var img = document.querySelector('.lb-image');
+        var img = getImage();
         if (!img) return;
         if (!document.fullscreenElement) {
             if (img.requestFullscreen) {
@@ -713,20 +601,13 @@ window._enhanceLightbox = function() {
             case 'zoom-in':
                 state.scale = Math.min(5, state.scale + 0.25);
                 applyTransform();
-                updateInfoBar();
                 break;
             case 'zoom-out':
                 state.scale = Math.max(0.5, state.scale - 0.25);
-                if (state.scale <= 1) {
-                    state.offsetX = 0;
-                    state.offsetY = 0;
-                }
                 applyTransform();
-                updateInfoBar();
                 break;
             case 'reset':
                 resetTransform();
-                updateInfoBar();
                 break;
             case 'fullscreen':
                 toggleFullscreen();
@@ -734,72 +615,14 @@ window._enhanceLightbox = function() {
             case 'download':
                 downloadImage();
                 break;
-            case 'close':
-                lb.end();
-                break;
         }
     }
 
-    // ---------- 滚轮缩放 ----------
-    function onWheel(e) {
-        if (!lb.$lightbox || !lb.$lightbox.is(':visible')) return;
-        e.preventDefault();
-        if (e.deltaY < 0) {
-            state.scale = Math.min(5, state.scale + 0.15);
-        } else {
-            state.scale = Math.max(0.5, state.scale - 0.15);
-            if (state.scale <= 1) {
-                state.offsetX = 0;
-                state.offsetY = 0;
-            }
-        }
-        applyTransform();
-        updateInfoBar();
-    }
-
-    // ---------- 双击切换缩放 ----------
-    function onDblClick(e) {
-        if (state.scale > 1.05) {
-            resetTransform();
-        } else {
-            state.scale = 2;
-            applyTransform();
-            updateInfoBar();
-        }
-    }
-
-    // ---------- 拖动查看（放大状态下） ----------
-    function onPointerDown(e) {
-        if (state.scale <= 1.05) return;
-        // 仅对图片本体响应
-        var img = e.target.closest('.lb-image');
-        if (!img) return;
-        state.isDragging = true;
-        state.dragStartX = e.clientX;
-        state.dragStartY = e.clientY;
-        state.startOffsetX = state.offsetX;
-        state.startOffsetY = state.offsetY;
-        img.style.cursor = 'grabbing';
-        e.preventDefault();
-    }
-
-    function onPointerMove(e) {
-        if (!state.isDragging) return;
-        state.offsetX = state.startOffsetX + (e.clientX - state.dragStartX) / state.scale;
-        state.offsetY = state.startOffsetY + (e.clientY - state.dragStartY) / state.scale;
-        applyTransform();
-    }
-
-    function onPointerUp() {
-        if (!state.isDragging) return;
-        state.isDragging = false;
-        var img = document.querySelector('.lb-image');
-        if (img && state.scale > 1.05) img.style.cursor = 'grab';
-    }
-
-    // ---------- 键盘快捷键 ----------
+    // ---------- 键盘快捷键（与 Lightbox3 自带的 Esc/方向键不冲突） ----------
     function onKeydown(e) {
-        if (!lb.$lightbox || !lb.$lightbox.is(':visible')) return;
+        if (!document.querySelector('.lightbox3-overlay')) return;
+        var tag = (e.target && e.target.tagName) || '';
+        if (tag === 'INPUT' || tag === 'TEXTAREA') return;
         var key = e.key;
         switch (key) {
             case 'r':
@@ -837,95 +660,28 @@ window._enhanceLightbox = function() {
         }
     }
 
-    // ---------- 包装 Lightbox2 内部方法 ----------
-    // 包装 start：灯箱打开
-    var originalStart = lb.start;
-    lb.start = function($link) {
-        originalStart.apply(this, arguments);
-        // 注入 UI（若尚未注入）
+    // ---------- 监听 Lightbox3 事件，同步 UI ----------
+    lb.on('open', function(detail) {
+        if (detail && detail.src) state.currentSrc = detail.src;
         injectToolbar();
-        injectInfoBar();
-        injectNav();
-        // 首次打开后绑定图片 load 监听
-        bindImgLoadOnce();
-        // 启用 flex 居中（CSS 控制，无需 JS 计算 top）
-        if (lb.$lightbox) lb.$lightbox.addClass('sf-lb-centered');
-        // 重置变换状态
         resetTransform();
-        // 显示叠加层
-        setTimeout(showOverlays, 0);
-    };
-
-    // 包装 showImage：图片切换后更新信息
-    var originalShowImage = lb.showImage;
-    lb.showImage = function() {
-        originalShowImage.apply(this, arguments);
-        // 切换图片时重置状态
+        showToolbar();
+    });
+    lb.on('opened', function(detail) {
+        if (detail && detail.src) state.currentSrc = detail.src;
+        showToolbar();
+    });
+    lb.on('navigate', function(detail) {
+        if (detail && detail.src) state.currentSrc = detail.src;
         resetTransform();
-    };
-
-    // 包装 changeImage：切换图片
-    var originalChangeImage = lb.changeImage;
-    lb.changeImage = function() {
-        originalChangeImage.apply(this, arguments);
+    });
+    lb.on('closed', function() {
+        hideToolbar();
         resetTransform();
-    };
+        state.currentSrc = '';
+    });
 
-    // 包装 end：关闭时隐藏叠加层
-    var originalEnd = lb.end;
-    lb.end = function() {
-        hideOverlays();
-        // 退出全屏（若在全屏中）
-        if (document.fullscreenElement) {
-            try { document.exitFullscreen(); } catch (e) {}
-        }
-        originalEnd.apply(this, arguments);
-    };
-
-    // 监听图片加载完成，获取原始尺寸并更新信息条
-    // lb.$image 在首次 start() 调用 build() 后才存在，因此延迟到 start 包装内绑定
-    var _imgLoadBound = false;
-    function bindImgLoadOnce() {
-        if (_imgLoadBound) return;
-        var imgEl = lb.$image ? lb.$image[0] : null;
-        if (!imgEl) return;
-        _imgLoadBound = true;
-        imgEl.addEventListener('load', function() {
-            state.naturalWidth = imgEl.naturalWidth || 0;
-            state.naturalHeight = imgEl.naturalHeight || 0;
-            updateInfoBar();
-            // 图片加载后再次显示叠加层（防止被 Lightbox2 隐藏）
-            showOverlays();
-        });
-    }
-
-    // 包装 sizeContainer：尺寸调整后显示叠加层（居中由 CSS flex 处理）
-    var originalSizeContainer = lb.sizeContainer;
-    lb.sizeContainer = function(imageWidth, imageHeight) {
-        originalSizeContainer.apply(this, arguments);
-        setTimeout(function() {
-            showOverlays();
-            updateInfoBar();
-        }, 0);
-    };
-
-    // 隐藏原生 close 按钮（使用自定义）
-    $('<style>').text(
-        '.lb-closeContainer, .lb-dataContainer { display: none !important; }' +
-        '.lb-nav a.lb-prev, .lb-nav a.lb-next { display: none !important; }'
-    ).appendTo('head');
-
-    // 绑定全局事件（只绑定一次）
-    document.addEventListener('wheel', onWheel, { passive: false });
-    document.addEventListener('dblclick', onDblClick);
     document.addEventListener('keydown', onKeydown);
-    document.addEventListener('pointerdown', onPointerDown);
-    document.addEventListener('pointermove', onPointerMove);
-    document.addEventListener('pointerup', onPointerUp);
-    document.addEventListener('pointercancel', onPointerUp);
-
-    // 点击遮罩关闭（保留 Lightbox2 原生行为，这里仅作为兜底）
-    // 已由 Lightbox2 自身处理
 };
 
 window.initCopyButtons = function() {
@@ -3774,7 +3530,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // 为代码块添加复制功能
     setTimeout(window.initCopyButtons, 250);
     
-    // 延迟执行以确保 jQuery 和 Lightbox 完全加载
+    // 延迟执行以确保 Lightbox3 完全加载
     setTimeout(window.initLightbox, 300);
     
     // 初始化点赞功能
