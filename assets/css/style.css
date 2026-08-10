@@ -5353,8 +5353,8 @@ pre[class*="language-"].line-numbers > code {
     width: 44px;
     height: 44px;
     background: #fff;
-    color: #ff5a5a;
-    border: 1px solid #ffd5d5;
+    color: var(--primary-color);
+    border: 1px solid color-mix(in srgb, var(--primary-color) 35%, #fff);
     border-radius: 50%;
     text-align: center;
     line-height: 44px;
@@ -5364,7 +5364,7 @@ pre[class*="language-"].line-numbers > code {
     transform: translateY(20px);
     transition: var(--transition-fast);
     z-index: 1000;
-    box-shadow: 0 3px 10px rgba(255, 90, 90, 0.2);
+    box-shadow: 0 3px 10px color-mix(in srgb, var(--primary-color) 20%, transparent);
 }
 
 #float-fav-btn.show {
@@ -5374,22 +5374,22 @@ pre[class*="language-"].line-numbers > code {
 }
 
 #float-fav-btn:hover {
-    background: #ff5a5a;
+    background: var(--primary-color);
     color: #fff;
-    border-color: #ff5a5a;
+    border-color: var(--primary-color);
     transform: translateY(-3px);
-    box-shadow: 0 5px 15px rgba(255, 90, 90, 0.35);
+    box-shadow: 0 5px 15px color-mix(in srgb, var(--primary-color) 35%, transparent);
 }
 
 #float-fav-btn.favorited {
-    background: #ff5a5a;
+    background: var(--primary-color);
     color: #fff;
-    border-color: #ff5a5a;
+    border-color: var(--primary-color);
 }
 
 #float-fav-btn.favorited:hover {
     transform: translateY(-3px);
-    box-shadow: 0 5px 15px rgba(255, 90, 90, 0.35);
+    box-shadow: 0 5px 15px color-mix(in srgb, var(--primary-color) 35%, transparent);
 }
 
 #float-fav-btn i {
@@ -6252,9 +6252,9 @@ pre[class*="language-"].line-numbers > code {
     gap: 6px;
     padding: 7px 16px;
     background: #fff;
-    border: 1px solid #ff5a5a;
+    border: 1px solid var(--primary-color);
     border-radius: 4px;
-    color: #ff5a5a;
+    color: var(--primary-color);
     font-size: 13px;
     font-weight: 500;
     cursor: pointer;
@@ -6264,18 +6264,18 @@ pre[class*="language-"].line-numbers > code {
 }
 
 .post-fav-btn:hover {
-    background: #ff5a5a;
+    background: var(--primary-color);
     color: #fff;
 }
 
 .post-fav-btn.favorited {
-    background: #ff5a5a;
+    background: var(--primary-color);
     color: #fff;
-    border-color: #ff5a5a;
+    border-color: var(--primary-color);
 }
 
 .post-fav-btn.favorited:hover {
-    background: #ff5a5a;
+    background: var(--primary-color);
 }
 
 .post-fav-btn i {
@@ -6344,13 +6344,13 @@ pre[class*="language-"].line-numbers > code {
     width: 26px;
     height: 26px;
     border-radius: 50%;
-    background: rgba(255, 90, 90, 0.92);
+    background: color-mix(in srgb, var(--primary-color) 92%, transparent);
     color: #fff;
     font-size: 12px;
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
     pointer-events: none;
-    box-shadow: 0 2px 6px rgba(255, 90, 90, 0.3);
+    box-shadow: 0 2px 6px color-mix(in srgb, var(--primary-color) 30%, transparent);
 }
 
 /* 同时存在阅读徽章时，收藏标记右移避免重叠 */
@@ -6528,7 +6528,7 @@ pre[class*="language-"].line-numbers > code {
 }
 
 .fav-link i {
-    color: #ff5a5a;
+    color: var(--primary-color);
     flex-shrink: 0;
 }
 
@@ -6556,8 +6556,8 @@ pre[class*="language-"].line-numbers > code {
 }
 
 .fav-remove:hover {
-    background: #ffe5e5;
-    color: #ff5a5a;
+    background: color-mix(in srgb, var(--primary-color) 10%, #fff);
+    color: var(--primary-color);
 }
 
 .fav-empty {
@@ -7436,15 +7436,15 @@ article.post {
 /* 夜间模式：收藏按钮 / 收藏下拉 / 阅读标记 */
 [data-theme="dark"] .post-fav-btn {
     background: #1e1e2a;
-    color: #ff7a7a;
-    border-color: #ff5a5a;
+    color: color-mix(in srgb, var(--primary-color) 75%, #fff);
+    border-color: var(--primary-color);
 }
 [data-theme="dark"] .post-fav-btn:hover {
-    background: #ff5a5a;
+    background: var(--primary-color);
     color: #fff;
 }
 [data-theme="dark"] .post-fav-btn.favorited {
-    background: #ff5a5a;
+    background: var(--primary-color);
     color: #fff;
 }
 [data-theme="dark"] .nav-fav-panel {
@@ -7467,7 +7467,7 @@ article.post {
     background: color-mix(in srgb, var(--primary-color) 12%, transparent);
 }
 [data-theme="dark"] .fav-remove:hover {
-    background: rgba(255, 90, 90, 0.2);
+    background: color-mix(in srgb, var(--primary-color) 20%, transparent);
 }
 
 /* 排行�?*/
