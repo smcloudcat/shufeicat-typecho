@@ -755,7 +755,13 @@
                 <span class="hamburger-line"></span>
             </button>
             
-            <?php $logoDisplayMode = !empty($this->options->logoDisplayMode) ? $this->options->logoDisplayMode : 'auto'; ?>
+            <?php
+            $logoDisplayMode = !empty($this->options->logoDisplayMode) ? $this->options->logoDisplayMode : 'auto';
+            // 未填写 LOGO 时，智能模式/仅 LOGO 模式回退为仅显示标题，避免移动端丢失标题
+            if (empty($this->options->logoUrl) && in_array($logoDisplayMode, array('auto', 'logo-only'), true)) {
+                $logoDisplayMode = 'title-only';
+            }
+            ?>
             <div class="site-name logo-mode-<?php echo htmlspecialchars($logoDisplayMode); ?>">
                 <?php if ($this->options->logoUrl): ?>
                     <a id="logo" href="<?php $this->options->siteUrl(); ?>">
