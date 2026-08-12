@@ -520,12 +520,6 @@ function resolveProfileAndDriver()
         return null;
     }
 
-    $enabled = isset($options->shufeiStorageEnabled) ? ($options->shufeiStorageEnabled === 'on') : false;
-    if (!$enabled) {
-        echo json_encode(array('success' => false, 'message' => '图片存储功能未开启'));
-        return null;
-    }
-
     $profilesJson = isset($options->shufeiStorageProfiles) ? $options->shufeiStorageProfiles : '';
     $profiles = $profilesJson ? @json_decode($profilesJson, true) : array();
     if (!is_array($profiles)) {

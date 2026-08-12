@@ -1,12 +1,9 @@
 
 (function() {
     window.addEventListener("load", function() {
-        var selectorEl = document.querySelector(".cat-group-nav-github-selector");
-        if (selectorEl) {
-            selectorEl.style.display = "";
-            var navPane = document.getElementById("cat-nav");
-            if (navPane) navPane.appendChild(selectorEl);
-        }
+        var selectorEl = document.querySelector(".cat-group-sidebar-github-selector");
+        var navPane = document.getElementById("cat-sidebar");
+        if (selectorEl && navPane) navPane.appendChild(selectorEl);
 
         var fetchBtn = document.getElementById("cat-github-fetch-btn");
         var fetchStatus = document.getElementById("cat-github-fetch-status");

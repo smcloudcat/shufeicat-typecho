@@ -141,14 +141,12 @@ function themeConfig($form)
                     '<li data-id="cat-resource">资源加载</li>' .
                     '<li data-id="cat-article">文章缩略图</li>' .
                     '<li data-id="cat-sidebar">侧边栏设置</li>' .
-                    '<li data-id="cat-stats">文章统计</li>' .
                     '<li data-id="cat-seo">SEO 设置</li>' .
                     '<li data-id="cat-mail">评论邮件通知</li>' .
                     '<li data-id="cat-ai">AI 助手</li>' .
                     '<li data-id="cat-storage">图片存储</li>' .
                     '<li data-id="cat-verify">人机验证</li>' .
                     '<li data-id="cat-enhance">功能增强</li>' .
-                    '<li data-id="cat-nav">导航增强</li>' .
                     '<li data-id="cat-data">数据管理</li>' .
                     '<li data-id="cat-update">更新设置</li>' .
                 '</ul>' .
@@ -195,7 +193,7 @@ function themeConfig($form)
 
 
     // GitHub 项目选择器
-    $githubReposHtml = '<div class="typecho-option cat-group-nav-github-selector" style="display:none">' .
+    $githubReposHtml = '<div class="typecho-option cat-group-sidebar-github-selector" data-toggle-dep="githubEnabled" style="display:none">' .
         '<div class="cat-data-section">' .
             '<div class="cat-data-title">GitHub 项目选择</div>' .
             '<div class="cat-data-desc">填写 GitHub 用户名并保存设置后，点击下方按钮获取项目列表，勾选需要在前台展示的项目。<br>如果不勾选任何项目，则默认展示全部公开项目。</div>' .
@@ -331,7 +329,7 @@ function themeConfig($form)
         null,
         'https://q1.qlogo.cn/g?b=qq&nk=3522934828&s=100',
         _t('站长头像'),
-        _t('在这里填入站长头像的URL地址，显示在左侧侧边栏顶部<br>默认：QQ头像')
+        _t('在这里填入站长头像，显示在左侧侧边栏顶部，支持两种方式：<br>1. 填写邮箱地址：自动使用「头像外观」中设置的 Gravatar 镜像源生成头像<br>2. 填写图片 URL：直接使用该图片作为头像<br>默认：QQ头像')
     );
     $authorAvatar->setAttribute('class', 'typecho-option cat-group-basic');
     $form->addInput($authorAvatar);
@@ -507,6 +505,7 @@ function themeConfig($form)
         _t('介绍：开启后，在左侧导航栏添加友链页面入口，用户可在独立页面查看所有友链的卡片展示<br>需要先创建一个独立页面并选择"友链页面"模板')
     );
     $linksPageEnabled->setAttribute('class', 'typecho-option cat-group-sidebar');
+    $linksPageEnabled->setAttribute('data-toggle-group', 'linksPageEnabled');
     $form->addInput($linksPageEnabled);
 
     $linksPageId = new \Typecho\Widget\Helper\Form\Element\Text(
@@ -517,6 +516,7 @@ function themeConfig($form)
         _t('介绍：填写友链独立页面的ID（在后台页面管理中查看）<br>如果留空，将尝试自动查找使用友链页面模板的页面')
     );
     $linksPageId->setAttribute('class', 'typecho-option cat-group-sidebar');
+    $linksPageId->setAttribute('data-toggle-dep', 'linksPageEnabled');
     $form->addInput($linksPageId);
 
     $sidebarOrderLeft = new \Typecho\Widget\Helper\Form\Element\Text(
@@ -798,7 +798,7 @@ function themeConfig($form)
         _t('文章统计功能'),
         _t('介绍：开启后，将启用文章浏览量和点赞功能')
     );
-    $statsEnabled->setAttribute('class', 'typecho-option cat-group-stats');
+    $statsEnabled->setAttribute('class', 'typecho-option cat-group-enhance');
     $form->addInput($statsEnabled);
 
     $rankingEnabled = new \Typecho\Widget\Helper\Form\Element\Radio(
@@ -915,7 +915,7 @@ function themeConfig($form)
         _t('文章列表翻页方式'),
         _t('介绍：选择首页/分类/标签/搜索等文章列表的翻页方式<br>页码分页：底部显示上一页/下一页等页码按钮<br>加载更多：底部显示"加载更多"按钮，点击后直接在当前页下方追加下一页文章，无需切换页面')
     );
-    $postListPager->setAttribute('class', 'typecho-option cat-group-article');
+    $postListPager->setAttribute('class', 'typecho-option cat-group-appearance');
     $form->addInput($postListPager);
     
     $commentMailEnabled = new \Typecho\Widget\Helper\Form\Element\Radio(
@@ -1462,7 +1462,7 @@ function themeConfig($form)
         _t('自定义导航项'),
         _t('介绍：每行一个导航项，格式：图标类名|名称|链接<br>图标使用 Font Awesome 4.7 图标类名，例如：<br>fa-book|我的项目|https://example.com/projects<br>fa-download|资源下载|https://example.com/download<br>留空则不显示自定义导航')
     );
-    $customNavItems->setAttribute('class', 'typecho-option cat-group-nav');
+    $customNavItems->setAttribute('class', 'typecho-option cat-group-sidebar');
     $form->addInput($customNavItems);
 
     $categoryIcons = new \Typecho\Widget\Helper\Form\Element\Textarea(
@@ -1472,7 +1472,7 @@ function themeConfig($form)
         _t('分类目录图标设置'),
         _t('介绍：为分类目录设置自定义图标，通过分类缩略名匹配<br>每行一个，格式：分类缩略名|图标类名<br>例如：<br>tech|fa-laptop<br>life|fa-coffee<br>code|fa-code<br>未设置的分类将使用默认图标 fa-folder-open-o')
     );
-    $categoryIcons->setAttribute('class', 'typecho-option cat-group-nav');
+    $categoryIcons->setAttribute('class', 'typecho-option cat-group-sidebar');
     $form->addInput($categoryIcons);
 
     $guestbookEnabled = new \Typecho\Widget\Helper\Form\Element\Radio(
@@ -1483,6 +1483,7 @@ function themeConfig($form)
         _t('介绍：开启后，在左侧导航栏添加留言板入口，用户可以在留言板页面留言<br>留言功能基于 Typecho 评论系统实现，需要先创建一个独立页面并选择"留言板"模板')
     );
     $guestbookEnabled->setAttribute('class', 'typecho-option cat-group-sidebar');
+    $guestbookEnabled->setAttribute('data-toggle-group', 'guestbookEnabled');
     $form->addInput($guestbookEnabled);
 
     $guestbookPageId = new \Typecho\Widget\Helper\Form\Element\Text(
@@ -1493,7 +1494,19 @@ function themeConfig($form)
         _t('介绍：填写留言板独立页面的ID（在后台页面管理中查看）<br>如果留空，将尝试自动查找使用留言板模板的页面')
     );
     $guestbookPageId->setAttribute('class', 'typecho-option cat-group-sidebar');
+    $guestbookPageId->setAttribute('data-toggle-dep', 'guestbookEnabled');
     $form->addInput($guestbookPageId);
+
+    $githubEnabled = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'githubEnabled',
+        array('off' => _t('关闭'), 'on' => _t('开启')),
+        'on',
+        _t('GitHub 项目展示'),
+        _t('介绍：开启后，在左侧导航栏添加 GitHub 项目入口，用户可在独立页面查看公开项目<br>需要先创建一个独立页面并选择"GitHub 项目"模板')
+    );
+    $githubEnabled->setAttribute('class', 'typecho-option cat-group-sidebar');
+    $githubEnabled->setAttribute('data-toggle-group', 'githubEnabled');
+    $form->addInput($githubEnabled);
 
     $githubUsername = new \Typecho\Widget\Helper\Form\Element\Text(
         'githubUsername',
@@ -1502,7 +1515,8 @@ function themeConfig($form)
         _t('GitHub 用户名'),
         _t('介绍：填写 GitHub 用户名，保存后可在下方获取项目列表并选择展示的项目<br>留空则不显示 GitHub 项目页面入口')
     );
-    $githubUsername->setAttribute('class', 'typecho-option cat-group-nav');
+    $githubUsername->setAttribute('class', 'typecho-option cat-group-sidebar');
+    $githubUsername->setAttribute('data-toggle-dep', 'githubEnabled');
     $form->addInput($githubUsername);
 
     $githubCacheTime = new \Typecho\Widget\Helper\Form\Element\Text(
@@ -1512,7 +1526,8 @@ function themeConfig($form)
         _t('GitHub 项目缓存时间（秒）'),
         _t('介绍：GitHub API 请求结果的缓存时间，默认 3600 秒（1小时）<br>建议设置 1800-7200 秒，避免频繁请求 API 导致限流')
     );
-    $githubCacheTime->setAttribute('class', 'typecho-option cat-group-nav');
+    $githubCacheTime->setAttribute('class', 'typecho-option cat-group-sidebar');
+    $githubCacheTime->setAttribute('data-toggle-dep', 'githubEnabled');
     $form->addInput($githubCacheTime);
 
     $githubSelectedRepos = new \Typecho\Widget\Helper\Form\Element\Textarea(
@@ -1522,7 +1537,8 @@ function themeConfig($form)
         _t('展示的 GitHub 项目'),
         _t('介绍：点击下方"获取项目列表"按钮加载项目，勾选需要展示的项目<br>如果不选择任何项目，则展示全部公开项目')
     );
-    $githubSelectedRepos->setAttribute('class', 'typecho-option cat-group-nav');
+    $githubSelectedRepos->setAttribute('class', 'typecho-option cat-group-sidebar');
+    $githubSelectedRepos->setAttribute('data-toggle-dep', 'githubEnabled');
     $form->addInput($githubSelectedRepos);
 
     /* ==================== 图片存储设置 ==================== */

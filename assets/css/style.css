@@ -614,7 +614,6 @@ img {
     justify-content: center;
     gap: 12px;
     padding: 14px 18px;
-    border-top: 1px solid rgba(240, 240, 240, 0.8);
 }
 
 .sidebar-contacts a {
@@ -7131,9 +7130,6 @@ article.post {
 }
 [data-theme="dark"] .author-stat-label {
     color: #707078;
-}
-[data-theme="dark"] .sidebar-contacts {
-    border-top-color: rgba(42, 42, 54, 0.8);
 }
 [data-theme="dark"] .sidebar-contacts a {
     color: #707078;

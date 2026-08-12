@@ -24,7 +24,8 @@ if ($_gbEnabled) {
     }
 }
 
-$_ghUsername = !empty($this->options->githubUsername) ? trim($this->options->githubUsername) : '';
+$_ghEnabled = isset($this->options->githubEnabled) ? $this->options->githubEnabled : 'on';
+$_ghUsername = ($_ghEnabled === 'on' && !empty($this->options->githubUsername)) ? trim($this->options->githubUsername) : '';
 if (!empty($_ghUsername)) {
     $_ghRow = $_db->fetchRow($_db->select('cid')->from('table.contents')
         ->where('template = ?', 'github.php')
@@ -82,7 +83,7 @@ ob_start();
 ?>
 <div class="author-card">
     <div class="author-avatar-wrap">
-        <img class="author-avatar" src="<?php echo htmlspecialchars(!empty($this->options->authorAvatar) ? $this->options->authorAvatar : 'https://q1.qlogo.cn/g?b=qq&nk=3522934828&s=100'); ?>" alt="<?php echo htmlspecialchars(!empty($this->options->authorName) ? $this->options->authorName : '云猫'); ?>">
+        <img class="author-avatar" src="<?php echo htmlspecialchars(shufei_get_author_avatar_url()); ?>" alt="<?php echo htmlspecialchars(!empty($this->options->authorName) ? $this->options->authorName : '云猫'); ?>">
     </div>
     <div class="author-name"><?php echo htmlspecialchars(!empty($this->options->authorName) ? $this->options->authorName : '云猫'); ?></div>
     <?php $_authorSig = !empty($this->options->authorSignature) ? trim($this->options->authorSignature) : ''; ?>

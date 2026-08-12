@@ -123,6 +123,25 @@ function shufei_get_gravatar_url($email, $size = 80)
 }
 
 /**
+ * 获取站长头像URL
+ * 支持邮箱（自动使用所选 Gravatar 镜像源）或图片 URL
+ *
+ * @return string 头像URL
+ */
+function shufei_get_author_avatar_url()
+{
+    $options = \Typecho\Widget::widget('Widget_Options');
+    $val = isset($options->authorAvatar) ? trim($options->authorAvatar) : '';
+    if ($val === '') {
+        $val = 'https://q1.qlogo.cn/g?b=qq&nk=3522934828&s=100';
+    }
+    if (filter_var($val, FILTER_VALIDATE_EMAIL)) {
+        return shufei_get_gravatar_url($val, 200);
+    }
+    return $val;
+}
+
+/**
  * 获取当前 Archive widget（用于检测当前页面类型与获取内容）
  *
  * @return \Typecho\Widget\Archive|null

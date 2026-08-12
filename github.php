@@ -11,8 +11,10 @@ $this->need('header.php');
 $this->need('sidebar-left.php');
 
 $options = $this->options;
+$githubEnabled = isset($options->githubEnabled) ? $options->githubEnabled : 'on';
 $githubUsername = isset($options->githubUsername) ? trim($options->githubUsername) : '';
-$repos = !empty($githubUsername) ? shufei_get_github_repos() : array();
+$githubActive = $githubEnabled === 'on' && !empty($githubUsername);
+$repos = $githubActive ? shufei_get_github_repos() : array();
 ?>
 
 <div class="col-mb-12 col-8" id="main" role="main">
@@ -23,7 +25,7 @@ $repos = !empty($githubUsername) ? shufei_get_github_repos() : array();
                     <i class="fa fa-github"></i>
                 </div>
                 <h1 class="post-title" itemprop="name headline"><?php $this->title() ?></h1>
-                <?php if (!empty($githubUsername)): ?>
+                <?php if ($githubActive): ?>
                 <p class="github-desc">
                     <i class="fa fa-user"></i> <a href="https://github.com/<?php echo htmlspecialchars($githubUsername); ?>" target="_blank" rel="noopener noreferrer"><?php echo htmlspecialchars($githubUsername); ?></a>
                     &nbsp;&nbsp;<i class="fa fa-code-fork"></i> <?php echo count($repos); ?> 个公开项目
@@ -35,11 +37,11 @@ $repos = !empty($githubUsername) ? shufei_get_github_repos() : array();
         <div class="post-content" itemprop="articleBody">
             <?php echo shufei_render_post_content($this); ?>
 
-            <?php if (empty($githubUsername)): ?>
+            <?php if (!$githubActive): ?>
             <div class="github-not-configured">
                 <i class="fa fa-github"></i>
-                <h3>未配置 GitHub 用户名</h3>
-                <p>请在主题设置中填写 GitHub 用户名以展示项目列表</p>
+                <h3>未配置 GitHub</h3>
+                <p>请在主题设置的「侧边栏设置」中开启 GitHub 项目展示并填写用户名</p>
             </div>
             <?php elseif (empty($repos)): ?>
             <div class="github-not-configured">
