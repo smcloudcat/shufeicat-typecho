@@ -17,6 +17,7 @@ if (!defined('__TYPECHO_ROOT_DIR__')) {
 
 require_once dirname(__FILE__) . '/post-stats.php';
 require_once dirname(__FILE__) . '/vote.php';
+require_once dirname(__FILE__) . '/password-rate-limit.php';
 
 // 计算站点根 URL（与后台/核心保持一致），保证 Cookie 前缀一致
 // 直接访问本文件时 Request::getRequestRoot() 会基于脚本路径动态计算（得到 /usr/themes/ShuFeiCat/core），
@@ -113,6 +114,12 @@ switch ($action) {
             exit;
         }
 
+        // 限速：IP + CID 维度，防止无限爆破
+        if (!shufei_password_rate_allowed($cid)) {
+            echo json_encode(array('success' => false, 'message' => '尝试次数过多，请稍后再试'));
+            exit;
+        }
+
         // 初始化 Cookie 前缀（与核心一致），验证通过后写入密码 cookie
         $options = \Typecho\Widget::widget('Widget_Options');
         \Typecho\Cookie::setPrefix($options->rootUrl);
@@ -124,8 +131,10 @@ switch ($action) {
         if ($realPassword !== '' && hash_equals($realPassword, $password)) {
             // 密码正确：写入密码 cookie（与会话 cookie 一致），前端再 Pjax/跳转刷新内容
             \Typecho\Cookie::set('protectPassword_' . $cid, $password);
+            shufei_password_rate_record($cid, true);
             echo json_encode(array('success' => true));
         } else {
+            shufei_password_rate_record($cid, false);
             echo json_encode(array('success' => false, 'message' => '密码错误，请重新输入'));
         }
         break;

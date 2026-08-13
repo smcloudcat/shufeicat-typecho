@@ -382,8 +382,11 @@ function shufei_parse_comment_quote($html)
 }
 
 /**
- * 评论 HTML 白名单过滤
- * 仅允许安全的标签和属性，移除所有事件处理器、javascript: 协议等危险内容
+ * 评论 HTML 白名单过滤（基于 DOM 解析器）
+ * 仅允许安全的标签和属性，移除所有事件处理器、javascript:/vbscript:/data: 等危险协议与危险 style。
+ *
+ * 与旧版正则消毒不同：DOM 解析器会先解码 HTML 实体，因此
+ * java&#10;script:、&#106;avascript:、on&#9;click 等绕过写法无法生效。
  *
  * @param string $html 原始 HTML
  * @return string 过滤后的安全 HTML
@@ -392,27 +395,176 @@ function shufei_sanitize_comment_html($html)
 {
     if (empty($html)) return $html;
 
-    // 允许的标签白名单（不含 script/style/iframe/object/embed 等危险标签）
-    $allowedTags = '<a><b><strong><i><em><u><s><del><ins><code><pre><blockquote><p><br><hr>'
-        . '<ul><ol><li><dl><dt><dd><h1><h2><h3><h4><h5><h6>'
-        . '<img><span><div><table><thead><tbody><tr><td><th><sup><sub><mark>'
-        . '<details><summary><figure><figcaption><source><video><audio>';
+    // 允许的标签白名单（不含 script/style/iframe/object/embed/svg 等危险标签）
+    $allowedTags = array(
+        'a', 'b', 'strong', 'i', 'em', 'u', 's', 'del', 'ins', 'code', 'pre',
+        'blockquote', 'p', 'br', 'hr', 'ul', 'ol', 'li', 'dl', 'dt', 'dd',
+        'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'img', 'span', 'div', 'table',
+        'thead', 'tbody', 'tr', 'td', 'th', 'sup', 'sub', 'mark', 'details',
+        'summary', 'figure', 'figcaption', 'source', 'video', 'audio'
+    );
 
-    // 1. 移除不允许的标签（保留其内部文本内容）
-    $html = strip_tags($html, $allowedTags);
+    // 允许的属性白名单（'*' 为所有标签通用；data-* 始终允许，用于 KaTeX 数学公式等）
+    $allowedAttrs = array(
+        '*' => array('class', 'title', 'style'),
+        'a' => array('href', 'title', 'rel', 'target'),
+        'img' => array('src', 'alt', 'title', 'width', 'height', 'loading'),
+        'video' => array('src', 'poster', 'controls', 'preload', 'playsinline', 'autoplay', 'width', 'height'),
+        'audio' => array('src', 'controls', 'preload'),
+        'source' => array('src', 'type'),
+        'td' => array('colspan', 'rowspan'),
+        'th' => array('colspan', 'rowspan'),
+        'ol' => array('start'),
+    );
 
-    // 2. 移除所有 on* 事件属性（onclick/onerror/onload/onmouseover 等）
-    $html = preg_replace('#\s+on[a-z]+\s*=\s*(["\']).*?\1#is', '', $html);
+    // URI 属性：只允许安全协议（img 的 src 额外允许 data:image/）
+    $uriAttrs = array('href', 'src', 'poster');
+    $safeSchemes = array('http', 'https', 'mailto');
 
-    // 3. 移除 javascript: 协议（href="javascript:..."、src="javascript:..."）
-    $html = preg_replace('#(href|src)\s*=\s*(["\'])\s*javascript\s*:.*?\2#is', '$1="$2"', $html);
+    // DOM 扩展不可用时的保守回退：保留白名单标签但剥离所有属性（无属性即无 javascript:/on* 风险）
+    if (!class_exists('DOMDocument')) {
+        $html = strip_tags($html, '<' . implode('><', $allowedTags) . '>');
+        $html = preg_replace('#<([a-zA-Z][a-zA-Z0-9]*)(\s+[^>]*)>#', '<$1>', $html);
+        return $html;
+    }
 
-    // 4. 移除 data: 协议（除 img src 外的 data: URI 可能被滥用）
-    $html = preg_replace('#(href)\s*=\s*(["\'])\s*data\s*:.*?\2#is', '$1="$2"', $html);
+    $prev = libxml_use_internal_errors(true);
+    $dom = new \DOMDocument('1.0', 'UTF-8');
+    // 通过 meta 声明 UTF-8，避免 loadHTML 按 ISO-8859-1 解析导致中文乱码
+    $wrapped = '<meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><div id="shufei-sanitize-root">' . $html . '</div>';
+    $dom->loadHTML($wrapped);
+    libxml_clear_errors();
+    libxml_use_internal_errors($prev);
 
-    // 5. 移除 style 属性中的危险内容（expression()、url(javascript:) 等）
-    $html = preg_replace('#style\s*=\s*(["\']).*?(expression\s*\(|url\s*\(\s*["\']?\s*javascript\s*:).*?\1#is', '', $html);
+    $xp = new \DOMXPath($dom);
+    $root = $xp->query('//*[@id="shufei-sanitize-root"]')->item(0);
+    if (!$root) {
+        return '';
+    }
 
-    return $html;
+    // 递归清理：不允许的标签先净化其子树再解包；允许的标签清理属性
+    $process = function ($node) use (&$process, $allowedTags, $allowedAttrs, $uriAttrs, $safeSchemes) {
+        $children = array();
+        for ($c = $node->firstChild; $c; $c = $c->nextSibling) {
+            $children[] = $c;
+        }
+
+        foreach ($children as $child) {
+            if ($child->nodeType !== XML_ELEMENT_NODE) {
+                // 仅保留文本节点；移除注释、处理指令等
+                if ($child->nodeType !== XML_TEXT_NODE && $child->nodeType !== XML_CDATA_SECTION_NODE) {
+                    $node->removeChild($child);
+                }
+                continue;
+            }
+
+            $name = strtolower($child->nodeName);
+
+            if (!in_array($name, $allowedTags, true)) {
+                // 不允许的标签：先递归净化其子树，再解包（用子节点替换自身，保留内部文本）
+                $process($child);
+                while ($child->firstChild) {
+                    $node->insertBefore($child->firstChild, $child);
+                }
+                $node->removeChild($child);
+                continue;
+            }
+
+            // 清理属性
+            $attrNames = array();
+            foreach ($child->attributes as $attr) {
+                $attrNames[] = $attr->name;
+            }
+            foreach ($attrNames as $attrName) {
+                $attrLower = strtolower($attrName);
+                $tagAllows = isset($allowedAttrs[$name]) ? $allowedAttrs[$name] : array();
+                $globalAllows = $allowedAttrs['*'];
+                $isDataAttr = (strpos($attrLower, 'data-') === 0);
+
+                if (!$isDataAttr && !in_array($attrLower, $globalAllows, true) && !in_array($attrLower, $tagAllows, true)) {
+                    $child->removeAttribute($attrName);
+                    continue;
+                }
+
+                // URI 属性协议校验
+                if (in_array($attrLower, $uriAttrs, true)) {
+                    $value = $child->getAttribute($attrName);
+                    if (!shufei_is_safe_uri($value, $safeSchemes, $name, $attrLower)) {
+                        $child->removeAttribute($attrName);
+                    }
+                }
+
+                // style 属性净化
+                if ($attrLower === 'style') {
+                    $value = $child->getAttribute('style');
+                    $clean = shufei_sanitize_style_value($value);
+                    if ($clean === '') {
+                        $child->removeAttribute('style');
+                    }
+                }
+            }
+
+            $process($child);
+        }
+    };
+
+    $process($root);
+
+    // 提取 root 内部 HTML
+    $out = '';
+    foreach ($root->childNodes as $child) {
+        $out .= $dom->saveHTML($child);
+    }
+    return $out;
+}
+
+/**
+ * 校验 URI 属性值是否安全（防止 javascript:/vbscript:/data: 等协议）
+ * DOM 已解码 HTML 实体，此处再剥离控制字符与空白后判断协议
+ *
+ * @param string $value 属性值
+ * @param array  $safeSchemes 允许的协议
+ * @param string $tag 所在标签名
+ * @param string $attr 属性名
+ * @return bool
+ */
+function shufei_is_safe_uri($value, $safeSchemes, $tag, $attr)
+{
+    $check = strtolower(preg_replace('/[\x00-\x20\x7f]+/', '', $value));
+    if ($check === '') return true; // 空值无风险
+    if (!preg_match('#^([a-z][a-z0-9+.\-]*):#', $check, $m)) {
+        return true; // 无协议（相对路径 / #锚点 / ?查询）
+    }
+    $scheme = $m[1];
+    if (in_array($scheme, $safeSchemes, true)) return true;
+    // 仅图片 src 允许 data:image/（base64 内联图）
+    if ($scheme === 'data' && $tag === 'img' && $attr === 'src' && strpos($check, 'data:image/') === 0) return true;
+    return false;
+}
+
+/**
+ * 净化 style 属性值：阻止 expression/url(javascript:)/@import/behavior 等危险 CSS
+ *
+ * @param string $style
+ * @return string 安全则原样返回，危险则返回空字符串
+ */
+function shufei_sanitize_style_value($style)
+{
+    if (trim($style) === '') return '';
+    $lower = strtolower($style);
+    $blocked = array('expression', 'javascript:', 'vbscript:', 'data:', '@import', '@media', 'behavior', '-moz-binding', '<', '>', '\\', '/*', '*/');
+    foreach ($blocked as $b) {
+        if (strpos($lower, $b) !== false) return '';
+    }
+    // 校验 url(...) 内容协议，仅允许 http/https（用于音乐封面背景图等）
+    if (preg_match_all('/url\s*\(\s*(["\']?)(.*?)\1\s*\)/is', $style, $m)) {
+        foreach ($m[2] as $u) {
+            $check = strtolower(preg_replace('/[\x00-\x20\x7f]+/', '', $u));
+            if (preg_match('#^([a-z][a-z0-9+.\-]*):#', $check, $sm)) {
+                if (!in_array($sm[1], array('http', 'https'), true)) return '';
+            }
+        }
+    }
+    return $style;
 }
 

@@ -124,37 +124,84 @@ function shufei_download_proxy_is_image($contentType)
     return strpos($ct, 'image/') === 0;
 }
 
-// 优先使用 cURL（连接/读超时可控，强制 IPv4 避免部分环境下 IPv6 挂起）
-if (function_exists('curl_init')) {
-    $ch = curl_init($url);
-    $curlOpts = array(
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_FOLLOWLOCATION => true,
-        CURLOPT_MAXREDIRS => 5,
-        CURLOPT_CONNECTTIMEOUT => 8,
-        CURLOPT_TIMEOUT => 25,
-        CURLOPT_MAXFILESIZE => 20971520, // 20MB
-        CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
-        CURLOPT_HTTPHEADER => array('User-Agent: Mozilla/5.0 (ShuFeiCat Image Download Proxy)'),
-        CURLOPT_REFERER => isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : '',
-        CURLOPT_SSL_VERIFYPEER => false,
-        CURLOPT_SSL_VERIFYHOST => false
+// Content-Type 白名单：只回传明确安全的图片类型，其余降级为二进制流（防止 CRLF 注入与非图片内容）
+function shufei_download_proxy_safe_content_type($contentType)
+{
+    $ct = strtolower(trim((string)explode(';', (string)$contentType)[0]));
+    $allowed = array(
+        'image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/bmp',
+        'image/avif', 'image/svg+xml', 'image/x-icon', 'image/vnd.microsoft.icon'
     );
-    if (defined('CURLPROTO_HTTP') && defined('CURLPROTO_HTTPS')) {
-        $curlOpts[CURLOPT_PROTOCOLS] = CURLPROTO_HTTP | CURLPROTO_HTTPS;
-    }
-    curl_setopt_array($ch, $curlOpts);
-    $data = curl_exec($ch);
-    $status = (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
-    $contentType = (string)curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
-    $effectiveUrl = (string)curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
-    curl_close($ch);
+    return in_array($ct, $allowed, true) ? $ct : 'application/octet-stream';
+}
 
-    // 重定向后的最终地址仍需校验（防止跳转到内网）
-    if ($effectiveUrl !== '' && !shufei_download_proxy_validate_url($effectiveUrl)) {
-        shufei_download_proxy_status(403);
-        exit('Forbidden host');
+// 将相对 Location 解析为绝对 URL
+function shufei_download_proxy_resolve_url($base, $rel)
+{
+    $rel = trim((string)$rel);
+    if ($rel === '') return '';
+    if (preg_match('#^https?://#i', $rel)) return $rel;
+    $parts = parse_url($base);
+    if ($parts === false || empty($parts['host'])) return '';
+    $scheme = isset($parts['scheme']) ? $parts['scheme'] : 'http';
+    $port = isset($parts['port']) ? ':' . $parts['port'] : '';
+    if (isset($rel[0]) && $rel[0] === '/') {
+        return $scheme . '://' . $parts['host'] . $port . $rel;
     }
+    $path = isset($parts['path']) ? $parts['path'] : '/';
+    $slash = strrpos($path, '/');
+    $dir = ($slash === false) ? '/' : substr($path, 0, $slash + 1);
+    if ($dir === '' || $dir[0] !== '/') $dir = '/';
+    return $scheme . '://' . $parts['host'] . $port . $dir . $rel;
+}
+
+// 优先使用 cURL（手动逐跳跟随重定向，每一跳都校验地址，防止重定向到内网的盲 SSRF）
+if (function_exists('curl_init')) {
+    $currentUrl = $url;
+    $data = false;
+    $status = 0;
+    $contentType = '';
+    $finalUrl = '';
+
+    for ($redirects = 0; $redirects <= 5; $redirects++) {
+        if (!shufei_download_proxy_validate_url($currentUrl)) {
+            shufei_download_proxy_status(403);
+            exit('Forbidden host');
+        }
+
+        $ch = curl_init($currentUrl);
+        $curlOpts = array(
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => false, // 手动跟随，逐跳校验
+            CURLOPT_CONNECTTIMEOUT => 8,
+            CURLOPT_TIMEOUT => 25,
+            CURLOPT_MAXFILESIZE => 20971520, // 20MB
+            CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
+            CURLOPT_HTTPHEADER => array('User-Agent: Mozilla/5.0 (ShuFeiCat Image Download Proxy)'),
+            CURLOPT_REFERER => isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : '',
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2
+        );
+        if (defined('CURLPROTO_HTTP') && defined('CURLPROTO_HTTPS')) {
+            $curlOpts[CURLOPT_PROTOCOLS] = CURLPROTO_HTTP | CURLPROTO_HTTPS;
+        }
+        curl_setopt_array($ch, $curlOpts);
+        $data = curl_exec($ch);
+        $status = (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+        $contentType = (string)curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
+        // FOLLOWLOCATION 关闭时，CURLINFO_REDIRECT_URL 返回需要手动请求的 Location
+        $redirectUrl = (string)curl_getinfo($ch, CURLINFO_REDIRECT_URL);
+        curl_close($ch);
+
+        if ($status >= 300 && $status < 400 && $redirectUrl !== '') {
+            $currentUrl = shufei_download_proxy_resolve_url($currentUrl, $redirectUrl);
+            $finalUrl = $currentUrl;
+            continue;
+        }
+        $finalUrl = $currentUrl;
+        break;
+    }
+
     if ($status < 200 || $status >= 300 || $data === false || $data === '') {
         shufei_download_proxy_status(502);
         exit('Fetch failed');
@@ -164,7 +211,7 @@ if (function_exists('curl_init')) {
         exit('Not an image');
     }
 
-    header('Content-Type: ' . $contentType);
+    header('Content-Type: ' . shufei_download_proxy_safe_content_type($contentType));
     header('Content-Disposition: attachment; filename="' . $filename . '"');
     header('X-Content-Type-Options: nosniff');
     header('Content-Length: ' . strlen($data));
@@ -172,58 +219,77 @@ if (function_exists('curl_init')) {
     exit;
 }
 
-// cURL 不可用时回退到 fopen
+// cURL 不可用时回退到 fopen（同样手动逐跳跟随重定向并校验，且开启 SSL 证书校验）
 @ini_set('default_socket_timeout', 8);
-$context = stream_context_create(array(
-    'http' => array(
-        'timeout' => 8,
-        'follow_location' => 1,
-        'max_redirects' => 3,
-        'ignore_errors' => true,
-        'user_agent' => 'Mozilla/5.0 (ShuFeiCat Image Download Proxy)',
-        'header' => 'Referer: ' . (isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : '') . "\r\n"
-    ),
-    'ssl' => array('verify_peer' => false, 'verify_peer_name' => false)
-));
 
-$handle = @fopen($url, 'rb', false, $context);
+$currentUrl = $url;
+for ($redirects = 0; $redirects <= 3; $redirects++) {
+    if (!shufei_download_proxy_validate_url($currentUrl)) {
+        shufei_download_proxy_status(403);
+        exit('Forbidden host');
+    }
 
-if (!$handle) {
-    shufei_download_proxy_status(502);
-    exit('Fetch failed');
-}
+    $context = stream_context_create(array(
+        'http' => array(
+            'timeout' => 8,
+            'follow_location' => 0, // 手动跟随
+            'ignore_errors' => true,
+            'user_agent' => 'Mozilla/5.0 (ShuFeiCat Image Download Proxy)'
+        ),
+        'ssl' => array('verify_peer' => true, 'verify_peer_name' => true)
+    ));
 
-// 解析响应头，获取 Content-Type
-$contentType = '';
-$meta = stream_get_meta_data($handle);
-if (isset($meta['wrapper_data']) && is_array($meta['wrapper_data'])) {
-    foreach ($meta['wrapper_data'] as $h) {
-        if (stripos($h, 'Content-Type:') === 0) {
-            $contentType = trim(substr($h, 13));
-            break;
+    $handle = @fopen($currentUrl, 'rb', false, $context);
+    if (!$handle) {
+        shufei_download_proxy_status(502);
+        exit('Fetch failed');
+    }
+
+    // 解析响应头：状态码 / Location / Content-Type
+    $status = 0;
+    $location = '';
+    $contentType = '';
+    $meta = stream_get_meta_data($handle);
+    if (isset($meta['wrapper_data']) && is_array($meta['wrapper_data'])) {
+        foreach ($meta['wrapper_data'] as $h) {
+            if (!is_string($h)) continue;
+            if (preg_match('#^HTTP/\S+\s+(\d+)#i', $h, $sm)) $status = (int)$sm[1];
+            if (stripos($h, 'Location:') === 0) $location = trim(substr($h, 9));
+            if (stripos($h, 'Content-Type:') === 0) $contentType = trim(substr($h, 13));
         }
     }
-}
-if (!shufei_download_proxy_is_image($contentType)) {
-    fclose($handle);
-    shufei_download_proxy_status(415);
-    exit('Not an image');
-}
 
-header('Content-Type: ' . $contentType);
-header('Content-Disposition: attachment; filename="' . $filename . '"');
-header('X-Content-Type-Options: nosniff');
-
-// 流式输出，避免大图占用过多内存；限制最大 20MB
-$maxBytes = 20971520;
-$total = 0;
-while (!feof($handle) && $total < $maxBytes) {
-    $chunk = fread($handle, 8192);
-    if ($chunk === false) {
-        break;
+    if ($status >= 300 && $status < 400 && $location !== '') {
+        fclose($handle);
+        $currentUrl = shufei_download_proxy_resolve_url($currentUrl, $location);
+        continue;
     }
-    $total += strlen($chunk);
-    echo $chunk;
+
+    // 最终响应：仅回传图片
+    if (!shufei_download_proxy_is_image($contentType)) {
+        fclose($handle);
+        shufei_download_proxy_status(415);
+        exit('Not an image');
+    }
+
+    header('Content-Type: ' . shufei_download_proxy_safe_content_type($contentType));
+    header('Content-Disposition: attachment; filename="' . $filename . '"');
+    header('X-Content-Type-Options: nosniff');
+
+    // 流式输出，避免大图占用过多内存；限制最大 20MB
+    $maxBytes = 20971520;
+    $total = 0;
+    while (!feof($handle) && $total < $maxBytes) {
+        $chunk = fread($handle, 8192);
+        if ($chunk === false) {
+            break;
+        }
+        $total += strlen($chunk);
+        echo $chunk;
+    }
+    fclose($handle);
+    exit;
 }
-fclose($handle);
-exit;
+
+shufei_download_proxy_status(502);
+exit('Fetch failed');

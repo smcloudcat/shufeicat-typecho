@@ -45,8 +45,20 @@ class ShuFeiCat_Email
             $mail->isHTML(true);
             
             $text = $comment->text;
-            // 处理画图模式
-            $text = preg_replace('/\{!\{([^\"]*)\}!\}/', '<img style="max-width: 100%;vertical-align: middle;" src="$1"/>', $text);
+            // 转义所有用户可控字段，防止评论者注入 HTML/脚本到站长邮箱
+            $author = htmlspecialchars((string)$comment->author, ENT_QUOTES, 'UTF-8');
+            $title = htmlspecialchars((string)$comment->title, ENT_QUOTES, 'UTF-8');
+            $ip = htmlspecialchars((string)$comment->ip, ENT_QUOTES, 'UTF-8');
+
+            // 先转义正文，再处理画图模式 {!{url}!}（url 仅允许 http/https）
+            $text = htmlspecialchars((string)$text, ENT_QUOTES, 'UTF-8');
+            $text = preg_replace_callback('/\{!\{([^"]*)\}!\}/', function ($m) {
+                $url = html_entity_decode($m[1], ENT_QUOTES, 'UTF-8');
+                if (!preg_match('#^https?://#i', $url)) {
+                    return '';
+                }
+                return '<img style="max-width: 100%;vertical-align: middle;" src="' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '"/>';
+            }, $text);
             
             $mailAccentColor = self::sanitizeColor(isset($options->commentMailAccentColor) ? $options->commentMailAccentColor : '#3498db', '#3498db');
             $articleUrl = self::getArticleUrl($comment->permalink);
@@ -62,7 +74,7 @@ class ShuFeiCat_Email
                     /* 被回复的人不是自己时，发送邮件 */
                     if ($parentMail != $comment->mail) {
                         $title = self::renderSubject($options, 'reply', '您在 [{postTitle}] 的评论有了新的回复！', $comment, $articleUrl);
-                        $subtitle = '博主：[ ' . $comment->author . ' ] 在《 <a style="color: ' . $mailAccentColor . ';text-decoration: none;" href="' . $articleUrl . '" target="_blank">' . $comment->title . '</a> 》上回复了您:';
+                        $subtitle = '博主：[ ' . $author . ' ] 在《 <a style="color: ' . $mailAccentColor . ';text-decoration: none;" href="' . $articleUrl . '" target="_blank">' . $title . '</a> 》上回复了您:';
                         $mail->Body = self::renderTemplate($html, self::buildVars($options, $comment, $title, $subtitle, $text, $articleUrl));
                         $mail->addAddress($parentMail);
                         $mail->Subject = $title;
@@ -77,7 +89,7 @@ class ShuFeiCat_Email
                     $authorMail = $authoInfo['mail'];
                     if ($authorMail) {
                         $title = self::renderSubject($options, 'new', '您的文章 [{postTitle}] 收到一条新的评论！', $comment, $articleUrl);
-                        $subtitle = $comment->author . ' [' . $comment->ip . '] 在您的《 <a style="color: ' . $mailAccentColor . ';text-decoration: none;" href="' . $articleUrl . '" target="_blank">' . $comment->title . '</a> 》上发表评论:';
+                        $subtitle = $author . ' [' . $ip . '] 在您的《 <a style="color: ' . $mailAccentColor . ';text-decoration: none;" href="' . $articleUrl . '" target="_blank">' . $title . '</a> 》上发表评论:';
                         $mail->Body = self::renderTemplate($html, self::buildVars($options, $comment, $title, $subtitle, $text, $articleUrl));
                         $mail->addAddress($authorMail);
                         $mail->Subject = $title;
@@ -91,7 +103,7 @@ class ShuFeiCat_Email
                     /* 被回复的人不是自己时，发送邮件 */
                     if ($parentMail != $comment->mail) {
                         $title = self::renderSubject($options, 'reply', '您在 [{postTitle}] 的评论有了新的回复！', $comment, $articleUrl);
-                        $subtitle = $comment->author . ' 在《 <a style="color: ' . $mailAccentColor . ';text-decoration: none;" href="' . $articleUrl . '" target="_blank">' . $comment->title . '</a> 》上回复了您:';
+                        $subtitle = $author . ' 在《 <a style="color: ' . $mailAccentColor . ';text-decoration: none;" href="' . $articleUrl . '" target="_blank">' . $title . '</a> 》上回复了您:';
                         $mail->Body = self::renderTemplate($html, self::buildVars($options, $comment, $title, $subtitle, $text, $articleUrl));
                         $mail->addAddress($parentMail);
                         $mail->Subject = $title;
@@ -149,15 +161,15 @@ class ShuFeiCat_Email
             '{subtitle}' => $subtitle,
             '{content}' => $content,
             '{commentContent}' => $content,
-            '{siteName}' => $options->title,
+            '{siteName}' => htmlspecialchars((string)$options->title, ENT_QUOTES, 'UTF-8'),
             '{siteUrl}' => $options->siteUrl,
-            '{postTitle}' => $comment->title,
-            '{commentAuthor}' => $comment->author,
-            '{commentMail}' => $comment->mail,
-            '{commentIp}' => $comment->ip,
+            '{postTitle}' => htmlspecialchars((string)$comment->title, ENT_QUOTES, 'UTF-8'),
+            '{commentAuthor}' => htmlspecialchars((string)$comment->author, ENT_QUOTES, 'UTF-8'),
+            '{commentMail}' => htmlspecialchars((string)$comment->mail, ENT_QUOTES, 'UTF-8'),
+            '{commentIp}' => htmlspecialchars((string)$comment->ip, ENT_QUOTES, 'UTF-8'),
             '{permalink}' => $articleUrl,
             '{postLink}' => $articleUrl,
-            '{commentLink}' => $comment->permalink,
+            '{commentLink}' => htmlspecialchars((string)$comment->permalink, ENT_QUOTES, 'UTF-8'),
             '{year}' => date('Y'),
         );
     }

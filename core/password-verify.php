@@ -47,6 +47,8 @@ try {
     exit('系统初始化失败');
 }
 
+require_once dirname(__FILE__) . '/password-rate-limit.php';
+
 $cid = isset($_POST['cid']) ? intval($_POST['cid']) : 0;
 $password = isset($_POST['password']) ? (string)$_POST['password'] : '';
 $return = isset($_POST['return']) ? trim((string)$_POST['return']) : '';
@@ -59,6 +61,16 @@ if (!$return || !preg_match('#^https?://#i', $return)) {
     $return = $options->siteUrl;
 }
 
+// 限速：IP + CID 维度，防止无限爆破
+if (!shufei_password_rate_allowed($cid)) {
+    $sep = (false === strpos($return, '?')) ? '?' : '&';
+    if (false === strpos($return, 'pw_error=')) {
+        $return .= $sep . 'pw_error=1';
+    }
+    header('Location: ' . $return);
+    exit;
+}
+
 // 查询内容密码（与 Typecho 核心一致，存储于 contents.password 字段）
 $db = \Typecho\Db::get();
 $row = $db->fetchRow($db->select('password')->from('table.contents')->where('cid = ?', $cid));
@@ -67,9 +79,12 @@ $realPassword = isset($row['password']) ? $row['password'] : '';
 if ($realPassword !== '' && hash_equals($realPassword, $password)) {
     // 密码正确：写入密码 cookie（与会话 cookie 一致，行为同核心）
     \Typecho\Cookie::set('protectPassword_' . $cid, $password);
+    shufei_password_rate_record($cid, true);
     header('Location: ' . $return);
     exit;
 }
+
+shufei_password_rate_record($cid, false);
 
 // 密码错误：跳回内容页并携带错误标记
 $sep = (false === strpos($return, '?')) ? '?' : '&';
