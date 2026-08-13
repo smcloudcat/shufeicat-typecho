@@ -120,36 +120,90 @@ abstract class ShufeiStorageDriver
         $multipart = isset($options['multipart']) ? $options['multipart'] : null;
 
         if ($multipart !== null) {
-            // multipart 表单：手动构造 body，避免使用 CURLFile（某些共享主机上会导致 segfault）
+            // multipart 表单：优先流式写入临时文件再上传，避免大文件整读入内存（2-3 倍内存占用导致 OOM）
+            // 不使用 CURLFile（某些共享主机上会导致 segfault），改用 CURLOPT_INFILE 流式上传
             $boundary = '----ShufeiBoundary' . md5(uniqid('', true));
-            $bodyStr = '';
-            foreach ($multipart as $fieldName => $field) {
-                if (is_array($field) && isset($field['file'])) {
-                    // 文件字段
-                    $filePath = $field['file'];
-                    $fileName = isset($field['name']) ? $field['name'] : basename($filePath);
-                    $fileMime = isset($field['mime']) ? $field['mime'] : 'application/octet-stream';
-                    $fileContent = @file_get_contents($filePath);
-                    if ($fileContent === false) {
-                        return array('code' => 0, 'body' => '', 'error' => 'read file failed: ' . $filePath);
+            $tmp = @tmpfile();
+            if ($tmp === false) {
+                // 无法创建临时文件时回退到内存拼接（小文件场景）
+                $bodyStr = '';
+                foreach ($multipart as $fieldName => $field) {
+                    if (is_array($field) && isset($field['file'])) {
+                        // 文件字段
+                        $filePath = $field['file'];
+                        $fileName = isset($field['name']) ? $field['name'] : basename($filePath);
+                        $fileMime = isset($field['mime']) ? $field['mime'] : 'application/octet-stream';
+                        $fileContent = @file_get_contents($filePath);
+                        if ($fileContent === false) {
+                            return array('code' => 0, 'body' => '', 'error' => 'read file failed: ' . $filePath);
+                        }
+                        $bodyStr .= '--' . $boundary . "\r\n";
+                        $bodyStr .= 'Content-Disposition: form-data; name="' . $fieldName . '"; filename="' . $fileName . '"' . "\r\n";
+                        $bodyStr .= 'Content-Type: ' . $fileMime . "\r\n\r\n";
+                        $bodyStr .= $fileContent . "\r\n";
+                    } else {
+                        // 普通字段
+                        $bodyStr .= '--' . $boundary . "\r\n";
+                        $bodyStr .= 'Content-Disposition: form-data; name="' . $fieldName . '"' . "\r\n\r\n";
+                        $bodyStr .= $field . "\r\n";
                     }
-                    $bodyStr .= '--' . $boundary . "\r\n";
-                    $bodyStr .= 'Content-Disposition: form-data; name="' . $fieldName . '"; filename="' . $fileName . '"' . "\r\n";
-                    $bodyStr .= 'Content-Type: ' . $fileMime . "\r\n\r\n";
-                    $bodyStr .= $fileContent . "\r\n";
-                } else {
-                    // 普通字段
-                    $bodyStr .= '--' . $boundary . "\r\n";
-                    $bodyStr .= 'Content-Disposition: form-data; name="' . $fieldName . '"' . "\r\n\r\n";
-                    $bodyStr .= $field . "\r\n";
                 }
-            }
-            $bodyStr .= '--' . $boundary . "--\r\n";
+                $bodyStr .= '--' . $boundary . "--\r\n";
 
-            curl_setopt($ch, CURLOPT_POST, true);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, $bodyStr);
-            $headers[] = 'Content-Type: multipart/form-data; boundary=' . $boundary;
-            $headers[] = 'Content-Length: ' . strlen($bodyStr);
+                curl_setopt($ch, CURLOPT_POST, true);
+                curl_setopt($ch, CURLOPT_POSTFIELDS, $bodyStr);
+                $headers[] = 'Content-Type: multipart/form-data; boundary=' . $boundary;
+                $headers[] = 'Content-Length: ' . strlen($bodyStr);
+            } else {
+                // 流式：将 multipart body 分块写入临时文件，再通过文件句柄上传，避免大文件整读入内存
+                $totalSize = 0;
+                foreach ($multipart as $fieldName => $field) {
+                    if (is_array($field) && isset($field['file'])) {
+                        // 文件字段：分块流式写入
+                        $filePath = $field['file'];
+                        $fileName = isset($field['name']) ? $field['name'] : basename($filePath);
+                        $fileMime = isset($field['mime']) ? $field['mime'] : 'application/octet-stream';
+                        $head = '--' . $boundary . "\r\n"
+                            . 'Content-Disposition: form-data; name="' . $fieldName . '"; filename="' . $fileName . '"' . "\r\n"
+                            . 'Content-Type: ' . $fileMime . "\r\n\r\n";
+                        fwrite($tmp, $head);
+                        $totalSize += strlen($head);
+                        $fh = @fopen($filePath, 'rb');
+                        if ($fh === false) {
+                            fclose($tmp);
+                            return array('code' => 0, 'body' => '', 'error' => 'read file failed: ' . $filePath);
+                        }
+                        while (!feof($fh)) {
+                            $chunk = fread($fh, 8192);
+                            if ($chunk === false) {
+                                break;
+                            }
+                            fwrite($tmp, $chunk);
+                            $totalSize += strlen($chunk);
+                        }
+                        fclose($fh);
+                        fwrite($tmp, "\r\n");
+                        $totalSize += 2;
+                    } else {
+                        // 普通字段
+                        $part = '--' . $boundary . "\r\n"
+                            . 'Content-Disposition: form-data; name="' . $fieldName . '"' . "\r\n\r\n"
+                            . $field . "\r\n";
+                        fwrite($tmp, $part);
+                        $totalSize += strlen($part);
+                    }
+                }
+                $tail = '--' . $boundary . "--\r\n";
+                fwrite($tmp, $tail);
+                $totalSize += strlen($tail);
+                rewind($tmp);
+
+                curl_setopt($ch, CURLOPT_UPLOAD, true);
+                curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
+                curl_setopt($ch, CURLOPT_INFILE, $tmp);
+                curl_setopt($ch, CURLOPT_INFILESIZE, $totalSize);
+                $headers[] = 'Content-Type: multipart/form-data; boundary=' . $boundary;
+            }
         } elseif ($body !== null) {
             curl_setopt($ch, CURLOPT_POST, true);
             curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
@@ -165,6 +219,11 @@ abstract class ShufeiStorageDriver
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $error = curl_error($ch);
         curl_close($ch);
+
+        // 释放流式上传的临时文件句柄
+        if (isset($tmp) && is_resource($tmp)) {
+            fclose($tmp);
+        }
 
         // 保存错误信息供调用方诊断
         if ($error) {

@@ -63,14 +63,9 @@ function shufei_get_github_repos()
 
     // 缓存过期或不存在时：
     // 1. 若存在旧缓存，立即返回旧数据，避免前台阻塞
-    // 2. 通过标志文件避免并发刷新
+    // 2. 通过原子锁避免并发刷新，并异步刷新（不阻塞当前请求）
     if ($cachedRepos !== null) {
-        // 触发后台刷新（仅当没有正在进行的刷新时）
-        if (!file_exists($refreshingFlag) || (time() - @filemtime($refreshingFlag)) > 300) {
-            @touch($refreshingFlag);
-            shufei_refresh_github_repos_cache($username, $cacheFile);
-            @unlink($refreshingFlag);
-        }
+        shufei_github_trigger_refresh($username, $cacheFile, $refreshingFlag);
         return $filterSelected($cachedRepos);
     }
 
@@ -87,11 +82,7 @@ function shufei_get_github_repos()
             'repos' => $allRepos
         )));
         // 后台补全剩余页
-        if (!file_exists($refreshingFlag) || (time() - @filemtime($refreshingFlag)) > 300) {
-            @touch($refreshingFlag);
-            shufei_refresh_github_repos_cache($username, $cacheFile);
-            @unlink($refreshingFlag);
-        }
+        shufei_github_trigger_refresh($username, $cacheFile, $refreshingFlag);
         return $filterSelected($allRepos);
     }
 
@@ -152,6 +143,53 @@ function shufei_fetch_github_repos_page($username, $page)
         );
     }
     return $repos;
+}
+
+/**
+ * 触发 GitHub 仓库缓存后台刷新（不阻塞当前请求）
+ *
+ * 使用原子锁（fopen 'x'）避免并发刷新与 TOCTOU 竞态：
+ * - 锁已存在且未过期（<300s）则跳过，避免多个访客同时抓取
+ * - 锁已过期则清理后重试一次，防止后台进程异常退出导致永久锁死
+ *
+ * 异步策略：
+ * - PHP-FPM 环境：注册 shutdown 函数，在响应发送完成后（fastcgi_finish_request）后台刷新
+ * - 其他 SAPI：退化为同步刷新（仅一个访客承担，其余访客返回旧缓存）
+ *
+ * @param string $username GitHub 用户名
+ * @param string $cacheFile 缓存文件路径
+ * @param string $refreshingFlag 刷新锁文件路径
+ */
+function shufei_github_trigger_refresh($username, $cacheFile, $refreshingFlag)
+{
+    $cacheDir = dirname($cacheFile);
+    if (!is_dir($cacheDir)) {
+        @mkdir($cacheDir, 0755, true);
+    }
+
+    // 原子获取锁（O_EXCL），避免 TOCTOU 竞态
+    $lock = @fopen($refreshingFlag, 'x');
+    if ($lock === false) {
+        // 已有刷新进行中；若锁已失效（>300s），清理后重试一次
+        if ((time() - @filemtime($refreshingFlag)) > 300) {
+            @unlink($refreshingFlag);
+            $lock = @fopen($refreshingFlag, 'x');
+        }
+        if ($lock === false) {
+            return;
+        }
+    }
+    fwrite($lock, (string)time());
+    fclose($lock);
+
+    // 注册 shutdown 函数：响应发送完成后后台刷新，避免阻塞前台
+    register_shutdown_function(function () use ($username, $cacheFile, $refreshingFlag) {
+        if (function_exists('fastcgi_finish_request')) {
+            @fastcgi_finish_request();
+        }
+        shufei_refresh_github_repos_cache($username, $cacheFile);
+        @unlink($refreshingFlag);
+    });
 }
 
 /**

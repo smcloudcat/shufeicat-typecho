@@ -1753,16 +1753,24 @@ function themeFields($layout)
     $layout->addItem($voteDeadline);
 }
 
-/* 加载核心逻辑库（去除 @ 静默加载，改为文件存在性检查） */
+/* 加载核心逻辑库（去除 @ 静默加载，改为文件存在性检查）
+ * 按需加载：前端渲染与评论提交（Widget_Archive / Widget_Feedback）仅加载前端必需模块；
+ * 后台/上传专用模块（存储、编辑器、AI 写作、样式推荐、图片处理）仅在管理后台请求时加载，
+ * 避免每个前端请求解析约 180KB 的后台代码。后台 AJAX 端点（storage-ajax 等）自行 require 依赖，不受影响。
+ */
 $_coreLibs = array(
     dirname(__FILE__) . '/core/mail.php',
     dirname(__FILE__) . '/core/ai-moderation.php',
-    dirname(__FILE__) . '/core/ai-writer.php',
     dirname(__FILE__) . '/core/post-stats.php',
     dirname(__FILE__) . '/core/vote.php',
-    dirname(__FILE__) . '/core/image-processor.php',
-    dirname(__FILE__) . '/core/storage-drivers.php',
-    dirname(__FILE__) . '/core/storage-hooks.php',
+    dirname(__FILE__) . '/core/template-helpers.php',
+    dirname(__FILE__) . '/core/comments.php',
+    dirname(__FILE__) . '/core/markdown.php',
+    dirname(__FILE__) . '/core/captcha-config.php',
+    dirname(__FILE__) . '/core/seo.php',
+    dirname(__FILE__) . '/core/media.php',
+    dirname(__FILE__) . '/core/github-cache.php',
+    dirname(__FILE__) . '/core/emoji.php',
 );
 foreach ($_coreLibs as $_lib) {
     if (file_exists($_lib)) {
@@ -1773,66 +1781,31 @@ foreach ($_coreLibs as $_lib) {
     }
 }
 
-/* 加载分层核心模块（从 functions.php 迁移） */
+/* update.php 定义 shufei_get_theme_version（前端 footer/header 使用），始终加载 */
 if (file_exists(dirname(__FILE__) . '/core/update.php')) {
     require_once dirname(__FILE__) . '/core/update.php';
 } else {
     error_log('[ShuFeiCat] 核心模块缺失: core/update.php');
 }
-if (file_exists(dirname(__FILE__) . '/core/style-version.php')) {
-    require_once dirname(__FILE__) . '/core/style-version.php';
-} else {
-    error_log('[ShuFeiCat] 核心模块缺失: core/style-version.php');
-}
-if (file_exists(dirname(__FILE__) . '/core/storage-ui.php')) {
-    require_once dirname(__FILE__) . '/core/storage-ui.php';
-} else {
-    error_log('[ShuFeiCat] 核心模块缺失: core/storage-ui.php');
-}
-if (file_exists(dirname(__FILE__) . '/core/template-helpers.php')) {
-    require_once dirname(__FILE__) . '/core/template-helpers.php';
-} else {
-    error_log('[ShuFeiCat] 核心模块缺失: core/template-helpers.php');
-}
-if (file_exists(dirname(__FILE__) . '/core/comments.php')) {
-    require_once dirname(__FILE__) . '/core/comments.php';
-} else {
-    error_log('[ShuFeiCat] 核心模块缺失: core/comments.php');
-}
-if (file_exists(dirname(__FILE__) . '/core/markdown.php')) {
-    require_once dirname(__FILE__) . '/core/markdown.php';
-} else {
-    error_log('[ShuFeiCat] 核心模块缺失: core/markdown.php');
-}
-if (file_exists(dirname(__FILE__) . '/core/captcha-config.php')) {
-    require_once dirname(__FILE__) . '/core/captcha-config.php';
-} else {
-    error_log('[ShuFeiCat] 核心模块缺失: core/captcha-config.php');
-}
-if (file_exists(dirname(__FILE__) . '/core/seo.php')) {
-    require_once dirname(__FILE__) . '/core/seo.php';
-} else {
-    error_log('[ShuFeiCat] 核心模块缺失: core/seo.php');
-}
-if (file_exists(dirname(__FILE__) . '/core/media.php')) {
-    require_once dirname(__FILE__) . '/core/media.php';
-} else {
-    error_log('[ShuFeiCat] 核心模块缺失: core/media.php');
-}
-if (file_exists(dirname(__FILE__) . '/core/github-cache.php')) {
-    require_once dirname(__FILE__) . '/core/github-cache.php';
-} else {
-    error_log('[ShuFeiCat] 核心模块缺失: core/github-cache.php');
-}
-if (file_exists(dirname(__FILE__) . '/core/emoji.php')) {
-    require_once dirname(__FILE__) . '/core/emoji.php';
-} else {
-    error_log('[ShuFeiCat] 核心模块缺失: core/emoji.php');
-}
-if (file_exists(dirname(__FILE__) . '/core/editor-ui.php')) {
-    require_once dirname(__FILE__) . '/core/editor-ui.php';
-} else {
-    error_log('[ShuFeiCat] 核心模块缺失: core/editor-ui.php');
+
+/* 后台/上传专用模块：仅管理后台请求加载（__TYPECHO_ADMIN__ 由 admin/common.php 定义） */
+if (defined('__TYPECHO_ADMIN__')) {
+    $_adminLibs = array(
+        dirname(__FILE__) . '/core/image-processor.php',
+        dirname(__FILE__) . '/core/storage-drivers.php',
+        dirname(__FILE__) . '/core/storage-hooks.php',
+        dirname(__FILE__) . '/core/storage-ui.php',
+        dirname(__FILE__) . '/core/style-version.php',
+        dirname(__FILE__) . '/core/editor-ui.php',
+        dirname(__FILE__) . '/core/ai-writer.php',
+    );
+    foreach ($_adminLibs as $_lib) {
+        if (file_exists($_lib)) {
+            require_once $_lib;
+        } else {
+            error_log('[ShuFeiCat] 后台核心库缺失: ' . $_lib);
+        }
+    }
 }
 
 
@@ -1885,20 +1858,22 @@ if (file_exists(dirname(__FILE__) . '/core/editor-ui.php')) {
 // 注册 Markdown 扩展内容过滤器（在 Markdown 解析后处理扩展语法）
 \Typecho\Plugin::factory('Widget\Base\Contents')->contentEx = 'shufei_markdown_ext_filter';
 
-// 注册后台编辑器钩子（文章 + 页面）
-\Typecho\Plugin::factory('admin/write-post.php')->bottom = 'shufei_quick_insert_js';
+// 注册后台编辑器钩子（文章 + 页面）—— 仅后台请求注册，对应函数在 __TYPECHO_ADMIN__ 时按需加载
+if (defined('__TYPECHO_ADMIN__')) {
+    \Typecho\Plugin::factory('admin/write-post.php')->bottom = 'shufei_quick_insert_js';
 
-\Typecho\Plugin::factory('admin/write-page.php')->bottom = 'shufei_quick_insert_js';
+    \Typecho\Plugin::factory('admin/write-page.php')->bottom = 'shufei_quick_insert_js';
 
-// 注册 AI 写作助手后台编辑器钩子（文章 + 页面）
-\Typecho\Plugin::factory('admin/write-post.php')->bottom = 'shufei_ai_writer_editor_ui';
+    // 注册 AI 写作助手后台编辑器钩子（文章 + 页面）
+    \Typecho\Plugin::factory('admin/write-post.php')->bottom = 'shufei_ai_writer_editor_ui';
 
-\Typecho\Plugin::factory('admin/write-page.php')->bottom = 'shufei_ai_writer_editor_ui';
+    \Typecho\Plugin::factory('admin/write-page.php')->bottom = 'shufei_ai_writer_editor_ui';
 
-// 注册图片存储后台编辑器钩子（文章 + 页面）
-\Typecho\Plugin::factory('admin/write-post.php')->bottom = 'shufei_storage_editor_ui';
+    // 注册图片存储后台编辑器钩子（文章 + 页面）
+    \Typecho\Plugin::factory('admin/write-post.php')->bottom = 'shufei_storage_editor_ui';
 
-\Typecho\Plugin::factory('admin/write-page.php')->bottom = 'shufei_storage_editor_ui';
+    \Typecho\Plugin::factory('admin/write-page.php')->bottom = 'shufei_storage_editor_ui';
+}
 
 /**
  * ===== 历史文章修改后排序前置 =====
@@ -1940,7 +1915,8 @@ if (file_exists(dirname(__FILE__) . '/core/editor-ui.php')) {
  *  - textarea input 事件多次恢复滚动位置（抵消同步/异步 reloadScroll）
  *  - 包装 Typecho.uploadComplete / Typecho.insertFileToEditor 处理附件插入
  */
-\Typecho\Plugin::factory('admin/write-post.php')->bottom = 'shufei_editor_cursor_fix';
+if (defined('__TYPECHO_ADMIN__')) {
+    \Typecho\Plugin::factory('admin/write-post.php')->bottom = 'shufei_editor_cursor_fix';
 
-\Typecho\Plugin::factory('admin/write-page.php')->bottom = 'shufei_editor_cursor_fix';
-
+    \Typecho\Plugin::factory('admin/write-page.php')->bottom = 'shufei_editor_cursor_fix';
+}
