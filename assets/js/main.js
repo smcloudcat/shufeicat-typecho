@@ -331,7 +331,10 @@ window.initPrismHighlight = function(retryCount) {
         if (langMatch) {
             const language = langMatch[1];
             code.className = 'language-' + language;
-            code.innerHTML = htmlToText(code.innerHTML);
+            // 注意：必须用 textContent 赋值而非 innerHTML。
+            // 代码内容中若包含 <?php、<script>、</body>、</html> 等，
+            // 经 innerHTML 重新解析会被当作 HTML 标签/bogus comment 吞掉，导致代码内容被截断。
+            code.textContent = htmlToText(code.innerHTML);
         }
     });
 
@@ -343,6 +346,44 @@ window.initPrismHighlight = function(retryCount) {
             item.element.classList.add(cls);
         });
     });
+
+    // pjax/动态加载场景下，Prism autoloader 的语言组件是异步加载的，
+    // highlightAll 可能在语言组件就绪前执行，导致个别代码块未高亮。
+    // 且 autoloader 对一次性加载失败的语言不会自动重试（本会话内永久标记 error），
+    // 因此这里校验是否全部完成，未完成则强制重载语言组件并重试（限次避免死循环）。
+    var pending = [];
+    codeBlocks.forEach(function(code) {
+        // 已高亮（含 token）或内容为空的不再处理
+        if (code.querySelector('.token')) return;
+        if (!code.textContent.trim()) return;
+        var m = (code.className || '').match(/language-(\w+)/);
+        if (!m) return;
+        // 语言组件已加载但仍无 token，说明该块无匹配项，视为已处理
+        if (Prism.languages[m[1]]) return;
+        pending.push(code);
+    });
+    if (pending.length && retryCount < 6) {
+        setTimeout(function() {
+            // 强制重新加载缺失的语言组件（'!' 前缀让 autoloader 忽略 error/loading 状态重新拉取）
+            if (Prism.plugins && Prism.plugins.autoloader) {
+                pending.forEach(function(code) {
+                    var m = (code.className || '').match(/language-(\w+)/);
+                    if (m && m[1]) {
+                        try {
+                            Prism.plugins.autoloader.loadLanguages('!' + m[1]);
+                        } catch (e) {}
+                    }
+                });
+            }
+            // 语言组件就绪后重新高亮这些代码块
+            pending.forEach(function(code) {
+                try {
+                    Prism.highlightElement(code);
+                } catch (e) {}
+            });
+            window.initPrismHighlight(retryCount + 1);
+        }, 300);
+    }
 };
 
 window.initLightbox = function(retryCount) {
