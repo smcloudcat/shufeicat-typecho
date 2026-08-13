@@ -18,6 +18,11 @@ function shufei_parse_emoji_code($html, $options = null)
 {
     if (empty($html)) return $html;
 
+    // 兜底：若未传入有效 options（或传入的是不含 themeUrl 的对象），改用全局 Widget_Options 获取正确的主题 URL
+    if (empty($options) || empty($options->themeUrl)) {
+        $options = \Typecho\Widget::widget('Widget_Options');
+    }
+
     // 支持 CDN/custom 模式
     $resourceMode = !empty($options->resourceMode) ? $options->resourceMode : 'local';
     $customCdn = !empty($options->customCdn) ? rtrim($options->customCdn, '/') : '';

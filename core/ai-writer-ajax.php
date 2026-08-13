@@ -89,6 +89,13 @@ try {
 require_once dirname(__FILE__) . '/ai-writer.php';
 require_once dirname(__FILE__) . '/ai-moderation.php';
 
+// CSRF 防护：校验 Origin/Referer 同源，防止跨站请求伪造（test_api 会向任意地址发起请求）
+require_once dirname(__FILE__) . '/admin-csrf.php';
+if (!shufei_admin_csrf_verify()) {
+    echo json_encode(array('success' => false, 'message' => '请求来源校验失败，请刷新页面后重试'));
+    exit;
+}
+
 // 获取请求参数
 $action = isset($_POST['action']) ? $_POST['action'] : '';
 $content = isset($_POST['content']) ? $_POST['content'] : '';

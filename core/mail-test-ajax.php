@@ -87,6 +87,13 @@ try {
     exit;
 }
 
+// CSRF 防护：校验 Origin/Referer 同源，防止跨站请求伪造（避免被诱导用真实 SMTP 发信）
+require_once dirname(__FILE__) . '/admin-csrf.php';
+if (!shufei_admin_csrf_verify()) {
+    echo json_encode(array('success' => false, 'message' => '请求来源校验失败，请刷新页面后重试'));
+    exit;
+}
+
 // 参数校验
 $to = isset($_POST['to']) ? trim((string)$_POST['to']) : '';
 if ($to === '' || !filter_var($to, FILTER_VALIDATE_EMAIL)) {

@@ -86,7 +86,10 @@ function threadedComments($comments, $options) {
             </div>
             <div class="comment-content" itemprop="commentText">
                 <?php
-                $commentOptions = $options;
+                // 注意：threadedComments 的 $options 是 listComments 传入的 Config（单项配置），
+                // 不含 themeUrl/commentsMarkdown 等全局选项，须显式取 Widget_Options，
+                // 否则 shufei_parse_emoji_code 拿不到主题 URL，表情图片路径错误无法加载。
+                $commentOptions = \Typecho\Widget::widget('Widget_Options');
                 if ($commentOptions->commentsMarkdown) {
                     $commentText = $comments->text;
                     if ($commentText !== null) {

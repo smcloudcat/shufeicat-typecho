@@ -86,6 +86,13 @@ try {
 // 载入样式版本模块
 require_once dirname(__FILE__) . '/style-version.php';
 
+// CSRF 防护：校验 Origin/Referer 同源，防止跨站请求伪造
+require_once dirname(__FILE__) . '/admin-csrf.php';
+if (!shufei_admin_csrf_verify()) {
+    echo json_encode(array('success' => false, 'message' => '请求来源校验失败，请刷新页面后重试'));
+    exit;
+}
+
 $action = isset($_POST['action']) ? (string) $_POST['action'] : '';
 
 try {
