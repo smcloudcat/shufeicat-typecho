@@ -150,7 +150,7 @@ $jsUrls = [
 // 根据配置调整资源路径
 if ($resourceMode === 'cdn') {
     // 使用官方CDN
-    $jsUrls['jquery'] = 'https://cdn.jsdelivr.net/npm/jquery@4.0.0/dist/jquery.min.js';
+    $jsUrls['jquery'] = 'https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js';
     $jsUrls['pjax_lib'] = 'https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js';
     $jsUrls['prism'] = 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js';
     $jsUrls['prismAutoloader'] = 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/autoloader/prism-autoloader.min.js';

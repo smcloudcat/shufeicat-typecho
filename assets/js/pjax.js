@@ -186,12 +186,14 @@
         'a[target="_blank"]',
         'a[download]',
         '.no-pjax',
-        'a[href*="admin"]',
-        'a[href*="login"]',
-        'a[href*="logout"]',
-        'a[href*="feed"]',
+        // 后台/登录/登出：精确匹配 admin 路径，避免 a[href*="admin"] 误伤普通链接
+        'a[href*="/admin"]',
+        'a[href*="/login"]',
+        'a[href*="/logout"]',
+        'a[href*="/action/logout"]',
+        'a[href*="/feed"]',
         '.password-protection a',
-        'a[href*="password"]'
+        'a[href*="/action/"]'
     ];
 
     function showSubmitTip(msg, type) {

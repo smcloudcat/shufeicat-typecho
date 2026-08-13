@@ -2,8 +2,12 @@
     window.addEventListener("load", function() {
         var f = document.querySelector(".main form");
         if (!f) return;
-        var c = document.getElementById("cat-tpl").querySelector(".cat-config-container");
+        var c = document.getElementById("cat-tpl");
+        if (!c) return;
+        c = c.querySelector(".cat-config-container");
+        if (!c) return;
         var pWrap = c.querySelector("#cat-panes");
+        if (!pWrap) return;
         f.insertBefore(c, f.firstChild);
         var ids = ["cat-basic", "cat-avatar", "cat-appearance", "cat-pjax", "cat-resource", "cat-article", "cat-sidebar", "cat-seo", "cat-mail", "cat-ai", "cat-storage", "cat-verify", "cat-enhance", "cat-data", "cat-update"];
         ids.forEach(function(id) {

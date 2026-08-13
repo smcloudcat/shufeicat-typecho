@@ -70,8 +70,14 @@ window.loadScriptOnce = function(src, callback) {
         return;
     }
     if (state === 'error') {
-        // 加载失败后不再重试，避免循环
-        return;
+        // 上次加载失败：清除错误标记，允许后续调用重试（CDN 故障恢复后可自动恢复）
+        // 避免同一时刻并发重试导致风暴：短暂冷却 10s
+        var lastFail = window._loadedScripts[src + '__t'];
+        if (lastFail && (Date.now() - lastFail) < 10000) {
+            return;
+        }
+        delete window._loadedScripts[src];
+        delete window._loadedScripts[src + '__cbs'];
     }
     // 开始加载
     window._loadedScripts[src] = 'loading';
@@ -86,6 +92,7 @@ window.loadScriptOnce = function(src, callback) {
     };
     script.onerror = function() {
         window._loadedScripts[src] = 'error';
+        window._loadedScripts[src + '__t'] = Date.now();
         var cbs = window._loadedScripts[src + '__cbs'] || [];
         delete window._loadedScripts[src + '__cbs'];
         cbs.forEach(function(cb) { try { cb(); } catch (e) {} });
@@ -1516,9 +1523,8 @@ window.applyCommentSort = function(sortType) {
     });
 
     if (sortType === 'default') {
-        for (var i = 0; i < arr.length; i++) {
-            commentList.appendChild(arr[i]);
-        }
+        // 一次性追加，避免循环 appendChild 触发多次重排
+        commentList.append.apply(commentList, arr);
         return;
     }
 
@@ -1551,9 +1557,8 @@ window.applyCommentSort = function(sortType) {
         return result;
     });
 
-    for (var i = 0; i < arr.length; i++) {
-        commentList.appendChild(arr[i]);
-    }
+    // 一次性追加，避免循环 appendChild 触发多次重排
+    commentList.append.apply(commentList, arr);
 };
 
 /**
@@ -1811,16 +1816,22 @@ window.initTableOfContents = function() {
     if (mobileTocBtn) mobileTocBtn.classList.add('has-toc');
 
     // 点击目录项平滑滚动（桌面端）
-    tocNav.addEventListener('click', function(e) {
-        var link = e.target.closest('.toc-link');
-        if (!link) return;
-        e.preventDefault();
-        var targetId = link.getAttribute('data-target');
-        var target = document.getElementById(targetId);
-        if (target) {
-            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-    });
+    // 防重复绑定：F5 时 DOMContentLoaded 与 load→reinit 都会调用；pjax 切换后元素被替换会重新绑定
+    if (tocNav.getAttribute('data-toc-bound')) {
+        // 已绑定（F5 第二次调用），仅刷新高亮
+    } else {
+        tocNav.setAttribute('data-toc-bound', '1');
+        tocNav.addEventListener('click', function(e) {
+            var link = e.target.closest('.toc-link');
+            if (!link) return;
+            e.preventDefault();
+            var targetId = link.getAttribute('data-target');
+            var target = document.getElementById(targetId);
+            if (target) {
+                target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        });
+    }
 
     // 手机端目录项点击通过 document 事件委托处理（见 initMobileToc IIFE），避免 PJAX 重复绑定
 
@@ -3423,8 +3434,12 @@ window.initWeather = function(force) {
         if (code === 1 || code === 2) return isDay ? 'cloudy' : 'night';
         if (code === 3) return 'overcast';
         if (code === 45 || code === 48) return 'fog';
+        // 雨 / 毛毛雨（51-67）与阵雨（80-82）统一为 rain，避免误显示雪花粒子
         if (code >= 51 && code <= 67) return 'rain';
-        if (code >= 71 && code <= 86) return 'snow';
+        // 雪（71-77）与阵雪（85-86）为 snow
+        if (code >= 71 && code <= 77) return 'snow';
+        if (code >= 80 && code <= 82) return 'rain';
+        if (code >= 85 && code <= 86) return 'snow';
         if (code >= 95) return 'thunder';
         return isDay ? 'sunny' : 'night';
     }

@@ -3914,7 +3914,7 @@ pre[class*="language-"].line-numbers > code {
 }
 
 .comment-by-author .comment-author-name::after {
-    content: "作�?;
+    content: "作者";
     display: inline-block;
     font-size: 11px;
     font-weight: 500;
@@ -9358,5 +9358,42 @@ article.post {
     .sf-quote-comment-btn {
         padding: 8px 16px;
         font-size: 14px;
+    }
+}
+
+/* ============================================
+ * 无障碍（Accessibility）
+ * ============================================ */
+
+/* 键盘焦点可见性：仅对键盘导航显示焦点环，鼠标点击不显示 */
+:focus-visible {
+    outline: 2px solid var(--primary-color, #FF6B6B);
+    outline-offset: 2px;
+}
+
+/* 尊重系统"减少动态效果"偏好：关闭动画/过渡 */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* 原生控件颜色随主题切换（表单/滚动条等） */
+:root {
+    color-scheme: light;
+}
+[data-theme="dark"] {
+    color-scheme: dark;
+}
+
+/* 系统深色偏好：未手动设置主题时跟随系统 */
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) {
+        color-scheme: dark;
     }
 }
