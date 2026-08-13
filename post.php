@@ -73,11 +73,12 @@
         </div>
         
         <?php if (count($this->tags) > 0): ?>
-        <p itemprop="keywords" class="tags">
-            <i class="fa fa-tags"></i>
-            <?php _e('标签'); ?>: 
-            <?php $this->tags(', ', true, 'none'); ?>
-        </p>
+        <div class="post-tags" itemprop="keywords">
+            <span class="post-tags-label"><i class="fa fa-tags"></i><?php _e('标签'); ?></span>
+            <?php foreach ($this->tags as $_tag): ?>
+            <a class="tag-pill" href="<?php echo $_tag['permalink']; ?>"><?php echo htmlspecialchars($_tag['name']); ?></a>
+            <?php endforeach; ?>
+        </div>
         <?php endif; ?>
         
     </article>

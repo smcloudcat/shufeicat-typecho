@@ -841,6 +841,16 @@ function themeConfig($form)
     $weatherEnabled->setAttribute('class', 'typecho-option cat-group-sidebar');
     $form->addInput($weatherEnabled);
 
+    $tagsWidgetEnabled = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'tagsWidgetEnabled',
+        array('on' => _t('开启'), 'off' => _t('关闭')),
+        'on',
+        _t('标签云（右侧边栏）'),
+        _t('介绍：开启后，将在右侧侧边栏显示标签栏盒子，展示全部标签')
+    );
+    $tagsWidgetEnabled->setAttribute('class', 'typecho-option cat-group-sidebar');
+    $form->addInput($tagsWidgetEnabled);
+
     $seoKeywords = new \Typecho\Widget\Helper\Form\Element\Text(
         'seoKeywords',
         null,

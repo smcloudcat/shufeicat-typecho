@@ -119,6 +119,31 @@ $rankingIcon = ($rankingType === 'likes') ? 'fa-thumbs-up' : 'fa-fire';
 $_rightSections['ranking'] = ob_get_clean();
 endif;
 
+// 标签云
+if (!isset($this->options->tagsWidgetEnabled) || $this->options->tagsWidgetEnabled === 'on'):
+ob_start();
+$_tagRows = \Typecho\Db::get()->fetchAll(\Typecho\Db::get()
+    ->select('mid', 'name', 'slug', 'count')
+    ->from('table.metas')
+    ->where('type = ?', 'tag')
+    ->order('table.metas.count', \Typecho\Db::SORT_DESC));
+?>
+<section class="widget tags-widget">
+    <h3 class="widget-title"><i class="fa fa-tags"></i><?php _e('标签'); ?></h3>
+    <div class="tag-cloud">
+        <?php if (empty($_tagRows)): ?>
+        <span style="color:#999;font-size:12px;"><?php _e('暂无标签'); ?></span>
+        <?php else: ?>
+        <?php foreach ($_tagRows as $_tagRow): ?>
+        <a class="tag-pill" href="<?php echo \Typecho\Router::url('tag', array('slug' => $_tagRow['slug']), $this->options->index); ?>"><?php echo htmlspecialchars($_tagRow['name']); ?></a>
+        <?php endforeach; ?>
+        <?php endif; ?>
+    </div>
+</section>
+<?php
+$_rightSections['tags'] = ob_get_clean();
+endif;
+
 // 站点统计
 ob_start();
 ?>
@@ -143,7 +168,7 @@ ob_start();
 $_rightSections['stats'] = ob_get_clean();
 
 // ===== 解析显示顺序并输出 =====
-$_defaultRightOrder = array('weather', 'toc', 'recent', 'comments', 'archive', 'ranking', 'stats');
+$_defaultRightOrder = array('weather', 'toc', 'recent', 'comments', 'archive', 'ranking', 'tags', 'stats');
 $_orderRaw = isset($this->options->sidebarOrderRight) ? trim($this->options->sidebarOrderRight) : '';
 $_orderList = !empty($_orderRaw) ? array_map('trim', explode(',', $_orderRaw)) : $_defaultRightOrder;
 
