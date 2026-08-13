@@ -269,6 +269,23 @@ function themeConfig($form)
         '.shufei-update-status.error{background:#fff2f0;border-color:#ffccc7;color:#cf1322;}' .
         '.shufei-update-status.info{background:#e6f7ff;border-color:#91d5ff;color:#096dd9;}' .
         '.shufei-update-status a{color:#467B96;}' .
+        // ===== 更新弹窗（与 AI 助手弹窗同风格） =====
+        '.shufei-update-modal-mask{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.45);z-index:10000;display:none;}' .
+        '.shufei-update-modal{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:640px;max-width:92vw;max-height:85vh;background:#fff;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,0.25);z-index:10001;display:none;flex-direction:column;overflow:hidden;}' .
+        '.shufei-update-modal.show,.shufei-update-modal-mask.show{display:flex;}' .
+        '.shufei-update-modal-header{padding:12px 16px;background:#467B96;color:#fff;font-weight:bold;font-size:14px;display:flex;justify-content:space-between;align-items:center;}' .
+        '.shufei-update-modal-close{cursor:pointer;font-size:18px;line-height:1;padding:0 4px;opacity:0.85;}' .
+        '.shufei-update-modal-close:hover{opacity:1;}' .
+        '.shufei-update-modal-body{padding:16px;overflow-y:auto;flex:1;font-size:13px;line-height:1.8;color:#333;}' .
+        '.shufei-update-modal-body .upd-ver{font-size:15px;font-weight:bold;color:#467B96;margin-bottom:10px;}' .
+        '.shufei-update-modal-body .upd-changelog{white-space:pre-wrap;word-break:break-word;background:#fafafa;border:1px solid #eee;border-radius:6px;padding:12px;margin-top:10px;}' .
+        '.shufei-update-modal-body .upd-changelog a{color:#467B96;}' .
+        '.shufei-update-modal-footer{padding:10px 16px;border-top:1px solid #f0f0f0;display:flex;justify-content:flex-end;gap:8px;background:#fafafa;flex-wrap:wrap;}' .
+        '.shufei-update-modal-btn{display:inline-block;padding:7px 16px;font-size:13px;border-radius:6px;cursor:pointer;border:1px solid transparent;transition:all .2s;font-family:inherit;}' .
+        '.shufei-update-modal-btn.primary{background:#467B96;color:#fff;}' .
+        '.shufei-update-modal-btn.primary:hover{opacity:.9;}' .
+        '.shufei-update-modal-btn.ghost{background:#fff;color:#666;border-color:#d9d9d9;}' .
+        '.shufei-update-modal-btn.ghost:hover{border-color:#467B96;color:#467B96;}' .
         '</style>';
 
     echo '<div class="shufei-update-box">';
@@ -287,6 +304,21 @@ function themeConfig($form)
         . ' data-channel="' . htmlspecialchars($updateChannel) . '"'
         . '>正在检查更新...</div>';
 
+    echo '</div>';
+
+    // ===== 更新弹窗（新版本提示，与 AI 助手弹窗同风格） =====
+    echo '<div class="shufei-update-modal-mask" id="shufei-update-mask"></div>';
+    echo '<div class="shufei-update-modal" id="shufei-update-modal">';
+    echo '<div class="shufei-update-modal-header">';
+    echo '<span id="shufei-update-modal-title">发现新版本</span>';
+    echo '<span class="shufei-update-modal-close" id="shufei-update-close">×</span>';
+    echo '</div>';
+    echo '<div class="shufei-update-modal-body" id="shufei-update-modal-body">';
+    echo '<!-- 内容动态注入 -->';
+    echo '</div>';
+    echo '<div class="shufei-update-modal-footer" id="shufei-update-modal-footer">';
+    echo '<!-- 按钮动态注入 -->';
+    echo '</div>';
     echo '</div>';
     
     $logoUrl = new \Typecho\Widget\Helper\Form\Element\Text(
@@ -443,7 +475,7 @@ function themeConfig($form)
     echo '<div class="shufei-update-status" id="shufei-check-status"></div>';
     echo '</div>';
 
-    echo '<script src="' . $options->themeUrl . '/assets/js/admin/update-check.js?v=' . shufei_get_theme_version() . '"></script>';
+    echo '<script src="' . $options->themeUrl . '/assets/js/admin/update-check.js?v=' . (filemtime(dirname(__FILE__) . '/assets/js/admin/update-check.js') ?: shufei_get_theme_version()) . '"></script>';
 
 
     // ===== 清空缓存 =====
