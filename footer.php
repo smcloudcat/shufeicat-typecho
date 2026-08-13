@@ -128,13 +128,11 @@ $themeUrl = rtrim($this->options->themeUrl, '/') . '/';
 // 添加版本号以防止缓存问题：使用文件修改时间，文件更新后自动刷新缓存
 $themeDir = dirname(__FILE__);
 $mainJsMtime = filemtime($themeDir . '/assets/js/main.js');
-$ajaxJsMtime = filemtime($themeDir . '/assets/js/ajax.js');
 $pjaxJsMtime = filemtime($themeDir . '/assets/js/pjax.js');
 $loadMoreJsMtime = filemtime($themeDir . '/assets/js/load-more.js');
 $jsUrls = [
     'jquery' => $themeUrl . 'assets/vendor/jquery/jquery.min.js',
     'main' => $themeUrl . 'assets/js/main.js?v=' . ($mainJsMtime ?: shufei_get_theme_version()),
-    'ajax' => $themeUrl . 'assets/js/ajax.js?v=' . ($ajaxJsMtime ?: shufei_get_theme_version()),
     'pjax' => $themeUrl . 'assets/js/pjax.js?v=' . ($pjaxJsMtime ?: shufei_get_theme_version()),
     'loadmore' => $themeUrl . 'assets/js/load-more.js?v=' . ($loadMoreJsMtime ?: shufei_get_theme_version()),
     'pjax_lib' => $themeUrl . 'assets/vendor/pjax/pjax.min.js',
@@ -165,7 +163,6 @@ if ($resourceMode === 'cdn') {
     // 使用自建CDN
     $jsUrls['jquery'] = $customCdn . '/assets/vendor/jquery/jquery.min.js';
     $jsUrls['main'] = $customCdn . '/assets/js/main.js?v=' . ($mainJsMtime ?: shufei_get_theme_version());
-    $jsUrls['ajax'] = $customCdn . '/assets/js/ajax.js?v=' . ($ajaxJsMtime ?: shufei_get_theme_version());
     $jsUrls['pjax'] = $customCdn . '/assets/js/pjax.js?v=' . ($pjaxJsMtime ?: shufei_get_theme_version());
     $jsUrls['loadmore'] = $customCdn . '/assets/js/load-more.js?v=' . ($loadMoreJsMtime ?: shufei_get_theme_version());
     $jsUrls['pjax_lib'] = $customCdn . '/assets/vendor/pjax/pjax.min.js';

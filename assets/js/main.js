@@ -1304,6 +1304,10 @@ window.initPostViews = function() {
     var viewsCount = document.querySelector('.post-views-count');
     if (!viewsCount) return;
 
+    // 防重复统计：F5 时 DOMContentLoaded 与 load→reinit 都会调用，加守卫避免浏览量 +2
+    if (viewsCount.getAttribute('data-view-counted')) return;
+    viewsCount.setAttribute('data-view-counted', '1');
+
     var cid = viewsCount.getAttribute('data-cid');
     if (!cid) return;
 
@@ -2817,29 +2821,41 @@ window.initPostReadingFav = function() {
         window.scrollTo(0, 0);
     }
 
-    // 滚动监听：仅在用户实际滚动时计算并记录进度
-    var ticking = false;
-    function updateProgress() {
-        ticking = false;
-        var rect = postContent.getBoundingClientRect();
-        var winH = window.innerHeight || document.documentElement.clientHeight;
-        var totalH = postContent.offsetHeight;
-        // 内容高度为 0 时跳过（DOM 尚未渲染完成）
-        if (totalH === 0) return;
-        var top = rect.top;
-        var scrolled = Math.max(0, -top);
-        var readable = Math.max(1, totalH - winH);
-        var percent = Math.min(100, Math.max(0, Math.round((scrolled / readable) * 100)));
-        if (percent > 0) {
-            window.ReadingFav.setProgress(cid, percent);
+    // 滚动监听：全局只绑定一次，pjax 切换只更新上下文（避免每次导航累积监听器导致内存泄漏）
+    window._rfContext = { postContent: postContent, cid: cid };
+    if (!window.__rfScrollBound) {
+        window.__rfScrollBound = true;
+        var ticking = false;
+        var lastWrite = 0;
+        function updateProgress() {
+            ticking = false;
+            var ctx = window._rfContext;
+            if (!ctx || !ctx.postContent || !ctx.cid) return;
+            var rect = ctx.postContent.getBoundingClientRect();
+            var winH = window.innerHeight || document.documentElement.clientHeight;
+            var totalH = ctx.postContent.offsetHeight;
+            // 内容高度为 0 时跳过（DOM 尚未渲染完成）
+            if (totalH === 0) return;
+            var top = rect.top;
+            var scrolled = Math.max(0, -top);
+            var readable = Math.max(1, totalH - winH);
+            var percent = Math.min(100, Math.max(0, Math.round((scrolled / readable) * 100)));
+            if (percent > 0) {
+                // 节流写盘：最多每秒写一次，避免滚动时每帧 JSON.stringify 造成主线程抖动
+                var now = Date.now();
+                if (now - lastWrite >= 1000) {
+                    window.ReadingFav.setProgress(ctx.cid, percent);
+                    lastWrite = now;
+                }
+            }
         }
+        window.addEventListener('scroll', function() {
+            if (!ticking) {
+                window.requestAnimationFrame(updateProgress);
+                ticking = true;
+            }
+        }, { passive: true });
     }
-    window.addEventListener('scroll', function() {
-        if (!ticking) {
-            window.requestAnimationFrame(updateProgress);
-            ticking = true;
-        }
-    }, { passive: true });
 
     // 短文自动标记已读：延迟检查，确保 pjax 替换后布局已稳定
     // 仅当内容确实较短（高度 > 0 且 <= 视口 80%）时才标记，避免刚进入就误判

@@ -13,12 +13,45 @@
         return new DOMParser().parseFromString(html, 'text/html');
     }
 
+    // 安全解析 HTML 字符串并返回经过净化的 DocumentFragment
+    // 移除 <script>、<iframe>、on* 事件属性、javascript: 协议等危险内容
+    function sanitizeHtml(html) {
+        var doc = new DOMParser().parseFromString(html, 'text/html');
+        var dangerousTags = ['script', 'iframe', 'object', 'embed', 'base', 'form'];
+        dangerousTags.forEach(function(tagName) {
+            var nodes = doc.querySelectorAll(tagName);
+            nodes.forEach(function(node) { node.remove(); });
+        });
+        var allElements = doc.querySelectorAll('*');
+        allElements.forEach(function(el) {
+            var attrs = el.attributes;
+            for (var i = attrs.length - 1; i >= 0; i--) {
+                var attrName = attrs[i].name.toLowerCase();
+                var attrValue = attrs[i].value;
+                if (attrName.indexOf('on') === 0) {
+                    el.removeAttribute(attrs[i].name);
+                } else if ((attrName === 'href' || attrName === 'src') &&
+                    /^\s*javascript:/i.test(attrValue)) {
+                    el.removeAttribute(attrs[i].name);
+                }
+            }
+        });
+        var fragment = document.createDocumentFragment();
+        while (doc.body.firstChild) {
+            fragment.appendChild(doc.body.firstChild);
+        }
+        return fragment;
+    }
+
     // 将目标页面中的文章卡片追加到当前列表
     function appendPosts(doc) {
         var targetList = document.getElementById('ajax-post-list');
         var newList = doc.getElementById('ajax-post-list');
         if (!targetList || !newList) return false;
-        targetList.insertAdjacentHTML('beforeend', newList.innerHTML);
+        var fragment = sanitizeHtml(newList.innerHTML);
+        while (fragment.firstChild) {
+            targetList.appendChild(fragment.firstChild);
+        }
         return true;
     }
 
