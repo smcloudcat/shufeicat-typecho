@@ -79,6 +79,11 @@
     }
     if (shufei_is_turnstile_enabled()) $dnsPrefetchHosts[] = 'challenges.cloudflare.com';
     if (shufei_is_geetest_enabled()) $dnsPrefetchHosts[] = 'static.geetest.com';
+    if (shufei_is_catcaptcha_enabled()) {
+        $catcaptchaApiBase = shufei_get_catcaptcha_api_base();
+        $catcaptchaHost = parse_url($catcaptchaApiBase, PHP_URL_HOST);
+        if ($catcaptchaHost) $dnsPrefetchHosts[] = $catcaptchaHost;
+    }
     if (!empty($this->options->weatherEnabled) && $this->options->weatherEnabled === 'on') {
         $dnsPrefetchHosts[] = 'api.lwcat.cn';
     }
@@ -256,9 +261,13 @@
     $themeUrl = rtrim($this->options->themeUrl, '/') . '/';
     
     // CSS 资源路径配置
+    // 是否加载压缩版资源（默认开启）
+    $useMin = empty($this->options->minifyAssets) || $this->options->minifyAssets === 'on';
+    $normalizeCssFile = $useMin && file_exists(dirname(__FILE__) . '/assets/css/normalize.min.css') ? 'normalize.min.css' : 'normalize.css';
+    $styleCssFile = $useMin && file_exists(dirname(__FILE__) . '/assets/css/style.min.css') ? 'style.min.css' : 'style.css';
     $cssUrls = [
-        'normalize' => $themeUrl . 'assets/css/normalize.css',
-        'style' => $themeUrl . 'assets/css/style.css',
+        'normalize' => $themeUrl . 'assets/css/' . $normalizeCssFile,
+        'style' => $themeUrl . 'assets/css/' . $styleCssFile,
         'fontawesome' => $themeUrl . 'assets/vendor/font-awesome/css/font-awesome.min.css',
         'prism' => $themeUrl . 'assets/vendor/prismjs/themes/prism-tomorrow.min.css',
         'lightbox' => $themeUrl . 'assets/vendor/lightbox3/lightbox3.css',
@@ -275,8 +284,8 @@
         $cssUrls['katex'] = 'https://cdn.jsdelivr.net/npm/katex@0.17.0/dist/katex.min.css';
     } elseif ($resourceMode === 'custom' && $customCdn) {
         // 使用自建CDN
-        $cssUrls['normalize'] = $customCdn . '/assets/css/normalize.css';
-        $cssUrls['style'] = $customCdn . '/assets/css/style.css';
+        $cssUrls['normalize'] = $customCdn . '/assets/css/' . $normalizeCssFile;
+        $cssUrls['style'] = $customCdn . '/assets/css/' . $styleCssFile;
         $cssUrls['fontawesome'] = $customCdn . '/assets/vendor/font-awesome/css/font-awesome.min.css';
         $cssUrls['prism'] = $customCdn . '/assets/vendor/prismjs/themes/prism-tomorrow.min.css';
         $cssUrls['lightbox'] = $customCdn . '/assets/vendor/lightbox3/lightbox3.css';
@@ -287,7 +296,7 @@
     
     // 资源版本号：使用文件修改时间，文件更新后自动刷新缓存
     $themeDir = dirname(__FILE__);
-    $cssVersion = filemtime($themeDir . '/assets/css/style.css') ?: shufei_get_theme_version();
+    $cssVersion = filemtime($themeDir . '/assets/css/' . $styleCssFile) ?: shufei_get_theme_version();
     ?>
     
     <!-- 本地 CSS -->
@@ -311,6 +320,12 @@
     <?php if (shufei_is_geetest_enabled() && !empty(shufei_get_geetest_captcha_id())): ?>
     <!-- 极验 Geetest v4 -->
     <script src="https://static.geetest.com/v4/gt4.js" async defer></script>
+    <?php endif; ?>
+
+    <?php if (shufei_is_catcaptcha_enabled() && !empty(shufei_get_catcaptcha_site_key())): ?>
+    <!-- Cat-Captcha 人机验证 -->
+    <link rel="stylesheet" href="<?php echo rtrim(shufei_get_catcaptcha_api_base(), '/'); ?>/public/captcha.css?v=1.0.6">
+    <script src="<?php echo rtrim(shufei_get_catcaptcha_api_base(), '/'); ?>/public/captcha.js?v=1.0.6" async defer></script>
     <?php endif; ?>
     
     <script>
@@ -680,6 +695,7 @@
 
                 this.refreshTurnstile();
                 this.refreshGeetest();
+                this.refreshCatCaptcha();
 
                 return false;
             },
@@ -702,6 +718,7 @@
                 holder.parentNode.insertBefore(response, holder);
                 this.refreshTurnstile();
                 this.refreshGeetest();
+                this.refreshCatCaptcha();
                 return false;
             },
             // 回复/取消回复移动 DOM 后，重置极验 Geetest v4 验证状态
@@ -712,6 +729,17 @@
                 if (typeof window.geetestResult !== 'undefined') {
                     window.geetestResult = null;
                 }
+            },
+            // 回复/取消回复移动 DOM 后，重置 Cat-Captcha 触发框（清空已获取的票据）
+            refreshCatCaptcha: function () {
+                if (typeof window.catCaptchaBox !== 'undefined' && window.catCaptchaBox) {
+                    try { window.catCaptchaBox.reset(); } catch (e) {}
+                }
+                if (typeof window.catCaptchaTicket !== 'undefined') {
+                    window.catCaptchaTicket = null;
+                }
+                var ticketInput = this.dom('#catcaptcha-ticket');
+                if (ticketInput) ticketInput.value = '';
             },
             // 回复/取消回复移动 DOM 后，已渲染的 Turnstile iframe 会失效，需移除后重新渲染
             refreshTurnstile: function () {

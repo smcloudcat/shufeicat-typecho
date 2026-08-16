@@ -4301,6 +4301,10 @@ pre[class*="language-"].line-numbers > code {
     margin: 16px 0;
 }
 
+.catcaptcha-container {
+    margin: 16px 0;
+}
+
 .captcha-container {
     margin: 16px 0;
 }

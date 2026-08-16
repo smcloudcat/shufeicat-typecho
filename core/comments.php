@@ -138,6 +138,30 @@ function shufei_comment_check($comment, $post) {
         if (!isset($verifyResult['result']) || $verifyResult['result'] !== 'success') {
             throw new \Typecho\Widget\Exception(_t('人机验证未通过，请重试'));
         }
+    } elseif (shufei_is_catcaptcha_enabled()) {
+        // Cat-Captcha 验证
+        $ticket = isset($_POST['catcaptcha_ticket']) ? trim($_POST['catcaptcha_ticket']) : '';
+        if (empty($ticket)) {
+            throw new \Typecho\Widget\Exception(_t('请先完成人机验证'));
+        }
+        $siteId = shufei_get_catcaptcha_site_id();
+        $secretKey = shufei_get_catcaptcha_secret_key();
+        if (empty($siteId) || empty($secretKey)) {
+            // fail-closed：密钥未配置视为校验失败，避免静默放行
+            throw new \Typecho\Widget\Exception(_t('人机验证服务未正确配置，请联系管理员'));
+        }
+        $verifyResult = shufei_catcaptcha_verify($ticket, $siteId, $secretKey);
+        // fail-closed：网络异常、curl 不可用或返回空时拒绝评论
+        if ($verifyResult === null) {
+            throw new \Typecho\Widget\Exception(_t('人机验证服务暂时不可用，请稍后重试'));
+        }
+        if (!isset($verifyResult['valid']) || $verifyResult['valid'] !== true) {
+            throw new \Typecho\Widget\Exception(_t('人机验证未通过，请重试'));
+        }
+        // 必须核对 action 与期望一致，防止票据被跨场景复用
+        if (isset($verifyResult['action']) && $verifyResult['action'] !== shufei_get_catcaptcha_action()) {
+            throw new \Typecho\Widget\Exception(_t('人机验证未通过，请重试'));
+        }
     } elseif (shufei_is_captcha_enabled()) {
         // 图片验证码验证
         session_start();
@@ -281,6 +305,80 @@ function shufei_geetest_verify($captchaId, $lotNumber, $captchaOutput, $passToke
             return json_decode($response, true);
         }
         error_log('[ShuFeiCat] Geetest file_get_contents 失败: ' . (isset($http_response_header[0]) ? $http_response_header[0] : 'unknown'));
+    }
+
+    return null;
+}
+
+/**
+ * 使用 cURL 验证 Cat-Captcha 票据
+ *
+ * 二次校验协议（HMAC 签名）：
+ *   签名内容 = site_id \n timestamp \n nonce \n ticket \n action
+ *   请求头：Authorization: Captcha {site_id}:{sig}，X-Timestamp，X-Nonce
+ *   请求体：ticket、action 表单字段
+ *
+ * @param string $ticket    前端验证通过后返回的一次性票据
+ * @param string $siteId    站点 ID
+ * @param string $secretKey 站点 Secret Key（仅后端持有）
+ * @return array|null 返回校验结果数组（含 valid/action/risk 等），失败返回 null
+ */
+function shufei_catcaptcha_verify($ticket, $siteId, $secretKey) {
+    $apiBase = shufei_get_catcaptcha_api_base();
+    $action = shufei_get_catcaptcha_action();
+    $ts = time();
+    $nonce = bin2hex(random_bytes(16));
+    $sig = hash_hmac('sha256', "$siteId\n$ts\n$nonce\n$ticket\n$action", $secretKey);
+    $postData = http_build_query(array(
+        'ticket' => $ticket,
+        'action' => $action
+    ));
+    $url = rtrim($apiBase, '/') . '/api/validate.php';
+    $headers = array(
+        "Authorization: Captcha $siteId:$sig",
+        "X-Timestamp: $ts",
+        "X-Nonce: $nonce",
+        "Content-Type: application/x-www-form-urlencoded"
+    );
+
+    // 优先使用 cURL
+    if (function_exists('curl_init')) {
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        $response = curl_exec($ch);
+        $errno = curl_errno($ch);
+        $errmsg = curl_error($ch);
+        curl_close($ch);
+        if ($response) {
+            return json_decode($response, true);
+        }
+        error_log('[ShuFeiCat] Cat-Captcha curl 失败: errno=' . $errno . ' msg=' . $errmsg);
+    }
+
+    // 回退到 file_get_contents
+    if (function_exists('file_get_contents') && ini_get('allow_url_fopen')) {
+        $ctx = stream_context_create(array(
+            'http' => array(
+                'method' => 'POST',
+                'header' => implode("\r\n", $headers),
+                'content' => $postData,
+                'timeout' => 10,
+            ),
+            'ssl' => array(
+                'verify_peer' => true,
+                'verify_peer_name' => true,
+            ),
+        ));
+        $response = @file_get_contents($url, false, $ctx);
+        if ($response) {
+            return json_decode($response, true);
+        }
+        error_log('[ShuFeiCat] Cat-Captcha file_get_contents 失败: ' . (isset($http_response_header[0]) ? $http_response_header[0] : 'unknown'));
     }
 
     return null;

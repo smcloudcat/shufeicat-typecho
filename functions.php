@@ -156,7 +156,7 @@ function themeConfig($form)
     '</div>';
     echo $html;
 
-    echo '<script src="' . $options->themeUrl . '/assets/js/admin/theme-settings.js?v=' . shufei_get_theme_version() . '"></script>';
+    echo '<script src="' . $options->themeUrl . '/assets/js/admin/theme-settings.js?v=' . (filemtime(dirname(__FILE__) . '/assets/js/admin/theme-settings.js') ?: shufei_get_theme_version()) . '"></script>';
 
 
     $dataHtml = '<div class="typecho-option cat-group-data" style="display:none">' .
@@ -812,6 +812,16 @@ function themeConfig($form)
     );
     $customCdn->setAttribute('class', 'typecho-option cat-group-resource');
     $form->addInput($customCdn->addRule('url', _t('请填写一个合法的URL地址')));
+
+    $minifyAssets = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'minifyAssets',
+        array('on' => _t('开启（默认，加载 .min 压缩版）'), 'off' => _t('关闭（加载原版）')),
+        'on',
+        _t('资源压缩（minify）'),
+        _t('介绍：开启后加载压缩版 JS/CSS（Terser + csso 压缩产物），性能更好<br>关闭后加载原版文件（便于调试），原版文件始终保留在主题目录')
+    );
+    $minifyAssets->setAttribute('class', 'typecho-option cat-group-resource');
+    $form->addInput($minifyAssets);
     
     $thumbnailSource = new \Typecho\Widget\Helper\Form\Element\Radio(
         'thumbnailSource',
@@ -1468,13 +1478,14 @@ function themeConfig($form)
             'none' => _t('关闭'),
             'turnstile' => _t('Cloudflare Turnstile'),
             'geetest' => _t('极验 Geetest v4'),
+            'catcaptcha' => _t('Cat-Captcha 验证'),
             'captcha_number' => _t('图片验证码（纯数字）'),
             'captcha_alpha' => _t('图片验证码（纯字母）'),
             'captcha_alnum' => _t('图片验证码（数字+字母）')
         ),
         'none',
         _t('评论验证方式'),
-        _t('介绍：选择评论提交时的人机验证方式。图片验证码无需第三方服务，Turnstile 需要 Cloudflare 账号，极验 Geetest v4 需要极验账号')
+        _t('介绍：选择评论提交时的人机验证方式。图片验证码无需第三方服务，Turnstile 需要 Cloudflare 账号，极验 Geetest v4 需要极验账号，Cat-Captcha 需要 Cat-Captcha 账号')
     );
     $captchaType->setAttribute('class', 'typecho-option cat-group-verify');
     $form->addInput($captchaType);
@@ -1487,6 +1498,7 @@ function themeConfig($form)
         _t('介绍：填写 Cloudflare Turnstile 提供的 Site Key（仅 Turnstile 验证方式需要）')
     );
     $turnstileSiteKey->setAttribute('class', 'typecho-option cat-group-verify');
+    $turnstileSiteKey->setAttribute('data-verify-type', 'turnstile');
     $form->addInput($turnstileSiteKey);
 
     $turnstileSecretKey = new \Typecho\Widget\Helper\Form\Element\Password(
@@ -1497,6 +1509,7 @@ function themeConfig($form)
         _t('介绍：填写 Cloudflare Turnstile 提供的 Secret Key（仅 Turnstile 验证方式需要）')
     );
     $turnstileSecretKey->setAttribute('class', 'typecho-option cat-group-verify');
+    $turnstileSecretKey->setAttribute('data-verify-type', 'turnstile');
     $form->addInput($turnstileSecretKey);
 
     $geetestCaptchaId = new \Typecho\Widget\Helper\Form\Element\Text(
@@ -1507,6 +1520,7 @@ function themeConfig($form)
         _t('介绍：填写极验 Geetest v4 后台的 Captcha ID（仅极验验证方式需要）')
     );
     $geetestCaptchaId->setAttribute('class', 'typecho-option cat-group-verify');
+    $geetestCaptchaId->setAttribute('data-verify-type', 'geetest');
     $form->addInput($geetestCaptchaId);
 
     $geetestCaptchaKey = new \Typecho\Widget\Helper\Form\Element\Password(
@@ -1517,7 +1531,63 @@ function themeConfig($form)
         _t('介绍：填写极验 Geetest v4 后台的 Captcha Key（服务器端校验用，仅极验验证方式需要）')
     );
     $geetestCaptchaKey->setAttribute('class', 'typecho-option cat-group-verify');
+    $geetestCaptchaKey->setAttribute('data-verify-type', 'geetest');
     $form->addInput($geetestCaptchaKey);
+
+    $catcaptchaSiteId = new \Typecho\Widget\Helper\Form\Element\Text(
+        'catcaptchaSiteId',
+        null,
+        null,
+        _t('Cat-Captcha 站点 ID'),
+        _t('介绍：填写 Cat-Captcha 开发者中心的 site_id（站点唯一标识，仅 Cat-Captcha 验证方式需要）')
+    );
+    $catcaptchaSiteId->setAttribute('class', 'typecho-option cat-group-verify');
+    $catcaptchaSiteId->setAttribute('data-verify-type', 'catcaptcha');
+    $form->addInput($catcaptchaSiteId);
+
+    $catcaptchaSiteKey = new \Typecho\Widget\Helper\Form\Element\Text(
+        'catcaptchaSiteKey',
+        null,
+        null,
+        _t('Cat-Captcha Site Key'),
+        _t('介绍：填写 Cat-Captcha 开发者中心的 site_key（前端 SDK 加载使用，仅 Cat-Captcha 验证方式需要）')
+    );
+    $catcaptchaSiteKey->setAttribute('class', 'typecho-option cat-group-verify');
+    $catcaptchaSiteKey->setAttribute('data-verify-type', 'catcaptcha');
+    $form->addInput($catcaptchaSiteKey);
+
+    $catcaptchaSecretKey = new \Typecho\Widget\Helper\Form\Element\Password(
+        'catcaptchaSecretKey',
+        null,
+        null,
+        _t('Cat-Captcha Secret Key'),
+        _t('介绍：填写 Cat-Captcha 开发者中心的 secret_key（服务器端 HMAC 签名校验用，仅后端持有，仅 Cat-Captcha 验证方式需要）')
+    );
+    $catcaptchaSecretKey->setAttribute('class', 'typecho-option cat-group-verify');
+    $catcaptchaSecretKey->setAttribute('data-verify-type', 'catcaptcha');
+    $form->addInput($catcaptchaSecretKey);
+
+    $catcaptchaApiBase = new \Typecho\Widget\Helper\Form\Element\Text(
+        'catcaptchaApiBase',
+        null,
+        'https://captcha.lwcat.cn',
+        _t('Cat-Captcha API 地址'),
+        _t('介绍：Cat-Captcha 服务地址，默认官方 https://captcha.lwcat.cn；自托管时改为你的服务地址')
+    );
+    $catcaptchaApiBase->setAttribute('class', 'typecho-option cat-group-verify');
+    $catcaptchaApiBase->setAttribute('data-verify-type', 'catcaptcha');
+    $form->addInput($catcaptchaApiBase);
+
+    $catcaptchaAction = new \Typecho\Widget\Helper\Form\Element\Text(
+        'catcaptchaAction',
+        null,
+        'comment',
+        _t('Cat-Captcha 业务场景（action）'),
+        _t('介绍：业务场景标识，默认 comment，需与前端 SDK 注册时保持一致')
+    );
+    $catcaptchaAction->setAttribute('class', 'typecho-option cat-group-verify');
+    $catcaptchaAction->setAttribute('data-verify-type', 'catcaptcha');
+    $form->addInput($catcaptchaAction);
 
     $captchaLength = new \Typecho\Widget\Helper\Form\Element\Radio(
         'captchaLength',
@@ -1527,6 +1597,7 @@ function themeConfig($form)
         _t('介绍：选择图片验证码的字符位数（仅图片验证码方式有效）')
     );
     $captchaLength->setAttribute('class', 'typecho-option cat-group-verify');
+    $captchaLength->setAttribute('data-verify-type', 'image');
     $form->addInput($captchaLength);
 
     // ===== 功能增强配置 =====

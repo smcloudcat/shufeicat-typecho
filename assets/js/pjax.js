@@ -294,6 +294,36 @@
                 }
             }
 
+            // Cat-Captcha：未验证则弹出验证码，验证成功后会重新触发 submit
+            var catcaptchaContainer = document.getElementById('catcaptcha-box');
+            if (catcaptchaContainer) {
+                var catTicket = (window.catCaptchaBox && typeof window.catCaptchaBox.getTicket === 'function')
+                    ? window.catCaptchaBox.getTicket()
+                    : '';
+                if (!catTicket) {
+                    if (window.catCaptchaBox) {
+                        setSubmitLoading(true);
+                        showSubmitTip('请完成人机验证', '');
+                        try { window.catCaptchaBox.open(); } catch (e) {
+                            setSubmitLoading(false);
+                            showSubmitTip('人机验证加载中，请稍后重试', 'error');
+                        }
+                    } else {
+                        showSubmitTip('人机验证正在加载，请稍后重试', 'error');
+                    }
+                    return;
+                }
+                // 将票据写入隐藏字段，随表单一起提交
+                var catInput = commentForm.querySelector('input[name="catcaptcha_ticket"]');
+                if (!catInput) {
+                    catInput = document.createElement('input');
+                    catInput.type = 'hidden';
+                    catInput.name = 'catcaptcha_ticket';
+                    commentForm.appendChild(catInput);
+                }
+                catInput.value = catTicket;
+            }
+
             var tokenInputs = commentForm.querySelectorAll('input[name="_"]');
             for (var i = 0; i < tokenInputs.length; i++) {
                 tokenInputs[i].parentNode.removeChild(tokenInputs[i]);
@@ -340,6 +370,7 @@
                                 showSubmitTip(errorMsg.textContent.trim() || '评论提交失败', 'error');
                                 initCaptcha();
                                 resetGeetest();
+                                resetCatCaptcha();
                             }
                         }
 
@@ -351,6 +382,7 @@
                     showSubmitTip('评论被拒绝，请刷新页面后重试', 'error');
                     initCaptcha();
                     resetGeetest();
+                    resetCatCaptcha();
                 } else {
                     var errorMsg = '提交失败，请稍后重试';
                     try {
@@ -365,6 +397,7 @@
                     showSubmitTip(errorMsg, 'error');
                     initCaptcha();
                     resetGeetest();
+                    resetCatCaptcha();
                 }
             };
 
@@ -385,6 +418,9 @@
 
     function onCommentSuccess(form, textarea) {
         showSubmitTip('评论提交成功！', 'success');
+
+        // 提交成功后重置 Cat-Captcha 触发框（一次性票据已使用，需重新验证）
+        resetCatCaptcha();
 
         if (textarea) {
             textarea.value = '';
@@ -417,6 +453,7 @@
                     initTurnstile();
                     initCaptcha();
                     initGeetest();
+                    initCatCaptcha();
                     // 重新绑定新评论的点赞按钮和排序控件
                     if (typeof window.initCommentLike === 'function') {
                         window.initCommentLike();
@@ -518,6 +555,11 @@
     window.geetestResult = null;
     var geetestInitTimer = null;
 
+    // ===== Cat-Captcha（触发框模式）=====
+    window.catCaptchaBox = null;
+    window.catCaptchaTicket = null;
+    var catCaptchaInitTimer = null;
+
     function initGeetest() {
         var geetestContainer = document.getElementById('geetest-captcha');
         if (!geetestContainer) return;
@@ -590,6 +632,82 @@
                 if (input) input.value = '';
             }
         }
+    }
+
+    // ===== Cat-Captcha =====
+    function initCatCaptcha() {
+        var catcaptchaContainer = document.getElementById('catcaptcha-box');
+        if (!catcaptchaContainer) return;
+        // 已初始化过则跳过（避免重复绑定）
+        if (catcaptchaContainer.getAttribute('data-catcaptcha-init')) return;
+
+        var catApiBase = catcaptchaContainer.getAttribute('data-api-base') || 'https://captcha.lwcat.cn';
+        var catSiteKey = catcaptchaContainer.getAttribute('data-site-key') || '';
+        var catAction = catcaptchaContainer.getAttribute('data-action') || 'comment';
+        if (!catSiteKey) return;
+
+        // SDK 尚未加载完成，稍后重试
+        if (typeof window.LwCaptcha === 'undefined') {
+            if (catCaptchaInitTimer) clearTimeout(catCaptchaInitTimer);
+            catCaptchaInitTimer = setTimeout(initCatCaptcha, 200);
+            return;
+        }
+
+        // 销毁旧实例（评论区重新渲染后旧实例已失效）
+        if (window.catCaptchaBox) {
+            try { window.catCaptchaBox.destroy(); } catch (e) {}
+            window.catCaptchaBox = null;
+        }
+        window.catCaptchaTicket = null;
+
+        catcaptchaContainer.setAttribute('data-catcaptcha-init', 'true');
+
+        try {
+            window.catCaptchaBox = window.LwCaptcha.trigger({
+                el: '#catcaptcha-box',
+                type: 'auto',
+                algVersion: 1,
+                apiBase: catApiBase,
+                siteKey: catSiteKey,
+                action: catAction,
+                onSuccess: function(ticket) {
+                    window.catCaptchaTicket = ticket;
+                    var ticketInput = document.getElementById('catcaptcha-ticket');
+                    if (ticketInput) ticketInput.value = ticket;
+                    // 验证成功后重新触发表单提交
+                    var form = document.getElementById('comment-form');
+                    if (form) {
+                        form.dispatchEvent(new Event('submit', {bubbles: true, cancelable: true}));
+                    }
+                },
+                onFail: function(info) {
+                    window.catCaptchaTicket = null;
+                    setSubmitLoading(false);
+                    showSubmitTip((info && info.message) || '人机验证失败，请重试', 'error');
+                },
+                onClose: function() {
+                    setSubmitLoading(false);
+                    showSubmitTip('请完成人机验证', '');
+                }
+            });
+            // 移除触发框按钮，仅由提交按钮触发验证弹窗
+            var pjaxTriggerBtn = catcaptchaContainer.querySelector('.lwcap-trigger');
+            if (pjaxTriggerBtn && pjaxTriggerBtn.parentNode) {
+                pjaxTriggerBtn.parentNode.removeChild(pjaxTriggerBtn);
+            }
+        } catch (e) {
+            window.catCaptchaTicket = null;
+        }
+    }
+
+    function resetCatCaptcha() {
+        window.catCaptchaTicket = null;
+        if (window.catCaptchaBox) {
+            try { window.catCaptchaBox.reset(); } catch (e) {}
+        }
+        // 清空隐藏字段，避免残留失效的票据
+        var ticketInput = document.getElementById('catcaptcha-ticket');
+        if (ticketInput) ticketInput.value = '';
     }
 
     function initPjax() {
@@ -739,6 +857,7 @@
             initAjaxComment();
             initTurnstile();
             initGeetest();
+            initCatCaptcha();
 
             // 阅读进度 & 收藏（pjax 切换页面后重新初始化）
             if (typeof window.initPostReadingFav === 'function') {

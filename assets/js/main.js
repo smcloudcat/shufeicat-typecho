@@ -2246,9 +2246,13 @@ window.initAiSummary = function() {
         });
     }
 
-    if (ball && !ball.getAttribute('data-ai-summary-bound')) {
-        ball.setAttribute('data-ai-summary-bound', '1');
-        ball.addEventListener('click', function(e) {
+    if (ball) {
+        // 移除旧的事件监听，避免 pjax 重新绑定后旧监听残留，导致多次点击出现多个弹窗
+        if (ball._aiSummaryClickHandler) {
+            ball.removeEventListener('click', ball._aiSummaryClickHandler);
+            ball._aiSummaryClickHandler = null;
+        }
+        var aiSummaryClickHandler = function(e) {
             e.stopPropagation();
             var isOpen = popup && popup.classList.contains('show');
             if (isOpen) {
@@ -2256,7 +2260,9 @@ window.initAiSummary = function() {
             } else {
                 showPopup();
             }
-        });
+        };
+        ball._aiSummaryClickHandler = aiSummaryClickHandler;
+        ball.addEventListener('click', aiSummaryClickHandler);
         // 手机端有目录时，AI 弹球上移到目录按钮上方（与收藏按钮联动）
         var tocBtn = document.getElementById('mobile-toc-btn');
         function syncBallToc() {
@@ -3643,6 +3649,79 @@ window.initCaptchaWidgets = function() {
         setTimeout(function() { clearInterval(turnstileTimer); }, 10000);
     }
 
+    // ===== Cat-Captcha（触发框模式，极验风格）=====
+    var catcaptchaContainer = document.getElementById('catcaptcha-box');
+    if (catcaptchaContainer && !catcaptchaContainer.getAttribute('data-catcaptcha-init')) {
+        catcaptchaContainer.setAttribute('data-catcaptcha-init', 'true');
+
+        window.catCaptchaBox = null;
+        window.catCaptchaTicket = null;
+
+        var catApiBase = catcaptchaContainer.getAttribute('data-api-base') || 'https://captcha.lwcat.cn';
+        var catSiteKey = catcaptchaContainer.getAttribute('data-site-key') || '';
+        var catAction = catcaptchaContainer.getAttribute('data-action') || 'comment';
+
+        // SDK 异步加载，轮询等待就绪后初始化
+        var catTimer = setInterval(function() {
+            if (typeof window.LwCaptcha !== 'undefined') {
+                clearInterval(catTimer);
+                try {
+                    window.catCaptchaBox = window.LwCaptcha.trigger({
+                        el: '#catcaptcha-box',
+                        type: 'auto',
+                        algVersion: 1,
+                        apiBase: catApiBase,
+                        siteKey: catSiteKey,
+                        action: catAction,
+                        onSuccess: function(ticket) {
+                            window.catCaptchaTicket = ticket;
+                            var ticketInput = document.getElementById('catcaptcha-ticket');
+                            if (ticketInput) ticketInput.value = ticket;
+                            // 验证通过后触发表单提交（原生 submit 不触发事件监听，避免循环拦截）
+                            var form = document.getElementById('comment-form');
+                            if (form) {
+                                form.submit();
+                            }
+                        },
+                        onFail: function(info) {
+                            window.catCaptchaTicket = null;
+                            var ticketInput = document.getElementById('catcaptcha-ticket');
+                            if (ticketInput) ticketInput.value = '';
+                            if (window.showToast) window.showToast((info && info.message) || '人机验证失败，请重试', 'error');
+                        }
+                    });
+                    // 移除触发框按钮，仅由提交按钮触发验证弹窗
+                    var catTriggerBtn = catcaptchaContainer.querySelector('.lwcap-trigger');
+                    if (catTriggerBtn && catTriggerBtn.parentNode) {
+                        catTriggerBtn.parentNode.removeChild(catTriggerBtn);
+                    }
+                } catch (e) {}
+            }
+        }, 100);
+        setTimeout(function() { clearInterval(catTimer); }, 15000);
+
+        // 拦截表单提交：未完成 Cat-Captcha 验证时弹出验证码
+        var catForm = document.getElementById('comment-form');
+        if (catForm) {
+            catForm.addEventListener('submit', function(e) {
+                if (!window.catCaptchaBox) {
+                    e.preventDefault();
+                    if (window.showToast) window.showToast('人机验证正在加载，请稍后重试', 'error');
+                    return;
+                }
+                var ticket = window.catCaptchaBox.getTicket ? window.catCaptchaBox.getTicket() : '';
+                if (!ticket) {
+                    e.preventDefault();
+                    if (window.showToast) window.showToast('请先完成人机验证', 'info');
+                    try { window.catCaptchaBox.open(); } catch (err) {}
+                    return;
+                }
+                var ticketInput = document.getElementById('catcaptcha-ticket');
+                if (ticketInput) ticketInput.value = ticket;
+            });
+        }
+    }
+
     // ===== 极验 Geetest v4 =====
     var geetestContainer = document.getElementById('geetest-captcha');
     if (!geetestContainer || geetestContainer.getAttribute('data-geetest-init')) return;
@@ -3733,6 +3812,7 @@ window.initCaptchaWidgets = function() {
             }
         });
     }
+
 };
 
 // ==================== 天气卡片 ====================

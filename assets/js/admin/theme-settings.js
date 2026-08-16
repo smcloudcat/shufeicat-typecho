@@ -48,6 +48,20 @@
             });
             applyToggleGroup(g);
         });
+        // ===== 条件显示：按验证方式显示对应配置字段 =====
+        function applyVerifyType() {
+            var checked = document.querySelector('input[name="captchaType"][type=radio]:checked');
+            var type = checked ? checked.value : "none";
+            document.querySelectorAll("[data-verify-type]").forEach(function(el) {
+                var target = el.getAttribute("data-verify-type");
+                var show = type === target || (type === "captcha_number" || type === "captcha_alpha" || type === "captcha_alnum") && target === "image";
+                el.style.display = show ? "" : "none";
+            });
+        }
+        document.querySelectorAll('input[name="captchaType"][type=radio]').forEach(function(r) {
+            r.addEventListener("change", applyVerifyType);
+        });
+        applyVerifyType();
         // ===== AJAX 表单提交：无需刷新页面 =====
         f.addEventListener("submit", function(e) {
             e.preventDefault();

@@ -221,6 +221,11 @@ function threadedComments($comments, $options) {
                 <div class="geetest-container">
                     <div id="geetest-captcha" data-captcha-id="<?php echo htmlspecialchars(shufei_get_geetest_captcha_id()); ?>"></div>
                 </div>
+                <?php elseif (shufei_is_catcaptcha_enabled() && !empty(shufei_get_catcaptcha_site_key())): ?>
+                <div class="catcaptcha-container">
+                    <div id="catcaptcha-box" data-api-base="<?php echo htmlspecialchars(shufei_get_catcaptcha_api_base()); ?>" data-site-key="<?php echo htmlspecialchars(shufei_get_catcaptcha_site_key()); ?>" data-action="<?php echo htmlspecialchars(shufei_get_catcaptcha_action()); ?>"></div>
+                    <input type="hidden" name="catcaptcha_ticket" id="catcaptcha-ticket" value="">
+                </div>
                 <?php elseif (shufei_is_captcha_enabled()): ?>
                 <div class="captcha-container">
                     <div class="captcha-row">
