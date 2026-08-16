@@ -33,7 +33,7 @@
         </div>
     </div>
     <?php endif; ?>
-    <article class="post post-single <?php echo !empty($thumbnail) ? 'has-thumbnail' : ''; ?>" data-cid="<?php echo $this->cid; ?>" itemscope itemtype="http://schema.org/BlogPosting">
+    <article class="post post-single <?php echo !empty($thumbnail) ? 'has-thumbnail' : ''; ?>" data-cid="<?php echo $this->cid; ?>" data-ai-summary="<?php echo $aiSummaryEnabled ? '1' : '0'; ?>" itemscope itemtype="http://schema.org/BlogPosting">
         <header class="post-header" <?php if (!empty($thumbnail)): ?>style="background-image: url(<?php echo htmlspecialchars($thumbnail); ?>);"<?php endif; ?>>
             <div class="post-header-overlay">
                 <h1 class="post-title" itemprop="name headline">

@@ -5365,10 +5365,86 @@ pre[class*="language-"].line-numbers > code {
 /* ============================================
  * 返回顶部按钮
  * ============================================ */
-#back-to-top {
+/* ============================================
+ * 悬浮操作组：多个悬浮球折叠为展开按钮
+ * ============================================ */
+.float-actions {
     position: fixed;
     right: 30px;
     bottom: 30px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(20px);
+    pointer-events: none;
+    transition: opacity 0.25s ease, transform 0.25s ease, visibility 0.25s ease;
+}
+
+.float-actions.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+.float-actions-list {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 12px;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(10px);
+    pointer-events: none;
+    transition: opacity 0.25s ease, transform 0.25s ease, visibility 0.25s ease;
+}
+
+.float-actions.expanded .float-actions-list {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+.float-actions-toggle {
+    width: 46px;
+    height: 46px;
+    border: none;
+    border-radius: 50%;
+    background: var(--primary-color);
+    color: #fff;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 3px 10px color-mix(in srgb, var(--primary-color) 30%, transparent);
+    transition: background 0.2s, transform 0.3s ease, box-shadow 0.2s;
+    padding: 0;
+}
+
+.float-actions-toggle:hover {
+    background: var(--primary-hover);
+    transform: scale(1.05);
+    box-shadow: 0 5px 15px color-mix(in srgb, var(--primary-color) 40%, transparent);
+}
+
+.float-actions.expanded .float-actions-toggle {
+    background: var(--primary-hover);
+    transform: rotate(45deg);
+}
+
+.float-actions-toggle i {
+    font-size: 20px;
+}
+
+#back-to-top {
+    position: relative;
     width: 44px;
     height: 44px;
     background: var(--primary-color);
@@ -5377,18 +5453,11 @@ pre[class*="language-"].line-numbers > code {
     text-align: center;
     line-height: 44px;
     cursor: pointer;
-    opacity: 0;
-    visibility: hidden;
-    transform: translateY(20px);
-    transition: var(--transition-fast);
-    z-index: 1000;
-    box-shadow: 0 3px 10px color-mix(in srgb, var(--primary-color) 30%, transparent);
-}
-
-#back-to-top.show {
     opacity: 1;
     visibility: visible;
     transform: translateY(0);
+    transition: var(--transition-fast);
+    box-shadow: 0 3px 10px color-mix(in srgb, var(--primary-color) 30%, transparent);
 }
 
 #back-to-top:hover {
@@ -5405,9 +5474,7 @@ pre[class*="language-"].line-numbers > code {
  * 文章页浮动收藏按钮
  * ============================================ */
 #float-fav-btn {
-    position: fixed;
-    right: 30px;
-    bottom: 84px;
+    position: relative;
     width: 44px;
     height: 44px;
     background: #fff;
@@ -5417,18 +5484,11 @@ pre[class*="language-"].line-numbers > code {
     text-align: center;
     line-height: 44px;
     cursor: pointer;
-    opacity: 0;
-    visibility: hidden;
-    transform: translateY(20px);
-    transition: var(--transition-fast);
-    z-index: 1000;
-    box-shadow: 0 3px 10px color-mix(in srgb, var(--primary-color) 20%, transparent);
-}
-
-#float-fav-btn.show {
     opacity: 1;
     visibility: visible;
     transform: translateY(0);
+    transition: var(--transition-fast);
+    box-shadow: 0 3px 10px color-mix(in srgb, var(--primary-color) 20%, transparent);
 }
 
 #float-fav-btn:hover {
@@ -5454,20 +5514,11 @@ pre[class*="language-"].line-numbers > code {
     font-size: 18px;
 }
 
-/* 手机端：浮动收藏按钮上移到目录按钮上方 */
-@media (max-width: 992px) {
-    #float-fav-btn.has-toc {
-        bottom: 138px;
-    }
-}
-
 /* ============================================
  * 手机端文章目录按钮与侧边栏
  * ============================================ */
 #mobile-toc-btn {
-    position: fixed;
-    right: 30px;
-    bottom: 84px;
+    position: relative;
     width: 44px;
     height: 44px;
     background: var(--primary-color);
@@ -5476,19 +5527,12 @@ pre[class*="language-"].line-numbers > code {
     text-align: center;
     line-height: 44px;
     cursor: pointer;
-    opacity: 0;
-    visibility: hidden;
-    transform: translateY(20px);
-    transition: var(--transition-fast);
-    z-index: 1000;
-    box-shadow: 0 3px 10px color-mix(in srgb, var(--primary-color) 30%, transparent);
-    display: none;
-}
-
-#mobile-toc-btn.show {
     opacity: 1;
     visibility: visible;
     transform: translateY(0);
+    transition: var(--transition-fast);
+    box-shadow: 0 3px 10px color-mix(in srgb, var(--primary-color) 30%, transparent);
+    display: none;
 }
 
 #mobile-toc-btn:hover {
@@ -8266,11 +8310,9 @@ article.post {
 
 /* ===== AI 总结悬浮弹球 ===== */
 .ai-summary-ball {
-    position: fixed;
-    right: 30px;
-    bottom: 138px;
-    width: 50px;
-    height: 50px;
+    position: relative;
+    width: 48px;
+    height: 48px;
     border-radius: 50%;
     background: linear-gradient(135deg, var(--primary-color, #467B96), var(--primary-hover, #e05555));
     color: #fff;
@@ -8278,7 +8320,6 @@ article.post {
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    z-index: 1001;
     box-shadow: 0 4px 16px color-mix(in srgb, var(--primary-color, #467B96) 35%, transparent);
     transition: transform 0.25s, box-shadow 0.25s;
     animation: aiBallFloat 3s ease-in-out infinite;
@@ -8423,8 +8464,6 @@ article.post {
 }
 @media (max-width: 576px) {
     .ai-summary-ball {
-        right: 30px;
-        bottom: 138px;
         width: 44px;
         height: 44px;
     }
@@ -8438,9 +8477,6 @@ article.post {
 
 /* 手机端：目录按钮出现时，AI 弹球继续上移避免重叠 */
 @media (max-width: 992px) {
-    .ai-summary-ball.has-toc {
-        bottom: 192px;
-    }
     .ai-summary-popup.has-toc {
         bottom: 254px;
     }

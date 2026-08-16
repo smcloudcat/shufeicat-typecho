@@ -85,27 +85,35 @@
     </div>
 </footer><!-- end #footer -->
 
-<!-- 返回顶部按钮 -->
-<div id="back-to-top" title="<?php _e('返回顶部'); ?>">
-    <i class="fa fa-angle-up"></i>
-</div>
+<!-- 悬浮操作组：多个悬浮球折叠为展开按钮，点击展开显示全部悬浮球 -->
+<div id="float-actions" class="float-actions">
+    <div class="float-actions-list" id="float-actions-list">
+        <!-- 返回顶部按钮 -->
+        <div id="back-to-top" title="<?php _e('返回顶部'); ?>">
+            <i class="fa fa-angle-up"></i>
+        </div>
 
-<!-- 文章页浮动收藏按钮（仅文章页显示，位于返回顶部/手机目录按钮上方） -->
-<div id="float-fav-btn" title="<?php _e('收藏文章'); ?>" style="display:none;">
-    <i class="fa fa-heart-o"></i>
-</div>
+        <!-- 文章页浮动收藏按钮（仅文章页显示，位于返回顶部/手机目录按钮上方） -->
+        <div id="float-fav-btn" title="<?php _e('收藏文章'); ?>" style="display:none;">
+            <i class="fa fa-heart-o"></i>
+        </div>
 
-<?php if ($this->is('post') && class_exists('AiSummary') && AiSummary::isEnabled() && AiSummary::isArticleEnabled($this->cid)): ?>
-<!-- AI 总结悬浮弹球（置于 body 层，避免 article 内 backdrop-filter 破坏 fixed 定位） -->
-<div class="ai-summary-ball" id="ai-summary-ball" data-cid="<?php echo $this->cid; ?>" title="<?php _e('AI 文章摘要'); ?>">
-    <span class="ai-ball-pulse"></span>
-    <i class="fa fa-magic"></i>
-</div>
-<?php endif; ?>
+        <!-- AI 总结悬浮弹球（始终渲染，默认隐藏，由 JS 根据文章是否开启 AI 摘要控制显隐） -->
+        <div class="ai-summary-ball" id="ai-summary-ball" data-cid="<?php echo $this->cid; ?>" title="<?php _e('AI 文章摘要'); ?>" style="display:none;">
+            <span class="ai-ball-pulse"></span>
+            <i class="fa fa-magic"></i>
+        </div>
 
-<!-- 手机端文章目录触发按钮（仅文章页且拥有目录时显示） -->
-<div id="mobile-toc-btn" title="<?php _e('文章目录'); ?>">
-    <i class="fa fa-list-ul"></i>
+        <!-- 手机端文章目录触发按钮（仅文章页且拥有目录时显示） -->
+        <div id="mobile-toc-btn" title="<?php _e('文章目录'); ?>">
+            <i class="fa fa-list-ul"></i>
+        </div>
+    </div>
+
+    <!-- 折叠展开按钮：默认收起，点击展开悬浮球 -->
+    <button type="button" id="float-actions-toggle" class="float-actions-toggle" title="<?php _e('展开/收起悬浮按钮'); ?>" aria-label="<?php _e('展开/收起悬浮按钮'); ?>">
+        <i class="fa fa-plus"></i>
+    </button>
 </div>
 
 <!-- 手机端文章目录侧边栏（从右侧划出） -->

@@ -1959,6 +1959,20 @@ window.initAiSummary = function() {
         oldPopup.parentNode.removeChild(oldPopup);
     }
 
+    // 根据当前文章是否开启 AI 摘要控制弹球显隐（弹球始终渲染，避免 pjax 切换后元素缺失）
+    var curArticle = document.querySelector('article.post-single');
+    var aiEnabled = curArticle && curArticle.getAttribute('data-ai-summary') === '1';
+    if (ball) {
+        if (aiEnabled) {
+            ball.style.display = '';
+            if (curArticle) {
+                ball.setAttribute('data-cid', curArticle.getAttribute('data-cid') || ball.getAttribute('data-cid'));
+            }
+        } else {
+            ball.style.display = 'none';
+        }
+    }
+
     // 弹球与顶部栏二选一：有缓存显示顶部栏，否则仅弹球
     var cid = null;
     var contentEl = null;
@@ -1971,7 +1985,7 @@ window.initAiSummary = function() {
         contentEl = document.getElementById('ai-summary-content');
         regenBtn = document.getElementById('ai-summary-regenerate');
         collapseBtn = document.getElementById('ai-summary-collapse');
-    } else if (ball) {
+    } else if (ball && aiEnabled) {
         cid = ball.getAttribute('data-cid');
     }
     if (!cid) return;
@@ -3297,40 +3311,6 @@ window.initPostReadingFav = function() {
         });
         // 显示浮动收藏按钮
         floatFavBtn.style.display = '';
-        // 同步 has-toc 状态：手机端有目录时上移到目录按钮上方
-        var mobileTocBtn = document.getElementById('mobile-toc-btn');
-        if (mobileTocBtn && mobileTocBtn.classList.contains('has-toc')) {
-            floatFavBtn.classList.add('has-toc');
-        }
-        // 监听 has-toc 变化（目录初始化可能在 initPostReadingFav 之后）
-        // 断开旧 observer 避免内存泄漏（pjax 切换 N 次会累积 N 个 observer）
-        if (window._tocObserver) {
-            window._tocObserver.disconnect();
-            window._tocObserver = null;
-        }
-        window._tocObserver = new MutationObserver(function() {
-            var curFloatBtn = document.getElementById('float-fav-btn');
-            var curTocBtn = document.getElementById('mobile-toc-btn');
-            if (!curFloatBtn || !curTocBtn) return;
-            if (curTocBtn.classList.contains('has-toc')) {
-                curFloatBtn.classList.add('has-toc');
-            } else {
-                curFloatBtn.classList.remove('has-toc');
-            }
-        });
-        if (mobileTocBtn) {
-            window._tocObserver.observe(mobileTocBtn, { attributes: true, attributeFilter: ['class'] });
-        }
-        // 延迟显示动画
-        setTimeout(function() { floatFavBtn.classList.add('show'); }, 100);
-        // 滚动时保持显示（仅绑定一次到 window，避免 pjax 切换累积监听器）
-        if (!window.__floatFavScrollBound) {
-            window.__floatFavScrollBound = true;
-            window.addEventListener('scroll', function() {
-                var fb = document.getElementById('float-fav-btn');
-                if (fb) fb.classList.add('show');
-            }, { passive: true });
-        }
     }
 
     // 继续上次阅读：若有进度记录（0 < percent < 100），显示提示条
@@ -4101,7 +4081,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 返回顶部功能
     const backToTop = document.getElementById('back-to-top');
-    const mobileTocBtn = document.getElementById('mobile-toc-btn');
+    const floatActions = document.getElementById('float-actions');
+    const floatActionsToggle = document.getElementById('float-actions-toggle');
+    const floatActionsList = document.getElementById('float-actions-list');
     if (backToTop) {
         backToTop.addEventListener('click', function() {
             window.scrollTo({
@@ -4109,17 +4091,40 @@ document.addEventListener('DOMContentLoaded', function() {
                 behavior: 'smooth'
             });
         });
-        
-        // 滚动显示/隐藏（节流）— 同时控制返回顶部和手机端目录按钮
+
+        // 滚动显示/隐藏悬浮操作组（节流）
         window.addEventListener('scroll', throttle(function() {
             if (window.scrollY > 300) {
-                backToTop.classList.add('show');
-                if (mobileTocBtn) mobileTocBtn.classList.add('show');
+                if (floatActions) floatActions.classList.add('show');
             } else {
-                backToTop.classList.remove('show');
-                if (mobileTocBtn) mobileTocBtn.classList.remove('show');
+                if (floatActions) floatActions.classList.remove('show');
+                if (floatActions) floatActions.classList.remove('expanded');
             }
         }, 150));
+    }
+
+    // 悬浮操作组：点击展开按钮展开/收起悬浮球
+    if (floatActions && floatActionsToggle) {
+        floatActionsToggle.addEventListener('click', function(e) {
+            e.stopPropagation();
+            floatActions.classList.toggle('expanded');
+        });
+        // 点击悬浮球后收起列表（排除切换按钮自身）
+        if (floatActionsList) {
+            floatActionsList.addEventListener('click', function(e) {
+                if (e.target.closest('.ai-summary-ball')) return;
+                floatActions.classList.remove('expanded');
+            });
+        }
+        // 点击空白处收起
+        if (!window.__floatActionsDocBound) {
+            window.__floatActionsDocBound = true;
+            document.addEventListener('click', function(e) {
+                if (e.target.closest && e.target.closest('#float-actions')) return;
+                var fa = document.getElementById('float-actions');
+                if (fa) fa.classList.remove('expanded');
+            });
+        }
     }
     
     // 初始化移动端菜单

@@ -784,6 +784,13 @@
         if (window.reinitTimer) clearTimeout(window.reinitTimer);
 
         window.reinitTimer = setTimeout(function() {
+            // 收起悬浮操作组（避免 pjax 切换后仍处于展开状态）
+            var floatActions = document.getElementById('float-actions');
+            if (floatActions) {
+                floatActions.classList.remove('expanded');
+                floatActions.classList.remove('show');
+            }
+
             // 清理浮动收藏按钮（在 #footer 外，pjax 不会替换，需手动重置）
             // 用克隆节点替换彻底清除旧的 click 监听器，避免 pjax 切换后
             // 旧监听器仍用旧 cid 触发收藏，导致收藏错乱
@@ -811,7 +818,9 @@
                 oldAiPopup.parentNode.removeChild(oldAiPopup);
             }
             if (aiBall) {
-                if (curArticle) {
+                // 仅当新文章已开启 AI 摘要时显示悬浮球
+                var aiEnabled = curArticle && curArticle.getAttribute('data-ai-summary') === '1';
+                if (aiEnabled) {
                     aiBall.setAttribute('data-cid', curArticle.getAttribute('data-cid') || aiBall.getAttribute('data-cid'));
                     aiBall.style.display = '';
                     aiBall.classList.remove('has-toc');
