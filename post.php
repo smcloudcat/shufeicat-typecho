@@ -11,6 +11,12 @@
     $articleAlert = $this->fields->articleAlert;
     // 获取点赞功能控制
     $disableLike = $this->fields->disableLike;
+    // 判断文章 AI 总结
+    $aiSummaryEnabled = false;
+    if (class_exists('AiSummary') && AiSummary::isEnabled()) {
+        $aiSummaryEnabled = AiSummary::isArticleEnabled($this->cid);
+    }
+    $aiSummaryCached = ($aiSummaryEnabled && class_exists('AiSummary')) ? AiSummary::getCached($this->cid) : null;
     ?>
     <?php if (!empty($articleAlert)): ?>
     <div class="article-alert-box" id="article-alert-box">
@@ -63,7 +69,27 @@
                 </ul>
             </div>
         </header>
-        
+
+        <?php if ($aiSummaryEnabled && $aiSummaryCached): ?>
+        <div class="ai-summary-box" id="ai-summary-box" data-cid="<?php echo $this->cid; ?>">
+            <div class="ai-summary-header">
+                <i class="fa fa-magic"></i> <span><?php _e('AI 文章摘要'); ?></span>
+                <span class="ai-summary-source"><?php _e('已缓存'); ?></span>
+            </div>
+            <div class="ai-summary-content" id="ai-summary-content">
+                <p><?php echo nl2br(htmlspecialchars($aiSummaryCached)); ?></p>
+            </div>
+            <div class="ai-summary-footer">
+                <button type="button" class="ai-summary-regenerate" id="ai-summary-regenerate" title="<?php _e('重新生成'); ?>">
+                    <i class="fa fa-refresh"></i> <?php _e('重新生成'); ?>
+                </button>
+                <button type="button" class="ai-summary-collapse" id="ai-summary-collapse" title="<?php _e('折叠'); ?>">
+                    <i class="fa fa-chevron-up"></i>
+                </button>
+            </div>
+        </div>
+        <?php endif; ?>
+
         <div class="post-content" itemprop="articleBody">
             <?php if ($this->hidden): ?>
                 <?php echo shufei_render_password_protection($this); ?>

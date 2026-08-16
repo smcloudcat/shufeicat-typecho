@@ -14,6 +14,10 @@ if (!defined('__TYPECHO_ROOT_DIR__')) exit;
  */
 function shufei_render_storage_profile_ui()
 {
+    // 延迟加载存储驱动类（themeConfig 在无 __TYPECHO_ADMIN__ 的前台路由下也会调用本函数）
+    if (!class_exists('ShufeiStorageDriver')) {
+        require_once dirname(__FILE__) . '/storage-drivers.php';
+    }
     $options = \Typecho\Widget::widget('Widget_Options');
     $ajaxUrl = \Typecho\Common::url('usr/themes/ShuFeiCat/core/storage-ajax.php', $options->siteUrl);
     $drivers = ShufeiStorageDriver::driverList();
@@ -139,6 +143,10 @@ function shufei_render_storage_profile_ui()
  */
 function shufei_render_storage_images_ui()
 {
+    // 延迟加载存储驱动类（themeConfig 在无 __TYPECHO_ADMIN__ 的前台路由下也会调用本函数）
+    if (!class_exists('ShufeiStorageDriver')) {
+        require_once dirname(__FILE__) . '/storage-drivers.php';
+    }
     $options = \Typecho\Widget::widget('Widget_Options');
     $ajaxUrl = \Typecho\Common::url('usr/themes/ShuFeiCat/core/storage-ajax.php', $options->siteUrl);
 

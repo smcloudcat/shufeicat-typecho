@@ -678,6 +678,34 @@
                 var fIcon = newFloatBtn.querySelector('i');
                 if (fIcon) fIcon.className = 'fa fa-heart-o';
                 floatFavBtn.parentNode.replaceChild(newFloatBtn, floatFavBtn);
+                // 清掉 article 上的初始化标记，让 initPostReadingFav 重新绑定并显示按钮
+                var rfArticle = document.querySelector('article.post-single');
+                if (rfArticle) rfArticle.removeAttribute('data-rf-bound');
+                window._rfContext = null;
+            }
+
+            // AI 摘要悬浮弹球同样在 #footer 外，pjax 不会替换，需重置 cid 并清理弹窗
+            var aiBall = document.getElementById('ai-summary-ball');
+            var curArticle = document.querySelector('article.post-single');
+            var aiBox = document.getElementById('ai-summary-box');
+            var oldAiPopup = document.querySelector('.ai-summary-popup');
+            if (oldAiPopup && oldAiPopup.parentNode) {
+                oldAiPopup.parentNode.removeChild(oldAiPopup);
+            }
+            if (aiBall) {
+                if (curArticle) {
+                    aiBall.setAttribute('data-cid', curArticle.getAttribute('data-cid') || aiBall.getAttribute('data-cid'));
+                    aiBall.style.display = '';
+                    aiBall.classList.remove('has-toc');
+                } else {
+                    aiBall.style.display = 'none';
+                }
+                // 重新绑定，避免残留旧事件监听
+                aiBall.removeAttribute('data-ai-summary-bound');
+                if (window.__aiSummaryTocObserver) {
+                    window.__aiSummaryTocObserver.disconnect();
+                    window.__aiSummaryTocObserver = null;
+                }
             }
 
             if (typeof window.initDarkMode === 'function') {
@@ -781,6 +809,10 @@
 
             if (typeof window.initArticleAlert === 'function') {
                 window.initArticleAlert();
+            }
+
+            if (typeof window.initAiSummary === 'function') {
+                window.initAiSummary();
             }
 
             if (typeof window.initEmojiPanel === 'function') {

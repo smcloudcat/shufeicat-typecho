@@ -18,6 +18,9 @@ if (!defined('__TYPECHO_ROOT_DIR__')) {
 require_once dirname(__FILE__) . '/post-stats.php';
 require_once dirname(__FILE__) . '/vote.php';
 require_once dirname(__FILE__) . '/password-rate-limit.php';
+require_once dirname(__FILE__) . '/ai-moderation.php';
+require_once dirname(__FILE__) . '/ai-provider.php';
+require_once dirname(__FILE__) . '/ai-summary.php';
 
 // 计算站点根 URL（与后台/核心保持一致），保证 Cookie 前缀一致
 // 直接访问本文件时 Request::getRequestRoot() 会基于脚本路径动态计算（得到 /usr/themes/ShuFeiCat/core），
@@ -185,6 +188,51 @@ switch ($action) {
             'expired'  => $isExpired,
             'deadline' => $config['deadline']
         ));
+        break;
+
+    case 'ai_summary':
+        $cid = isset($_POST['cid']) ? intval($_POST['cid']) : 0;
+        if ($cid <= 0) {
+            echo json_encode(array('success' => false, 'message' => '参数错误'));
+            exit;
+        }
+        // 流式输出：需后台开启且请求带 stream=1
+        $wantStream = (isset($_POST['stream']) && $_POST['stream'] === '1') && AiSummary::isStreamEnabled();
+        if ($wantStream) {
+            // 关闭输出缓冲，确保逐块推送
+            while (ob_get_level() > 0) {
+                @ob_end_clean();
+            }
+            header('Content-Type: text/event-stream; charset=utf-8');
+            header('Cache-Control: no-cache');
+            header('X-Accel-Buffering: no');
+            // 发送一个空行建立 SSE 连接
+            echo "data: {\"start\":true}\n\n";
+            if (function_exists('flush')) {
+                @flush();
+            }
+
+            $result = AiSummary::generateStream($cid, function ($delta) {
+                echo 'data: ' . json_encode(array('delta' => $delta), JSON_UNESCAPED_UNICODE) . "\n\n";
+                if (function_exists('flush')) {
+                    @flush();
+                }
+            });
+
+            // 发送结束事件
+            echo 'data: ' . json_encode(array(
+                'done' => true,
+                'success' => $result['success'],
+                'summary' => $result['summary'],
+                'message' => $result['message'],
+            ), JSON_UNESCAPED_UNICODE) . "\n\n";
+            if (function_exists('flush')) {
+                @flush();
+            }
+            exit;
+        }
+        $result = AiSummary::generate($cid);
+        echo json_encode($result, JSON_UNESCAPED_UNICODE);
         break;
 
     default:

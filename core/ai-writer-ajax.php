@@ -88,6 +88,7 @@ try {
 // 载入 AI 写作核心类
 require_once dirname(__FILE__) . '/ai-writer.php';
 require_once dirname(__FILE__) . '/ai-moderation.php';
+require_once dirname(__FILE__) . '/ai-provider.php';
 
 // CSRF 防护：校验 Origin/Referer 同源，防止跨站请求伪造（test_api 会向任意地址发起请求）
 require_once dirname(__FILE__) . '/admin-csrf.php';
@@ -110,10 +111,22 @@ if (mb_strlen($content, 'UTF-8') > $maxLen) {
 // 测试类操作：不需要 AI 写作已开启/已配置，允许在保存前测试任意接口
 if ($action === 'test_api') {
     // 测试任意接口配置（供后台设置页即时测试，无需先保存）
+    $testProvider = isset($_POST['provider']) ? trim($_POST['provider']) : 'custom_chat';
     $testUrl = isset($_POST['api_url']) ? trim($_POST['api_url']) : '';
     $testKey = isset($_POST['api_key']) ? trim($_POST['api_key']) : '';
     $testModel = isset($_POST['model']) ? trim($_POST['model']) : 'gpt-3.5-turbo';
-    echo json_encode(shufei_test_ai_api($testUrl, $testKey, $testModel), JSON_UNESCAPED_UNICODE);
+    echo json_encode(shufei_test_ai_api($testUrl, $testKey, $testModel, $testProvider), JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+// 获取模型列表（供后台设置页拉取可用模型）
+if ($action === 'fetch_models') {
+    $testProvider = isset($_POST['provider']) ? trim($_POST['provider']) : 'custom_chat';
+    $testUrl = isset($_POST['api_url']) ? trim($_POST['api_url']) : '';
+    $testKey = isset($_POST['api_key']) ? trim($_POST['api_key']) : '';
+    $testModel = isset($_POST['model']) ? trim($_POST['model']) : '';
+    $provider = new AiProvider($testProvider, $testUrl, $testKey, $testModel, 30);
+    echo json_encode($provider->fetchModels(), JSON_UNESCAPED_UNICODE);
     exit;
 }
 
@@ -176,9 +189,10 @@ exit;
  * @param string $apiUrl API 地址
  * @param string $apiKey API 密钥
  * @param string $model 模型名称
+ * @param string $provider 提供商类型（custom_chat/custom_responses/deepseek/openai/free）
  * @return array
  */
-function shufei_test_ai_api($apiUrl, $apiKey, $model)
+function shufei_test_ai_api($apiUrl, $apiKey, $model, $provider = 'custom_chat')
 {
     $result = array(
         'success' => false,
@@ -186,79 +200,28 @@ function shufei_test_ai_api($apiUrl, $apiKey, $model)
         'latency' => 0,
     );
 
-    if (empty($apiUrl) || empty($apiKey)) {
+    // 免费接口：使用内置配置
+    if ($provider === 'free' && class_exists('AiModeration')) {
+        $apiUrl = AiModeration::FREE_API_URL;
+        $apiKey = AiModeration::FREE_API_KEY;
+        $model = AiModeration::FREE_API_MODEL;
+    }
+
+    $aiProvider = new AiProvider($provider, $apiUrl, $apiKey, $model, 15);
+    if (!$aiProvider->isConfigured()) {
         $result['message'] = 'API 地址或密钥为空';
         return $result;
     }
 
-    // 规范化 URL
-    $normalizedUrl = AiModeration::normalizeApiUrl($apiUrl);
-    if (empty($model)) {
-        $model = 'gpt-3.5-turbo';
-    }
-
     $startTime = microtime(true);
-
-    $postData = array(
-        'model' => $model,
-        'messages' => array(array('role' => 'user', 'content' => '你好')),
-        'max_tokens' => 20,
-    );
-
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $normalizedUrl);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($postData));
-    curl_setopt($ch, CURLOPT_TIMEOUT, 15);
-    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, array(
-        'Content-Type: application/json',
-        'Authorization: Bearer ' . $apiKey,
-    ));
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
-
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $error = curl_error($ch);
-    curl_close($ch);
-
+    $resp = $aiProvider->complete('', '你好', 0.5, 20);
     $result['latency'] = round((microtime(true) - $startTime) * 1000, 2);
 
-    if ($error) {
-        if (stripos($error, 'SSL certificate') !== false) {
-            $result['message'] = 'SSL证书验证失败: ' . $error . '（建议联系主机商修复 CA 证书）';
-        } else {
-            $result['message'] = '连接失败: ' . $error;
-        }
-        return $result;
-    }
-
-    if ($httpCode === 200) {
+    if ($resp['success']) {
         $result['success'] = true;
         $result['message'] = '✓ 接口连通正常 (响应时间: ' . $result['latency'] . 'ms)';
-        // 尝试解析返回的模型名
-        $data = json_decode($response, true);
-        if (isset($data['model'])) {
-            $result['message'] .= '，实际模型: ' . $data['model'];
-        }
     } else {
-        $apiError = AiModeration::extractApiError($response);
-        $detail = $apiError ? '：' . $apiError : '';
-        if ($httpCode === 401) {
-            $result['message'] = '✗ 认证失败 (HTTP 401)' . $detail . ' — 请检查密钥是否正确，或该密钥是否有权访问模型「' . $model . '」';
-        } elseif ($httpCode === 403) {
-            $result['message'] = '✗ 禁止访问 (HTTP 403)' . $detail;
-        } elseif ($httpCode === 404) {
-            $result['message'] = '✗ 接口地址错误 (HTTP 404)' . $detail . ' — 请检查地址是否包含 /v1/chat/completions';
-        } elseif ($httpCode === 429) {
-            $result['message'] = '✗ 请求频率受限 (HTTP 429)' . $detail;
-        } elseif ($httpCode === 503) {
-            $result['message'] = '✗ 服务不可用 (HTTP 503)' . $detail . ' — 可能模型名错误或该模型暂无可用通道';
-        } else {
-            $result['message'] = '✗ API 返回错误: HTTP ' . $httpCode . $detail;
-        }
+        $result['message'] = $resp['message'];
     }
 
     return $result;

@@ -1136,6 +1136,47 @@ function themeConfig($form)
     $aiModerationEnabled->setAttribute('class', 'typecho-option cat-group-ai');
     $form->addInput($aiModerationEnabled);
 
+    // ===== 文章 AI 总结 =====
+    $aiSummaryEnabled = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'aiSummaryEnabled',
+        array('off' => _t('关闭'), 'on' => _t('开启')),
+        'off',
+        _t('文章AI总结'),
+        _t('介绍：开启后，前台文章页可展示由 AI 生成的摘要。单篇文章是否显示需在发布文章时单独开启（默认关闭）')
+    );
+    $aiSummaryEnabled->setAttribute('class', 'typecho-option cat-group-ai ai-summary-field');
+    $form->addInput($aiSummaryEnabled);
+
+    $aiSummaryCacheTime = new \Typecho\Widget\Helper\Form\Element\Text(
+        'aiSummaryCacheTime',
+        null,
+        '86400',
+        _t('AI总结缓存时间（秒）'),
+        _t('介绍：AI 生成的总结会缓存到本地，在缓存有效期内再次访问直接读取缓存，避免重复调用接口。默认 86400 秒（1天）。修改文章内容后建议等待缓存过期或手动清空缓存')
+    );
+    $aiSummaryCacheTime->setAttribute('class', 'typecho-option cat-group-ai ai-summary-field');
+    $form->addInput($aiSummaryCacheTime);
+
+    $aiSummaryPrompt = new \Typecho\Widget\Helper\Form\Element\Textarea(
+        'aiSummaryPrompt',
+        null,
+        null,
+        _t('AI总结提示词（可选）'),
+        _t('介绍：留空则使用内置默认提示词。填写后将作为系统提示词用于生成摘要，可用 {content} 占位符表示文章内容')
+    );
+    $aiSummaryPrompt->setAttribute('class', 'typecho-option cat-group-ai ai-summary-field');
+    $form->addInput($aiSummaryPrompt);
+
+    $aiSummaryStream = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'aiSummaryStream',
+        array('off' => _t('关闭'), 'on' => _t('开启')),
+        'off',
+        _t('AI总结流式输出'),
+        _t('介绍：开启后，生成摘要时以流式（打字机）效果逐步显示文字。需 AI 接口支持流式输出，且部分服务器环境（如禁用输出缓冲）可能无法生效')
+    );
+    $aiSummaryStream->setAttribute('class', 'typecho-option cat-group-ai ai-summary-field');
+    $form->addInput($aiSummaryStream);
+
     // 接口模式：统一接口 or 分别设置
     $aiUnifiedApi = new \Typecho\Widget\Helper\Form\Element\Radio(
         'aiUnifiedApi',
@@ -1147,15 +1188,32 @@ function themeConfig($form)
     $aiUnifiedApi->setAttribute('class', 'typecho-option cat-group-ai');
     $form->addInput($aiUnifiedApi);
 
-    // 统一接口类型：免费接口 or 自定义接口
+    // 统一接口提供商选择（新）—— 兼容旧版 aiUnifiedApiType（free/custom）
+    $aiUnifiedProvider = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'aiUnifiedProvider',
+        array(
+            'custom_chat'     => _t('自定义 Chat Completions'),
+            'custom_responses'=> _t('自定义 Responses'),
+            'deepseek'        => _t('DeepSeek'),
+            'openai'          => _t('OpenAI'),
+            'free'            => _t('免费接口（内置，无需填写）'),
+        ),
+        'custom_chat',
+        _t('统一接口提供商'),
+        _t('介绍：选择 AI 服务提供商。<br><b>自定义 Chat Completions</b>：任意兼容 OpenAI /chat/completions 格式的接口<br><b>自定义 Responses</b>：兼容 OpenAI Responses API /responses 的接口<br><b>DeepSeek</b> / <b>OpenAI</b>：使用官方预设地址，仅需填写密钥和模型<br><b>免费接口</b>：使用内置免费接口，无需填写')
+    );
+    $aiUnifiedProvider->setAttribute('class', 'typecho-option cat-group-ai ai-unified-field');
+    $form->addInput($aiUnifiedProvider);
+
+    // 统一接口类型（兼容旧版：免费接口 or 自定义接口，已并入提供商选择）
     $aiUnifiedApiType = new \Typecho\Widget\Helper\Form\Element\Radio(
         'aiUnifiedApiType',
         array('free' => _t('免费接口（内置，无需填写）'), 'custom' => _t('自定义接口')),
         'custom',
-        _t('统一接口类型'),
-        _t('介绍：选择「免费接口」将使用内置的免费 AI 接口，无需填写下方地址和密钥；选择「自定义接口」需在下方填写您自己的 API 地址和密钥')
+        _t('统一接口类型（旧版）'),
+        _t('介绍：旧版设置项，已由「统一接口提供商」替代。选择「免费接口」将使用内置的免费 AI 接口；选择「自定义接口」需在下方填写您自己的 API 地址和密钥')
     );
-    $aiUnifiedApiType->setAttribute('class', 'typecho-option cat-group-ai ai-unified-field ai-api-type-unified');
+    $aiUnifiedApiType->setAttribute('class', 'typecho-option cat-group-ai ai-unified-field ai-old-field');
     $form->addInput($aiUnifiedApiType);
 
     // 统一接口配置（aiModerationApiUrl 同时作为统一接口地址，向后兼容）
@@ -1189,15 +1247,32 @@ function themeConfig($form)
     $aiModerationModel->setAttribute('class', 'typecho-option cat-group-ai ai-unified-field ai-custom-unified-field');
     $form->addInput($aiModerationModel);
 
-    // 分别设置模式：写作专用接口类型
+    // 分别设置模式：写作专用接口提供商（新）
+    $aiWriterProvider = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'aiWriterProvider',
+        array(
+            'custom_chat'     => _t('自定义 Chat Completions'),
+            'custom_responses'=> _t('自定义 Responses'),
+            'deepseek'        => _t('DeepSeek'),
+            'openai'          => _t('OpenAI'),
+            'free'            => _t('免费接口（内置，无需填写）'),
+        ),
+        'custom_chat',
+        _t('写作接口提供商'),
+        _t('介绍：仅当接口模式为「分别设置」时生效。选择 AI 服务提供商')
+    );
+    $aiWriterProvider->setAttribute('class', 'typecho-option cat-group-ai ai-separate-writer-field');
+    $form->addInput($aiWriterProvider);
+
+    // 分别设置模式：写作专用接口类型（旧版兼容）
     $aiWriterApiType = new \Typecho\Widget\Helper\Form\Element\Radio(
         'aiWriterApiType',
         array('free' => _t('免费接口（内置，无需填写）'), 'custom' => _t('自定义接口')),
         'custom',
-        _t('写作接口类型'),
-        _t('介绍：仅当接口模式为「分别设置」时生效。选择「免费接口」将使用内置的免费 AI 接口')
+        _t('写作接口类型（旧版）'),
+        _t('介绍：旧版设置项，已由「写作接口提供商」替代。仅当接口模式为「分别设置」时生效')
     );
-    $aiWriterApiType->setAttribute('class', 'typecho-option cat-group-ai ai-separate-writer-field ai-api-type-writer');
+    $aiWriterApiType->setAttribute('class', 'typecho-option cat-group-ai ai-separate-writer-field ai-api-type-writer ai-old-field');
     $form->addInput($aiWriterApiType);
 
     // 分别设置模式：写作专用接口
@@ -1231,15 +1306,32 @@ function themeConfig($form)
     $aiWriterModel->setAttribute('class', 'typecho-option cat-group-ai ai-separate-writer-field ai-custom-writer-field');
     $form->addInput($aiWriterModel);
 
-    // 分别设置模式：审核专用接口类型
+    // 分别设置模式：审核专用接口提供商（新）
+    $aiModerationProvider = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'aiModerationProvider',
+        array(
+            'custom_chat'     => _t('自定义 Chat Completions'),
+            'custom_responses'=> _t('自定义 Responses'),
+            'deepseek'        => _t('DeepSeek'),
+            'openai'          => _t('OpenAI'),
+            'free'            => _t('免费接口（内置，无需填写）'),
+        ),
+        'custom_chat',
+        _t('审核接口提供商'),
+        _t('介绍：仅当接口模式为「分别设置」时生效。选择 AI 服务提供商')
+    );
+    $aiModerationProvider->setAttribute('class', 'typecho-option cat-group-ai ai-separate-moderation-field');
+    $form->addInput($aiModerationProvider);
+
+    // 分别设置模式：审核专用接口类型（旧版兼容）
     $aiModerationApiType = new \Typecho\Widget\Helper\Form\Element\Radio(
         'aiModerationApiType',
         array('free' => _t('免费接口（内置，无需填写）'), 'custom' => _t('自定义接口')),
         'custom',
-        _t('审核接口类型'),
-        _t('介绍：仅当接口模式为「分别设置」时生效。选择「免费接口」将使用内置的免费 AI 接口')
+        _t('审核接口类型（旧版）'),
+        _t('介绍：旧版设置项，已由「审核接口提供商」替代。仅当接口模式为「分别设置」时生效')
     );
-    $aiModerationApiType->setAttribute('class', 'typecho-option cat-group-ai ai-separate-moderation-field ai-api-type-moderation');
+    $aiModerationApiType->setAttribute('class', 'typecho-option cat-group-ai ai-separate-moderation-field ai-api-type-moderation ai-old-field');
     $form->addInput($aiModerationApiType);
 
     // 分别设置模式：审核专用接口（使用 aiModerationApiUrl 等字段，标签动态切换）
@@ -1344,6 +1436,18 @@ function themeConfig($form)
         . '<button type="button" class="cat-data-btn cat-data-btn-primary" id="cat-test-moderation-api" style="display:none;">测试审核接口</button>'
         . '</div>'
         . '<div class="cat-data-status" id="cat-api-test-status" style="display:block;max-width:100%;"></div>'
+        . '</div>';
+
+    // 获取模型列表按钮
+    echo '<div class="typecho-option cat-group-ai">'
+        . '<div style="margin-bottom:12px;font-weight:bold;color:#333;">获取模型列表</div>'
+        . '<p style="color:#999;font-size:12px;margin:0 0 12px">介绍：从当前配置的提供商接口拉取可用模型列表，并填入对应模型输入框</p>'
+        . '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;">'
+        . '<button type="button" class="cat-data-btn cat-data-btn-primary" id="cat-models-unified" style="display:none;">获取统一接口模型</button>'
+        . '<button type="button" class="cat-data-btn cat-data-btn-primary" id="cat-models-writer" style="display:none;">获取写作接口模型</button>'
+        . '<button type="button" class="cat-data-btn cat-data-btn-primary" id="cat-models-moderation" style="display:none;">获取审核接口模型</button>'
+        . '</div>'
+        . '<div class="cat-data-status" id="cat-models-status" style="display:block;max-width:100%;"></div>'
         . '</div>';
 
     // AI 设置页面的 JS：接口模式切换 + 接口类型切换 + 测试按钮
@@ -1785,6 +1889,22 @@ function themeFields($layout)
     $layout->addItem($voteDeadline);
 }
 
+/**
+ * 文章专属自定义字段（仅文章编辑页显示）
+ * Typecho 核心会自动调用 themePostFields
+ */
+function themePostFields($layout)
+{
+    $aiSummary = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'aiSummary',
+        array('off' => _t('关闭'), 'on' => _t('开启')),
+        'off',
+        _t('文章AI总结'),
+        _t('介绍：开启后，前台文章页将显示由 AI 生成的摘要。需先在后台「AI助手」中开启「文章AI总结」全局功能')
+    );
+    $layout->addItem($aiSummary);
+}
+
 /* 加载核心逻辑库（去除 @ 静默加载，改为文件存在性检查）
  * 按需加载：前端渲染与评论提交（Widget_Archive / Widget_Feedback）仅加载前端必需模块；
  * 后台/上传专用模块（存储、编辑器、AI 写作、样式推荐、图片处理）仅在管理后台请求时加载，
@@ -1793,6 +1913,8 @@ function themeFields($layout)
 $_coreLibs = array(
     dirname(__FILE__) . '/core/mail.php',
     dirname(__FILE__) . '/core/ai-moderation.php',
+    dirname(__FILE__) . '/core/ai-provider.php',
+    dirname(__FILE__) . '/core/ai-summary.php',
     dirname(__FILE__) . '/core/post-stats.php',
     dirname(__FILE__) . '/core/vote.php',
     dirname(__FILE__) . '/core/template-helpers.php',
@@ -1820,14 +1942,25 @@ if (file_exists(dirname(__FILE__) . '/core/update.php')) {
     error_log('[ShuFeiCat] 核心模块缺失: core/update.php');
 }
 
+/* storage-ui.php / style-version.php：themeConfig() 会调用其中的函数（保存主题配置的
+ * themes-edit 动作走前台路由，无 __TYPECHO_ADMIN__），必须始终加载 */
+if (file_exists(dirname(__FILE__) . '/core/storage-ui.php')) {
+    require_once dirname(__FILE__) . '/core/storage-ui.php';
+} else {
+    error_log('[ShuFeiCat] 核心模块缺失: core/storage-ui.php');
+}
+if (file_exists(dirname(__FILE__) . '/core/style-version.php')) {
+    require_once dirname(__FILE__) . '/core/style-version.php';
+} else {
+    error_log('[ShuFeiCat] 核心模块缺失: core/style-version.php');
+}
+
 /* 后台/上传专用模块：仅管理后台请求加载（__TYPECHO_ADMIN__ 由 admin/common.php 定义） */
 if (defined('__TYPECHO_ADMIN__')) {
     $_adminLibs = array(
         dirname(__FILE__) . '/core/image-processor.php',
         dirname(__FILE__) . '/core/storage-drivers.php',
         dirname(__FILE__) . '/core/storage-hooks.php',
-        dirname(__FILE__) . '/core/storage-ui.php',
-        dirname(__FILE__) . '/core/style-version.php',
         dirname(__FILE__) . '/core/editor-ui.php',
         dirname(__FILE__) . '/core/ai-writer.php',
     );

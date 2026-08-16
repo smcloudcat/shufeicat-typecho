@@ -105,6 +105,7 @@ class AiModeration
     private $timeout;
     private $errorStrategy;
     private $apiType;
+    private $provider;
 
     /**
      * 构造函数
@@ -117,42 +118,15 @@ class AiModeration
         $unified = isset($options->aiUnifiedApi) ? $options->aiUnifiedApi : 'on';
 
         if ($unified === 'on') {
-            // 统一接口：接口类型由 aiUnifiedApiType 决定（free/custom）
-            $apiType = isset($options->aiUnifiedApiType) ? $options->aiUnifiedApiType : 'custom';
-            $customApiUrl = isset($options->aiModerationApiUrl) ? $options->aiModerationApiUrl : '';
-            $customApiKey = isset($options->aiModerationApiKey) ? $options->aiModerationApiKey : '';
-            $customModel = isset($options->aiModerationModel) ? $options->aiModerationModel : '';
+            $this->provider = AiProvider::fromUnifiedOptions();
+            $this->apiType = $this->provider->getProvider();
         } else {
-            // 分别设置：审核接口类型由 aiModerationApiType 决定
-            $apiType = isset($options->aiModerationApiType) ? $options->aiModerationApiType : 'custom';
-            $customApiUrl = isset($options->aiModerationSepApiUrl) ? $options->aiModerationSepApiUrl : '';
-            $customApiKey = isset($options->aiModerationSepApiKey) ? $options->aiModerationSepApiKey : '';
-            $customModel = isset($options->aiModerationSepModel) ? $options->aiModerationSepModel : '';
-            // 如果审核专用接口未配置，回退到统一接口字段
-            if (empty($customApiUrl) || empty($customApiKey)) {
-                $customApiUrl = isset($options->aiModerationApiUrl) ? $options->aiModerationApiUrl : '';
-                $customApiKey = isset($options->aiModerationApiKey) ? $options->aiModerationApiKey : '';
-                $customModel = isset($options->aiModerationModel) ? $options->aiModerationModel : '';
-            }
+            $this->provider = AiProvider::fromModerationOptions();
+            $this->apiType = $this->provider->getProvider();
         }
 
-        $this->apiType = $apiType;
-
-        // 免费接口：使用内置配置
-        if ($apiType === 'free') {
-            $this->apiUrl = self::normalizeApiUrl(self::FREE_API_URL);
-            $this->apiKey = self::FREE_API_KEY;
-            $this->model = self::FREE_API_MODEL;
-        } elseif (!empty($customApiUrl) && !empty($customApiKey)) {
-            // 自定义接口
-            $this->apiUrl = self::normalizeApiUrl($customApiUrl);
-            $this->apiKey = $customApiKey;
-            $this->model = !empty($customModel) ? $customModel : 'gpt-3.5-turbo';
-        } else {
-            $this->apiUrl = '';
-            $this->apiKey = '';
-            $this->model = 'gpt-3.5-turbo';
-        }
+        $this->apiUrl = $this->provider->getChatUrl();
+        $this->model = $this->provider->getModel();
 
         $this->timeout = isset($options->aiModerationTimeout) ? intval($options->aiModerationTimeout) : 30;
         $this->errorStrategy = isset($options->aiModerationErrorStrategy) ? $options->aiModerationErrorStrategy : 'waiting';
@@ -322,7 +296,7 @@ class AiModeration
         }
 
         // 检查API配置
-        if (empty($this->apiUrl) || empty($this->apiKey)) {
+        if (!$this->provider->isConfigured()) {
             return [
                 'passed' => true,
                 'reason' => 'AI审核API未配置，跳过审核',
@@ -381,120 +355,35 @@ class AiModeration
         $prompt = $this->getPrompt();
         $prompt = str_replace('{content}', $content, $prompt);
 
-        // 构建请求数据
-        $messages = [
-            [
-                'role' => 'system',
-                'content' => '你是一个专业的内容安全审核助手。请严格按照JSON格式返回审核结果。'
-            ],
-            [
-                'role' => 'user',
-                'content' => $prompt
-            ]
-        ];
+        $systemPrompt = '你是一个专业的内容安全审核助手。请严格按照JSON格式返回审核结果。';
 
-        $postData = [
-            'model' => $this->model,
-            'messages' => $messages,
-            'temperature' => 0.1,
-            'max_tokens' => 500
-        ];
+        $resp = $this->provider->complete($systemPrompt, $prompt, 0.1, 500);
 
-        // 发送API请求
-        $ch = curl_init();
-        
-        curl_setopt($ch, CURLOPT_URL, $this->apiUrl);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($postData));
-        curl_setopt($ch, CURLOPT_TIMEOUT, $this->timeout);
-        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'Content-Type: application/json',
-            'Authorization: Bearer ' . $this->apiKey
-        ]);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
-
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $error = curl_error($ch);
-        curl_close($ch);
-
-        // 处理请求错误
-        if ($error) {
+        if (!$resp['success']) {
+            $err = isset($resp['message']) ? $resp['message'] : '未知错误';
             // 根据错误处理策略返回结果
             if ($this->errorStrategy === 'pass') {
-                // 直接通过
                 return [
                     'passed' => true,
-                    'reason' => 'AI审核请求失败（网络错误），自动通过: ' . $error,
+                    'reason' => 'AI审核请求失败，自动通过: ' . $err,
                     'confidence' => 0.5,
                     'error' => true
                 ];
             } else {
-                // 进入人工审核
                 return [
                     'passed' => true,
-                    'reason' => 'AI审核请求失败（网络错误），进入人工审核: ' . $error,
+                    'reason' => 'AI审核请求失败，进入人工审核: ' . $err,
                     'confidence' => 0.5,
                     'error' => true
                 ];
             }
         }
 
-        if ($httpCode !== 200) {
-            // 提取 API 返回的具体错误信息
-            $apiError = self::extractApiError($response);
-            $detail = $apiError ? '：' . $apiError : '';
-            // 根据错误处理策略返回结果
-            if ($this->errorStrategy === 'pass') {
-                // 直接通过
-                return [
-                    'passed' => true,
-                    'reason' => 'AI审核API返回错误（HTTP ' . $httpCode . $detail . '），自动通过',
-                    'confidence' => 0.5,
-                    'error' => true
-                ];
-            } else {
-                // 进入人工审核
-                return [
-                    'passed' => true,
-                    'reason' => 'AI审核API返回错误（HTTP ' . $httpCode . $detail . '），进入人工审核',
-                    'confidence' => 0.5,
-                    'error' => true
-                ];
-            }
-        }
+        $aiResponse = $resp['content'];
 
-        // 解析响应
-        $result = json_decode($response, true);
-        if (!$result || !isset($result['choices'][0]['message']['content'])) {
-            // 根据错误处理策略返回结果
-            if ($this->errorStrategy === 'pass') {
-                // 直接通过
-                return [
-                    'passed' => true,
-                    'reason' => 'AI审核响应解析失败，自动通过',
-                    'confidence' => 0.5,
-                    'error' => true
-                ];
-            } else {
-                // 进入人工审核
-                return [
-                    'passed' => true,
-                    'reason' => 'AI审核响应解析失败，进入人工审核',
-                    'confidence' => 0.5,
-                    'error' => true
-                ];
-            }
-        }
-
-        $aiResponse = $result['choices'][0]['message']['content'];
-        
         // 解析AI返回的JSON
         $parsedResult = $this->parseAiResponse($aiResponse);
-        
+
         return $parsedResult;
     }
 
@@ -578,68 +467,20 @@ class AiModeration
             'latency' => 0
         ];
 
-        if (empty($this->apiUrl) || empty($this->apiKey)) {
+        if (!$this->provider->isConfigured()) {
             $result['message'] = 'API地址或密钥未配置';
             return $result;
         }
 
         $startTime = microtime(true);
-
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $this->apiUrl);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
-            'model' => $this->model,
-            'messages' => [
-                ['role' => 'user', 'content' => 'Hello']
-            ],
-            'max_tokens' => 5
-        ]));
-        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'Content-Type: application/json',
-            'Authorization: Bearer ' . $this->apiKey
-        ]);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
-
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $error = curl_error($ch);
-        curl_close($ch);
-
+        $resp = $this->provider->complete('', 'Hello', 0.5, 5);
         $result['latency'] = round((microtime(true) - $startTime) * 1000, 2);
 
-        if ($error) {
-            // SSL 证书问题友好提示
-            if (stripos($error, 'SSL certificate') !== false) {
-                $result['message'] = 'SSL证书验证失败: ' . $error . '（建议联系主机商修复 CA 证书）';
-            } else {
-                $result['message'] = '连接失败: ' . $error;
-            }
-            return $result;
-        }
-
-        if ($httpCode === 200) {
+        if ($resp['success']) {
             $result['success'] = true;
             $result['message'] = 'API接口正常 (响应时间: ' . $result['latency'] . 'ms)';
         } else {
-            // 提取 API 返回的具体错误信息，避免只显示 HTTP 码造成误判
-            $apiError = self::extractApiError($response);
-            $detail = $apiError ? '：' . $apiError : '';
-            if ($httpCode === 401) {
-                $result['message'] = '认证失败 (HTTP 401)' . $detail . ' — 请检查 API 密钥是否正确，或该密钥是否有权访问所选模型';
-            } elseif ($httpCode === 403) {
-                $result['message'] = '禁止访问 (HTTP 403)' . $detail;
-            } elseif ($httpCode === 404) {
-                $result['message'] = '接口地址错误 (HTTP 404)' . $detail . ' — 请检查 API 地址是否包含 /v1/chat/completions';
-            } elseif ($httpCode === 429) {
-                $result['message'] = 'API请求频率受限 (HTTP 429)' . $detail;
-            } else {
-                $result['message'] = 'API返回错误: HTTP ' . $httpCode . $detail;
-            }
+            $result['message'] = $resp['message'];
         }
 
         return $result;

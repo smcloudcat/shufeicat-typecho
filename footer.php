@@ -95,6 +95,14 @@
     <i class="fa fa-heart-o"></i>
 </div>
 
+<?php if ($this->is('post') && class_exists('AiSummary') && AiSummary::isEnabled() && AiSummary::isArticleEnabled($this->cid)): ?>
+<!-- AI 总结悬浮弹球（置于 body 层，避免 article 内 backdrop-filter 破坏 fixed 定位） -->
+<div class="ai-summary-ball" id="ai-summary-ball" data-cid="<?php echo $this->cid; ?>" title="<?php _e('AI 文章摘要'); ?>">
+    <span class="ai-ball-pulse"></span>
+    <i class="fa fa-magic"></i>
+</div>
+<?php endif; ?>
+
 <!-- 手机端文章目录触发按钮（仅文章页且拥有目录时显示） -->
 <div id="mobile-toc-btn" title="<?php _e('文章目录'); ?>">
     <i class="fa fa-list-ul"></i>
@@ -198,6 +206,7 @@ if ($resourceMode !== 'cdn') {
 window.pjaxEnabled = <?php echo (!empty($this->options->pjaxLoad) && $this->options->pjaxLoad === 'on') ? 'true' : 'false'; ?>;
 window.pjaxLoadStyle = '<?php echo !empty($this->options->pjaxLoadStyle) ? $this->options->pjaxLoadStyle : 'progress'; ?>';
 window.pjaxTimeout = <?php echo !empty($this->options->pjaxTimeout) ? intval($this->options->pjaxTimeout) : 10000; ?>;
+window.aiSummaryStream = <?php echo (!empty($this->options->aiSummaryStream) && $this->options->aiSummaryStream === 'on') ? 'true' : 'false'; ?>;
 window.codeHighlightEnabled = <?php echo (empty($this->options->codeHighlightEnabled) || $this->options->codeHighlightEnabled !== 'off') ? 'true' : 'false'; ?>;
 window.mermaidEnabled = <?php echo (!empty($this->options->mermaidEnabled) && $this->options->mermaidEnabled === 'on') ? 'true' : 'false'; ?>;
 window.echartsEnabled = <?php echo (!empty($this->options->echartsEnabled) && $this->options->echartsEnabled === 'on') ? 'true' : 'false'; ?>;

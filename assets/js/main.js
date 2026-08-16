@@ -1943,6 +1943,343 @@ window.initArticleAlert = function() {
 };
 
 /**
+ * 文章 AI 摘要
+ * 前台文章页展示 AI 生成的摘要。
+ *  - 若服务端已缓存摘要则直接显示（顶部栏）
+ *  - 未缓存时右侧悬浮弹球，点击后弹出生成
+ *  - 支持折叠/展开、重新生成、流式（打字机）输出
+ */
+window.initAiSummary = function() {
+    var ball = document.getElementById('ai-summary-ball');
+    var box = document.getElementById('ai-summary-box');
+
+    // 清理上次 pjax 残留的弹窗
+    var oldPopup = document.querySelector('.ai-summary-popup');
+    if (oldPopup && oldPopup.parentNode) {
+        oldPopup.parentNode.removeChild(oldPopup);
+    }
+
+    // 弹球与顶部栏二选一：有缓存显示顶部栏，否则仅弹球
+    var cid = null;
+    var contentEl = null;
+    var regenBtn = null;
+    var collapseBtn = null;
+    var boxCollapsed = false;
+
+    if (box) {
+        cid = box.getAttribute('data-cid');
+        contentEl = document.getElementById('ai-summary-content');
+        regenBtn = document.getElementById('ai-summary-regenerate');
+        collapseBtn = document.getElementById('ai-summary-collapse');
+    } else if (ball) {
+        cid = ball.getAttribute('data-cid');
+    }
+    if (!cid) return;
+
+    var cachedText = '';
+    if (contentEl) {
+        cachedText = contentEl.textContent.trim();
+    }
+
+    function escapeHtml(str) {
+        if (str === null || str === undefined) return '';
+        return String(str).replace(/[&<>"']/g, function(m) {
+            return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];
+        });
+    }
+
+    function summaryHtml(summary) {
+        return '<p>' + escapeHtml(summary).replace(/\n/g, '<br>') + '</p>';
+    }
+
+    function errorHtml(msg) {
+        return '<div class="ai-summary-error">' + escapeHtml(msg || 'AI 摘要生成失败') + '</div>';
+    }
+
+    function loadingHtml() {
+        return '<div class="ai-summary-loading"><i class="fa fa-spinner fa-spin"></i> 正在生成 AI 摘要...</div>';
+    }
+
+    /**
+     * 请求生成摘要
+     * @param {Function} onDone  (err, summary) 完成后回调
+     * @param {Function} [onDelta] (summary) 流式增量回调（可选）
+     */
+    function generate(onDone, onDelta) {
+        var themeUrl = window.themeUrl || '';
+        var csrfToken = window.csrfToken || '';
+        var streamEnabled = window.aiSummaryStream === true
+            && typeof window.fetch === 'function'
+            && typeof ReadableStream === 'function';
+        var xhr;
+
+        // 流式：SSE 逐块输出
+        if (streamEnabled) {
+            var url = themeUrl + 'core/ajax-handler.php?action=ai_summary';
+            var body = 'cid=' + encodeURIComponent(cid) + '&_=' + encodeURIComponent(csrfToken) + '&stream=1';
+            var fullText = '';
+            var done = false;
+
+            function finish(err, summary) {
+                if (done) return;
+                done = true;
+                if (err) {
+                    onDone(err);
+                } else {
+                    onDone(null, summary);
+                }
+            }
+
+            fetch(url, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: body
+            }).then(function(resp) {
+                if (!resp.ok || !resp.body) {
+                    throw new Error('请求失败 (HTTP ' + resp.status + ')');
+                }
+                var reader = resp.body.getReader();
+                var decoder = new TextDecoder('utf-8');
+                var buffer = '';
+
+                function pump() {
+                    return reader.read().then(function(result) {
+                        if (result.done) {
+                            // 末尾可能残留未按 \n\n 结束的数据
+                            processBuffer(true);
+                            finish(null, fullText);
+                            return;
+                        }
+                        buffer += decoder.decode(result.value, { stream: true });
+                        processBuffer(false);
+                        return pump();
+                    }).catch(function(e) {
+                        finish(e && e.message ? e.message : '流式读取失败');
+                    });
+                }
+
+                function processBuffer(isEnd) {
+                    var idx;
+                    while ((idx = buffer.indexOf('\n\n')) !== -1) {
+                        var block = buffer.substring(0, idx);
+                        buffer = buffer.substring(idx + 2);
+                        parseBlock(block);
+                        if (done) return;
+                    }
+                    if (isEnd && buffer.trim() !== '') {
+                        parseBlock(buffer);
+                        buffer = '';
+                    }
+                }
+
+                function parseBlock(block) {
+                    var lines = block.split('\n');
+                    for (var i = 0; i < lines.length; i++) {
+                        var line = lines[i].trim();
+                        if (line.indexOf('data:') !== 0) continue;
+                        var payload = line.substring(5).trim();
+                        if (!payload) continue;
+                        try {
+                            var msg = JSON.parse(payload);
+                        } catch (e) {
+                            continue;
+                        }
+                        if (msg && typeof msg.delta === 'string') {
+                            fullText += msg.delta;
+                            if (typeof onDelta === 'function') onDelta(fullText);
+                        } else if (msg && msg.done !== undefined) {
+                            if (msg.success) {
+                                fullText = msg.summary || fullText;
+                                if (typeof onDelta === 'function') onDelta(fullText);
+                                finish(null, fullText);
+                            } else {
+                                finish(msg.message || 'AI 摘要生成失败');
+                            }
+                            return;
+                        }
+                    }
+                }
+
+                pump();
+            }).catch(function(e) {
+                finish(e && e.message ? e.message : '请求失败');
+            });
+            return;
+        }
+
+        // 非流式：普通 JSON
+        xhr = new XMLHttpRequest();
+        xhr.open('POST', themeUrl + 'core/ajax-handler.php?action=ai_summary', true);
+        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState !== 4) return;
+            if (xhr.status === 200) {
+                try {
+                    var data = JSON.parse(xhr.responseText);
+                    if (data.success && data.summary) {
+                        if (typeof onDelta === 'function') onDelta(data.summary);
+                        onDone(null, data.summary);
+                    } else {
+                        onDone(data.message || 'AI 摘要生成失败');
+                    }
+                } catch (e) {
+                    onDone('响应解析失败');
+                }
+            } else {
+                onDone('请求失败 (HTTP ' + xhr.status + ')');
+            }
+        };
+        xhr.send('cid=' + encodeURIComponent(cid) + '&_=' + encodeURIComponent(csrfToken));
+    }
+
+    // ===== 顶部缓存栏（仅缓存命中时渲染）=====
+    if (box && !box.getAttribute('data-ai-summary-bound')) {
+        box.setAttribute('data-ai-summary-bound', '1');
+
+        if (collapseBtn) {
+            collapseBtn.addEventListener('click', function() {
+                boxCollapsed = !boxCollapsed;
+                box.classList.toggle('collapsed', boxCollapsed);
+                collapseBtn.innerHTML = boxCollapsed
+                    ? '<i class="fa fa-chevron-down"></i>'
+                    : '<i class="fa fa-chevron-up"></i>';
+            });
+        }
+        if (regenBtn) {
+            regenBtn.addEventListener('click', function() {
+                if (!contentEl) return;
+                contentEl.innerHTML = loadingHtml();
+                generate(function(err, summary) {
+                    if (err) {
+                        contentEl.innerHTML = errorHtml(err);
+                    } else {
+                        cachedText = summary;
+                        contentEl.innerHTML = summaryHtml(summary);
+                        var source = box.querySelector('.ai-summary-source');
+                        if (source) source.textContent = '';
+                    }
+                }, function(partial) {
+                    if (contentEl) contentEl.innerHTML = summaryHtml(partial);
+                });
+            });
+        }
+    }
+
+    // ===== 悬浮弹球 + 弹窗 =====
+    var popup = null;
+    var popupContent = null;
+
+    function ensurePopup() {
+        if (popup) return;
+        popup = document.createElement('div');
+        popup.className = 'ai-summary-popup';
+        popup.innerHTML =
+            '<div class="ai-summary-popup-header">' +
+                '<span class="ai-summary-popup-title"><i class="fa fa-magic"></i> AI 文章摘要</span>' +
+                '<button type="button" class="ai-summary-popup-close" title="关闭"><i class="fa fa-times"></i></button>' +
+            '</div>' +
+            '<div class="ai-summary-popup-body"></div>' +
+            '<div class="ai-summary-popup-footer">' +
+                '<button type="button" class="ai-summary-popup-regen" title="重新生成"><i class="fa fa-refresh"></i> 重新生成</button>' +
+            '</div>';
+        document.body.appendChild(popup);
+        popupContent = popup.querySelector('.ai-summary-popup-body');
+
+        popup.querySelector('.ai-summary-popup-close').addEventListener('click', function(e) {
+            e.stopPropagation();
+            closePopup();
+        });
+        popup.querySelector('.ai-summary-popup-regen').addEventListener('click', function(e) {
+            e.stopPropagation();
+            if (!popupContent) return;
+            popupContent.innerHTML = loadingHtml();
+            generate(function(err, summary) {
+                if (err) {
+                    popupContent.innerHTML = errorHtml(err);
+                } else {
+                    cachedText = summary;
+                    popupContent.innerHTML = summaryHtml(summary);
+                }
+            }, function(partial) {
+                if (popupContent) popupContent.innerHTML = summaryHtml(partial);
+            });
+        });
+        // 点击弹窗内部不关闭
+        popup.addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
+    }
+
+    function showPopup() {
+        ensurePopup();
+        popup.classList.add('show');
+        if (cachedText) {
+            popupContent.innerHTML = summaryHtml(cachedText);
+        } else {
+            popupContent.innerHTML = loadingHtml();
+            generate(function(err, summary) {
+                if (err) {
+                    popupContent.innerHTML = errorHtml(err);
+                } else {
+                    cachedText = summary;
+                    popupContent.innerHTML = summaryHtml(summary);
+                }
+            }, function(partial) {
+                if (popupContent) popupContent.innerHTML = summaryHtml(partial);
+            });
+        }
+    }
+
+    function closePopup() {
+        if (popup) popup.classList.remove('show');
+    }
+
+    // 点击空白处关闭弹窗（仅一次，避免 pjax 累积）
+    if (!window.__aiSummaryDocBound) {
+        window.__aiSummaryDocBound = true;
+        document.addEventListener('click', function(e) {
+            var t = e.target;
+            if (t && t.closest && (t.closest('.ai-summary-ball') || t.closest('.ai-summary-popup'))) return;
+            var p = document.querySelector('.ai-summary-popup');
+            if (p) p.classList.remove('show');
+        });
+    }
+
+    if (ball && !ball.getAttribute('data-ai-summary-bound')) {
+        ball.setAttribute('data-ai-summary-bound', '1');
+        ball.addEventListener('click', function(e) {
+            e.stopPropagation();
+            var isOpen = popup && popup.classList.contains('show');
+            if (isOpen) {
+                closePopup();
+            } else {
+                showPopup();
+            }
+        });
+        // 手机端有目录时，AI 弹球上移到目录按钮上方（与收藏按钮联动）
+        var tocBtn = document.getElementById('mobile-toc-btn');
+        function syncBallToc() {
+            var curBall = document.getElementById('ai-summary-ball');
+            var curPopup = document.querySelector('.ai-summary-popup');
+            var hasToc = tocBtn && tocBtn.classList.contains('has-toc');
+            if (curBall) curBall.classList.toggle('has-toc', !!hasToc);
+            if (curPopup) curPopup.classList.toggle('has-toc', !!hasToc);
+        }
+        syncBallToc();
+        // 断开旧 observer 避免 pjax 切换累积
+        if (window.__aiSummaryTocObserver) {
+            window.__aiSummaryTocObserver.disconnect();
+            window.__aiSummaryTocObserver = null;
+        }
+        if (tocBtn) {
+            window.__aiSummaryTocObserver = new MutationObserver(syncBallToc);
+            window.__aiSummaryTocObserver.observe(tocBtn, { attributes: true, attributeFilter: ['class'] });
+        }
+    }
+};
+
+/**
  * 统一表情面板功能（纯自定义实现，不依赖 jQuery-emoji 插件）
  * 包含：颜文字、阿鲁、QQ、微博、贴吧表情
  * 懒加载：点击表情按钮时才加载 emoji.list.js
@@ -3756,6 +4093,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 初始化文章提示弹窗关闭功能
     window.initArticleAlert();
+
+    // 初始化文章 AI 摘要
+    window.initAiSummary();
 
     // 初始化统一表情面板（包含颜文字）
     setTimeout(window.initEmojiPanel, 600);
