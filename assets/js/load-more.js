@@ -73,6 +73,12 @@
 
     // 重新初始化新增内容相关的交互
     function reinitLoadedContent() {
+        // 重新绑定 Pjax：load-more 追加的链接从未被 Pjax 绑定（refresh 幂等，
+        // 已绑定链接带 data-pjax-state 属性会自动跳过），否则点击新文章会整页刷新
+        if (window.shufeiPjax && typeof window.shufeiPjax.refresh === 'function') {
+            window.shufeiPjax.refresh();
+        }
+
         if (typeof window.reinitPageFunctions === 'function') {
             window.reinitPageFunctions();
             return;
