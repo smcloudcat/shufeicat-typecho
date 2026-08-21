@@ -650,6 +650,41 @@ function themeConfig($form)
     );
     $footerCustomText->setAttribute('class', 'typecho-option cat-group-basic');
     $form->addInput($footerCustomText);
+
+    $noticePopupMode = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'noticePopupMode',
+        array(
+            'off' => _t('关闭'),
+            'once' => _t('仅弹窗一次'),
+            'daily' => _t('每日弹窗一次'),
+            'every' => _t('每次都弹窗')
+        ),
+        'off',
+        _t('首页弹窗公告'),
+        _t('介绍：在首页弹出公告窗口。仅弹窗一次：每个访客（同一浏览器）只弹一次；每日弹窗一次：每个访客每天只弹一次；每次都弹窗：每次访问首页都弹出')
+    );
+    $noticePopupMode->setAttribute('class', 'typecho-option cat-group-basic');
+    $form->addInput($noticePopupMode);
+
+    $noticePopupTitle = new \Typecho\Widget\Helper\Form\Element\Text(
+        'noticePopupTitle',
+        null,
+        '公告',
+        _t('弹窗公告标题'),
+        _t('介绍：弹窗公告的标题文字，默认：公告')
+    );
+    $noticePopupTitle->setAttribute('class', 'typecho-option cat-group-basic');
+    $form->addInput($noticePopupTitle);
+
+    $noticePopupContent = new \Typecho\Widget\Helper\Form\Element\Textarea(
+        'noticePopupContent',
+        null,
+        null,
+        _t('弹窗公告内容'),
+        _t('介绍：弹窗公告的内容，支持 HTML 代码。内容更新后会重新对访客弹窗（覆盖“仅弹窗一次/每日弹窗”的已读记录）')
+    );
+    $noticePopupContent->setAttribute('class', 'typecho-option cat-group-basic');
+    $form->addInput($noticePopupContent);
     
     $gravatarSource = new \Typecho\Widget\Helper\Form\Element\Radio(
         'gravatarSource',
@@ -1539,7 +1574,7 @@ function themeConfig($form)
         null,
         null,
         _t('Cat-Captcha 站点 ID'),
-        _t('介绍：填写 Cat-Captcha 开发者中心的 site_id（站点唯一标识，仅 Cat-Captcha 验证方式需要）')
+        _t('介绍：填写 Cat-Captcha 站点的 site_id（站点唯一标识）。请前往 https://captcha.lwcat.cn 注册账号并创建站点获取对接信息')
     );
     $catcaptchaSiteId->setAttribute('class', 'typecho-option cat-group-verify');
     $catcaptchaSiteId->setAttribute('data-verify-type', 'catcaptcha');
@@ -1550,7 +1585,7 @@ function themeConfig($form)
         null,
         null,
         _t('Cat-Captcha Site Key'),
-        _t('介绍：填写 Cat-Captcha 开发者中心的 site_key（前端 SDK 加载使用，仅 Cat-Captcha 验证方式需要）')
+        _t('介绍：填写 Cat-Captcha 站点的 site_key（前端 SDK 加载使用）。请前往 https://captcha.lwcat.cn 注册账号并创建站点获取对接信息')
     );
     $catcaptchaSiteKey->setAttribute('class', 'typecho-option cat-group-verify');
     $catcaptchaSiteKey->setAttribute('data-verify-type', 'catcaptcha');
@@ -1561,22 +1596,18 @@ function themeConfig($form)
         null,
         null,
         _t('Cat-Captcha Secret Key'),
-        _t('介绍：填写 Cat-Captcha 开发者中心的 secret_key（服务器端 HMAC 签名校验用，仅后端持有，仅 Cat-Captcha 验证方式需要）')
+        _t('介绍：填写 Cat-Captcha 站点的 secret_key（服务器端 HMAC 签名校验用，仅后端持有，请勿泄露）。请前往 https://captcha.lwcat.cn 注册账号并创建站点获取对接信息')
     );
     $catcaptchaSecretKey->setAttribute('class', 'typecho-option cat-group-verify');
     $catcaptchaSecretKey->setAttribute('data-verify-type', 'catcaptcha');
     $form->addInput($catcaptchaSecretKey);
 
-    $catcaptchaApiBase = new \Typecho\Widget\Helper\Form\Element\Text(
-        'catcaptchaApiBase',
-        null,
-        'https://captcha.lwcat.cn',
-        _t('Cat-Captcha API 地址'),
-        _t('介绍：Cat-Captcha 服务地址，默认官方 https://captcha.lwcat.cn；自托管时改为你的服务地址')
-    );
-    $catcaptchaApiBase->setAttribute('class', 'typecho-option cat-group-verify');
-    $catcaptchaApiBase->setAttribute('data-verify-type', 'catcaptcha');
-    $form->addInput($catcaptchaApiBase);
+    // Cat-Captcha API 地址已内嵌为官方服务 https://captcha.lwcat.cn，无需配置
+    echo '<div class="typecho-option cat-group-verify" data-verify-type="catcaptcha">'
+        . '<label class="typecho-label">Cat-Captcha 服务对接</label>'
+        . '<div class="description">介绍：Cat-Captcha API 接口已内嵌为官方服务 <a href="https://captcha.lwcat.cn" target="_blank" rel="noopener">https://captcha.lwcat.cn</a>，'
+        . '请前往 <a href="https://captcha.lwcat.cn" target="_blank" rel="noopener">https://captcha.lwcat.cn</a> 注册账号并创建站点，获取上方所需的 site_id / site_key / secret_key 对接信息</div>'
+        . '</div>';
 
     $catcaptchaAction = new \Typecho\Widget\Helper\Form\Element\Text(
         'catcaptchaAction',

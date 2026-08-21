@@ -81,15 +81,14 @@ function shufei_get_catcaptcha_secret_key()
 }
 
 /**
- * 获取 Cat-Captcha API 服务地址
+ * 获取 Cat-Captcha API 服务地址（内嵌官方服务）
  *
  * @return string
  */
 function shufei_get_catcaptcha_api_base()
 {
-    $options = \Typecho\Widget::widget('Widget_Options');
-    $apiBase = isset($options->catcaptchaApiBase) ? trim($options->catcaptchaApiBase) : '';
-    return $apiBase !== '' ? rtrim($apiBase, '/') : 'https://captcha.lwcat.cn';
+    // API 接口已内嵌为官方服务，如需对接请前往 https://captcha.lwcat.cn 注册账号
+    return 'https://captcha.lwcat.cn';
 }
 
 /**

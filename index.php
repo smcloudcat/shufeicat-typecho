@@ -172,4 +172,75 @@ $this->need('header.php');
 
 <?php $this->need('sidebar-right.php'); ?>
 
+<?php
+// 首页弹窗公告
+$noticeMode = !empty($this->options->noticePopupMode) ? $this->options->noticePopupMode : 'off';
+$noticeContent = isset($this->options->noticePopupContent) ? trim($this->options->noticePopupContent) : '';
+if ($this->is('index') && $noticeMode !== 'off' && $noticeContent !== ''):
+    $noticeTitle = !empty($this->options->noticePopupTitle) ? $this->options->noticePopupTitle : '公告';
+    $noticeHash = substr(md5($noticeTitle . '|' . $noticeContent), 0, 12);
+?>
+<div id="shufei-notice-mask" data-mode="<?php echo htmlspecialchars($noticeMode); ?>" data-hash="<?php echo htmlspecialchars($noticeHash); ?>" hidden>
+    <div class="shufei-notice-dialog" role="dialog" aria-modal="true" aria-labelledby="shufei-notice-title">
+        <div class="shufei-notice-head">
+            <span id="shufei-notice-title"><i class="fa fa-bullhorn"></i> <?php echo htmlspecialchars($noticeTitle); ?></span>
+            <button type="button" class="shufei-notice-close" id="shufei-notice-close" aria-label="<?php _e('关闭'); ?>">&times;</button>
+        </div>
+        <div class="shufei-notice-body"><?php echo $noticeContent; ?></div>
+        <div class="shufei-notice-foot">
+            <button type="button" class="shufei-notice-ok" id="shufei-notice-ok"><?php _e('我知道了'); ?></button>
+        </div>
+    </div>
+</div>
+<style>
+#shufei-notice-mask{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:20px;}
+.shufei-notice-dialog{background:var(--card-bg,#fff);color:inherit;max-width:480px;width:100%;max-height:80vh;display:flex;flex-direction:column;border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.25);overflow:hidden;animation:shufei-notice-in .25s ease;}
+@keyframes shufei-notice-in{from{opacity:0;transform:translateY(12px) scale(.97);}to{opacity:1;transform:none;}}
+.shufei-notice-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;font-size:16px;font-weight:600;border-bottom:1px solid rgba(128,128,128,.2);}
+.shufei-notice-close{background:none;border:none;font-size:22px;line-height:1;cursor:pointer;color:inherit;opacity:.6;padding:0 4px;}
+.shufei-notice-close:hover{opacity:1;}
+.shufei-notice-body{padding:18px;overflow-y:auto;font-size:14px;line-height:1.7;word-break:break-word;}
+.shufei-notice-body a{color:#467B96;}
+.shufei-notice-foot{padding:12px 18px 16px;text-align:right;border-top:1px solid rgba(128,128,128,.2);}
+.shufei-notice-ok{background:#467B96;color:#fff;border:none;border-radius:8px;padding:8px 22px;font-size:14px;cursor:pointer;}
+.shufei-notice-ok:hover{opacity:.9;}
+@media (max-width:480px){.shufei-notice-dialog{max-width:100%;}}
+</style>
+<script>
+(function(){
+    var mask = document.getElementById('shufei-notice-mask');
+    if (!mask) return;
+    var mode = mask.getAttribute('data-mode');
+    var hash = mask.getAttribute('data-hash');
+    var key = 'shufei_notice_' + hash;
+    try {
+        if (mode === 'once') {
+            if (localStorage.getItem(key) === '1') return;
+        } else if (mode === 'daily') {
+            var today = new Date();
+            var day = today.getFullYear() + '-' + (today.getMonth()+1) + '-' + today.getDate();
+            if (localStorage.getItem(key) === day) return;
+        }
+    } catch (e) {}
+    mask.hidden = false;
+    document.body.style.overflow = 'hidden';
+    function close(){
+        try {
+            if (mode === 'once') {
+                localStorage.setItem(key, '1');
+            } else if (mode === 'daily') {
+                var today = new Date();
+                localStorage.setItem(key, today.getFullYear() + '-' + (today.getMonth()+1) + '-' + today.getDate());
+            }
+        } catch (e) {}
+        mask.hidden = true;
+        document.body.style.overflow = '';
+    }
+    document.getElementById('shufei-notice-close').addEventListener('click', close);
+    document.getElementById('shufei-notice-ok').addEventListener('click', close);
+    mask.addEventListener('click', function(e){ if (e.target === mask) close(); });
+})();
+</script>
+<?php endif; ?>
+
 <?php $this->need('footer.php'); ?>
