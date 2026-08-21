@@ -194,16 +194,19 @@ if ($this->is('index') && $noticeMode !== 'off' && $noticeContent !== ''):
 </div>
 <style>
 #shufei-notice-mask{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:20px;}
+#shufei-notice-mask[hidden]{display:none;}
 .shufei-notice-dialog{background:var(--card-bg,#fff);color:inherit;max-width:480px;width:100%;max-height:80vh;display:flex;flex-direction:column;border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.25);overflow:hidden;animation:shufei-notice-in .25s ease;}
 @keyframes shufei-notice-in{from{opacity:0;transform:translateY(12px) scale(.97);}to{opacity:1;transform:none;}}
 .shufei-notice-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;font-size:16px;font-weight:600;border-bottom:1px solid rgba(128,128,128,.2);}
+.shufei-notice-head i{color:var(--primary-color,#FF6B6B);}
 .shufei-notice-close{background:none;border:none;font-size:22px;line-height:1;cursor:pointer;color:inherit;opacity:.6;padding:0 4px;}
-.shufei-notice-close:hover{opacity:1;}
+.shufei-notice-close:hover{opacity:1;color:var(--primary-color,#FF6B6B);}
 .shufei-notice-body{padding:18px;overflow-y:auto;font-size:14px;line-height:1.7;word-break:break-word;}
-.shufei-notice-body a{color:#467B96;}
+.shufei-notice-body a{color:var(--primary-color,#FF6B6B);}
 .shufei-notice-foot{padding:12px 18px 16px;text-align:right;border-top:1px solid rgba(128,128,128,.2);}
-.shufei-notice-ok{background:#467B96;color:#fff;border:none;border-radius:8px;padding:8px 22px;font-size:14px;cursor:pointer;}
-.shufei-notice-ok:hover{opacity:.9;}
+.shufei-notice-ok{background:linear-gradient(135deg,var(--primary-color,#FF6B6B) 0%,var(--primary-hover,#FF6B6B) 100%);color:#fff;border:none;border-radius:8px;padding:8px 22px;font-size:14px;cursor:pointer;box-shadow:0 4px 12px color-mix(in srgb,var(--primary-color,#FF6B6B) 30%,transparent);transition:transform .15s ease,box-shadow .15s ease;}
+.shufei-notice-ok:hover{transform:translateY(-1px);box-shadow:0 6px 16px color-mix(in srgb,var(--primary-color,#FF6B6B) 40%,transparent);}
+.shufei-notice-ok:active{transform:translateY(0);}
 @media (max-width:480px){.shufei-notice-dialog{max-width:100%;}}
 </style>
 <script>
