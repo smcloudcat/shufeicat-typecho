@@ -335,6 +335,22 @@ img {
     overflow: hidden;
 }
 
+/* 侧边栏内长文本溢出保护：flex 行内文本省略号，block 链接自动换行 */
+.category-nav-item a span,
+.links-nav-item a span,
+.page-nav-widget .widget-list li a span,
+.custom-nav-list li a span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.links-nav-item a,
+.page-nav-widget .widget-list li a,
+.custom-nav-list li a {
+    min-width: 0;
+}
+
 .category-nav-item a::after {
     content: '';
     position: absolute;
@@ -3650,6 +3666,8 @@ pre[class*="language-"].line-numbers > code {
     color: var(--text-color);
     display: block;
     transition: all 0.3s ease;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .widget-list li a:hover {
