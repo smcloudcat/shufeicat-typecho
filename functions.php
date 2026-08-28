@@ -792,6 +792,144 @@ function themeConfig($form)
     $postListStyle->setAttribute('class', 'typecho-option cat-group-appearance');
     $form->addInput($postListStyle);
 
+// ===== 外观：样式存储（默认折叠，点击展开） =====
+    $stylePresetsAjax = rtrim($options->themeUrl, '/') . '/core/style-presets-ajax.php';
+    echo '<style>'
+        . '#cat-style-presets-box .style-preset-head{display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 14px;background:#eef5f8;border:1px solid #d9e6ec;border-radius:6px;transition:background .2s,border-color .2s;user-select:none;box-sizing:border-box;}'
+        . '#cat-style-presets-box .style-preset-head:hover,#cat-style-presets-box .style-preset-head.open{background:#e2eef5;border-color:#467B96;}'
+        . '#cat-style-presets-box .style-preset-head-icon{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:#467B96;color:#fff;font-size:12px;flex-shrink:0;transition:transform .25s ease;}'
+        . '#cat-style-presets-box .style-preset-head.open .style-preset-head-icon{transform:rotate(180deg);}'
+        . '#cat-style-presets-box .style-preset-head-title{font-weight:600;font-size:13px;color:#262626;display:inline-flex;align-items:center;gap:6px;}'
+        . '#cat-style-presets-box .style-preset-head-title i{color:#467B96;}'
+        . '#cat-style-presets-box .style-preset-head-count{color:#8c8c8c;font-size:12px;white-space:nowrap;}'
+        . '#cat-style-presets-box .style-preset-head-btn{margin-left:auto;display:inline-flex;align-items:center;gap:5px;padding:4px 12px;background:#fff;border:1px solid #467B96;color:#467B96;border-radius:14px;font-size:12px;font-weight:500;transition:all .2s;flex-shrink:0;white-space:nowrap;}'
+        . '#cat-style-presets-box .style-preset-head:hover .style-preset-head-btn,#cat-style-presets-box .style-preset-head.open .style-preset-head-btn{background:#467B96;color:#fff;}'
+        . '#cat-style-presets-box .style-preset-head-btn i{transition:transform .25s ease;}'
+        . '#cat-style-presets-box .style-preset-head.open .style-preset-head-btn i{transform:rotate(180deg);}'
+        . '@media (max-width:480px){#cat-style-presets-box .style-preset-head-count{display:none;}}'
+        . '</style>';
+    echo '<div class="typecho-option cat-group-appearance" style="padding:14px 0;" id="cat-style-presets-box" data-ajax="' . htmlspecialchars($stylePresetsAjax) . '">'
+        . '<div id="style-preset-toggle" class="style-preset-head" role="button" aria-expanded="false">'
+        . '<span class="style-preset-head-icon"><i class="fa fa-chevron-down"></i></span>'
+        . '<span class="style-preset-head-title"><i class="fa fa-paint-brush"></i>样式存储</span>'
+        . '<span id="style-preset-count" class="style-preset-head-count"></span>'
+        . '<span class="style-preset-head-btn"><i class="fa fa-angle-double-down"></i>展开设置</span>'
+        . '</div>'
+        . '<div id="style-preset-body" style="display:none;margin-top:12px;">'
+        . '<div class="description" style="margin-bottom:10px;">介绍：将当前「外观设置」（主题颜色、背景颜色/图片/渐变、盒子透明度、文章列表样式）保存为样式预设，之后在下方选项中点选一键切换或删除。保存预设后请点击底部「保存设置」按钮持久化当前配置</div>'
+        . '<div class="cat-data-title" style="margin:10px 0 6px;">保存当前外观为预设</div>'
+        . '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">'
+        . '<input type="text" id="style-preset-name" placeholder="样式名称，如：我的大海渐变" style="flex:1;min-width:160px;" />'
+        . '<button type="button" class="cat-data-btn cat-data-btn-primary" id="style-preset-save"><i class="fa fa-save"></i> 保存当前样式</button>'
+        . '</div>'
+        . '<div class="cat-data-title" style="margin:10px 0 6px;">官方推荐样式（一键使用，我觉得还挺好看的）</div>'
+        . '<div id="style-preset-recommend" style="margin-top:4px;">加载中…</div>'
+        . '<div class="cat-data-title" style="margin:10px 0 6px;">我的样式预设（单选后切换 / 删除）</div>'
+        . '<div id="style-preset-list" style="margin-top:4px;">加载中…</div>'
+        . '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">'
+        . '<button type="button" class="cat-data-btn cat-data-btn-primary" id="style-preset-apply" disabled>使用所选样式</button>'
+        . '<button type="button" class="cat-data-btn cat-data-btn-danger" id="style-preset-del" disabled>删除所选</button>'
+        . '</div>'
+        . '<div class="cat-data-status" id="style-preset-status"></div>'
+        . '</div>'
+        . '</div>';
+    echo '<script src="' . $options->themeUrl . '/assets/js/admin/style-presets.js?v=' . (filemtime(dirname(__FILE__) . '/assets/js/admin/style-presets.js') ?: shufei_get_theme_version()) . '"></script>';
+
+// ===== 推荐样式引导弹窗（老用户首次升级 / 新用户首次使用本模板时弹出一次） =====
+    try {
+        if (file_exists(dirname(__FILE__) . '/core/style-presets.php')) {
+            require_once dirname(__FILE__) . '/core/style-presets.php';
+        }
+        if (shufei_style_tip_status() === '') {
+            $recommended = shufei_recommended_presets();
+            $recommendedJson = json_encode($recommended, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            $recCards = '';
+            foreach ($recommended as $idx => $rc) {
+                $settings = isset($rc['settings']) ? $rc['settings'] : array();
+                $bg = shufei_recommended_preview_bg($settings);
+                $img = isset($rc['image']) ? $rc['image'] : '';
+                $name = isset($rc['name']) ? $rc['name'] : '';
+                $desc = isset($rc['desc']) ? $rc['desc'] : '';
+                $checked = $idx === 0 ? ' checked' : '';
+                $on = $idx === 0 ? ' on' : '';
+                $recCards .= '<label class="shufei-rec-card' . $on . '">'
+                    . '<input type="radio" name="shufei-rec-pick" value="' . htmlspecialchars($rc['id']) . '"' . $checked . ' />'
+                    . '<div class="shufei-rec-thumb" style="background:' . htmlspecialchars($bg) . ';">'
+                    . '<img src="' . htmlspecialchars($img) . '" alt="" loading="lazy" />'
+                    . '<i class="shufei-rec-check">✓</i>'
+                    . '</div>'
+                    . '<div class="shufei-rec-meta">'
+                    . '<b>' . htmlspecialchars($name) . '</b>'
+                    . '<span>' . htmlspecialchars($desc) . '</span>'
+                    . '</div></label>';
+            }
+            echo '<style>'
+                . '#shufei-rec-overlay{position:fixed;inset:0;background:rgba(15,30,40,.55);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;}'
+                . '#shufei-rec-dialog{background:#fff;border-radius:10px;width:800px;max-width:100%;max-height:92vh;overflow:auto;box-shadow:0 14px 48px rgba(0,0,0,.3);font-size:13px;}'
+                . '#shufei-rec-dialog .shufei-rec-head{padding:18px 22px 0;}'
+                . '#shufei-rec-dialog .shufei-rec-head b{font-size:16px;color:#262626;display:flex;align-items:center;gap:8px;}'
+                . '#shufei-rec-dialog .shufei-rec-head b i{color:#467B96;}'
+                . '#shufei-rec-dialog .shufei-rec-head p{margin:6px 0 0;color:#8c8c8c;font-size:12px;line-height:1.6;}'
+                . '#shufei-rec-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:16px 22px;}'
+                . '.shufei-rec-card{display:block;position:relative;border:2px solid #e3e3e3;border-radius:8px;cursor:pointer;overflow:hidden;background:#fff;transition:border-color .15s,box-shadow .15s;}'
+                . '.shufei-rec-card.on{border-color:#467B96;box-shadow:0 0 0 3px rgba(70,123,150,.18);}'
+                . '.shufei-rec-card input{position:absolute;opacity:0;pointer-events:none;}'
+                . '.shufei-rec-thumb{height:120px;background-size:cover;background-position:center;position:relative;}'
+                . '.shufei-rec-thumb img{width:100%;height:100%;object-fit:cover;display:block;}'
+                . '.shufei-rec-check{position:absolute;top:8px;right:8px;width:22px;height:22px;border-radius:50%;background:#467B96;color:#fff;font-size:13px;line-height:1;display:none;align-items:center;justify-content:center;font-weight:700;}'
+                . '.shufei-rec-card.on .shufei-rec-check{display:flex;}'
+                . '.shufei-rec-meta{padding:10px 12px 12px;overflow:hidden;}'
+                . '.shufei-rec-meta b{display:block;font-size:13px;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}'
+                . '.shufei-rec-meta span{display:block;margin-top:4px;font-size:12px;color:#8c8c8c;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;min-height:32px;}'
+                . '#shufei-rec-foot{padding:0 22px 18px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}'
+                . '#shufei-rec-btn-wrap{display:flex;gap:10px;flex-wrap:wrap;}'
+                . '#shufei-rec-btn{background:#467B96;color:#fff;border:1px solid #467B96;border-radius:4px;padding:8px 18px;cursor:pointer;font-size:13px;font-weight:600;}'
+                . '#shufei-rec-btn:hover{background:#3a6a83;}'
+                . '#shufei-rec-btn:disabled{opacity:.55;cursor:not-allowed;}'
+                . '#shufei-rec-later{background:#fff;color:#555;border:1px solid #d9d9d9;border-radius:4px;padding:8px 14px;cursor:pointer;font-size:13px;}'
+                . '#shufei-rec-never{background:none;border:0;color:#999;cursor:pointer;font-size:12px;margin-left:auto;text-decoration:underline;}'
+                . '@media (max-width:640px){#shufei-rec-grid{grid-template-columns:1fr;}.shufei-rec-thumb{height:140px;}}'
+                . '</style>';
+            echo '<div id="shufei-rec-overlay" class="shufei-rec-root">'
+                . '<div id="shufei-rec-dialog" role="dialog" aria-modal="true">'
+                . '<div class="shufei-rec-head"><b><i class="fa fa-paint-brush"></i>推荐样式 · 一键焕新外观</b>'
+                . '<p>为你的博客准备了 3 套官方外观风格，点击卡片即可选中，一键应用后可在「外观设置」中继续微调。</p></div>'
+                . '<div id="shufei-rec-grid">' . $recCards . '</div>'
+                . '<div id="shufei-rec-foot">'
+                . '<button type="button" id="shufei-rec-btn"><i class="fa fa-bolt"></i> 立即应用所选风格</button>'
+                . '<button type="button" id="shufei-rec-later">下次再说</button>'
+                . '<button type="button" id="shufei-rec-never">不再显示这个提示</button>'
+                . '</div></div></div>';
+            echo '<script>'
+                . '(function(){'
+                . 'var overlay=document.getElementById("shufei-rec-overlay");'
+                . 'if(!overlay)return;'
+                . 'var ajaxUrl=' . json_encode($stylePresetsAjax) . ';'
+                . 'var cards=Array.prototype.slice.call(document.querySelectorAll(".shufei-rec-card"));'
+                . 'function pck(el){cards.forEach(function(c){c.classList.toggle("on",c===el);});var r=el.querySelector("input");if(r)r.checked=true;}'
+                . 'cards.forEach(function(c){c.addEventListener("click",function(){pck(c);});});'
+                . 'var btn=document.getElementById("shufei-rec-btn");'
+                . 'var laterBtn=document.getElementById("shufei-rec-later");'
+                . 'var neverBtn=document.getElementById("shufei-rec-never");'
+                . 'function selected(){var el=document.querySelector("#shufei-rec-grid input:checked");return el?el.value:"";}'
+                . 'function post(data){var fd=new FormData();Object.keys(data).forEach(function(k){fd.append(k,data[k]);});return fetch(ajaxUrl,{method:"POST",body:fd,credentials:"same-origin"}).then(function(r){return r.json();});}'
+                . 'function hide(){overlay.parentNode.removeChild(overlay);}'
+                . 'btn.addEventListener("click",function(){'
+                . 'var id=selected();if(!id){return;}'
+                . 'btn.disabled=true;btn.innerHTML="应用中…";'
+                . 'post({action:"apply",id:id}).then(function(res){'
+                . 'if(res&&res.success){return post({action:"tip",mode:"applied"}).then(function(){location.reload();});}'
+                . 'alert((res&&res.message)?res.message:"应用失败");btn.disabled=false;btn.innerHTML="立即应用所选风格";'
+                . '}).catch(function(){btn.disabled=false;btn.innerHTML="立即应用所选风格";alert("网络错误，请重试");});'
+                . '});'
+                . 'laterBtn.addEventListener("click",function(){hide();});'
+                . 'neverBtn.addEventListener("click",function(){post({action:"tip",mode:"dismissed"}).then(hide).catch(hide);});'
+                . '})();'
+                . '</script>';
+        }
+    } catch (\Throwable $e) {
+    }
+
     $pjaxLoad = new \Typecho\Widget\Helper\Form\Element\Radio(
         'pjaxLoad',
         array('off' => _t('关闭'), 'on' => _t('开启')),
@@ -867,6 +1005,16 @@ function themeConfig($form)
     );
     $thumbnailSource->setAttribute('class', 'typecho-option cat-group-article');
     $form->addInput($thumbnailSource);
+
+    // ===== 功能增强：主题 Markdown 使用指南导航 =====
+    echo '<div class="typecho-option cat-group-enhance">'
+        . '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">'
+        . '<i class="fa fa-book" style="color:#467B96;font-size:16px;"></i>'
+        . '<span style="font-weight:600;color:#262626;font-size:13px;">主题 Markdown 使用指南</span>'
+        . '<a href="https://lwcat.cn/index.php/archives/180/" target="_blank" rel="noopener noreferrer" class="cat-data-btn cat-data-btn-primary" style="text-decoration:none;">前往学习教程 →</a>'
+        . '</div>'
+        . '<div class="description">介绍：点击上方按钮前往学习本主题的 Markdown 使用指南，涵盖标准语法、快捷写法与主题扩展语法（提示框、折叠区块、Mermaid / ECharts 图表、KaTeX 公式等），配合下方「Markdown 扩展语法」配置项使用更佳</div>'
+        . '</div>';
 
     $statsEnabled = new \Typecho\Widget\Helper\Form\Element\Radio(
         'statsEnabled',
