@@ -69,7 +69,9 @@ function shufei_extract_math_placeholders($text, &$mathBlocks)
     }, $text);
 
     // 处理行内公式 $...$（排除 $$ 和货币金额）
-    $text = preg_replace_callback('/(?<!\$)\$(?!\$)([^\$\n]+?)(?<!\$)\$(?!\$)/', function ($matches) use (&$mathBlocks) {
+    // 内容排除汉字/扩充汉字区间（U+3400-U+9FFF），避免把中文语料中的 $...$ 误判为公式
+    // 注意保留空格（$E = mc^2$ 合法）、排除 $$ 与换行
+    $text = preg_replace_callback('/(?<!\$)\$(?!\$)([^\$\n\x{3400}-\x{9fff}]+?)(?<!\$)\$(?!\$)/u', function ($matches) use (&$mathBlocks) {
         $math = shufei_fix_markdown_in_math($matches[1]);
         $placeholder = '<!--MATH' . count($mathBlocks) . '-->';
         $mathBlocks[] = '<span class="math-tex" data-mode="inline" data-math="' . htmlspecialchars($math, ENT_QUOTES, 'UTF-8') . '"></span>';
@@ -538,14 +540,16 @@ function shufei_process_task_lists($content)
         $content = '';
     }
     // 匹配 <li>- [x] 或 <li>[x] 等变体
+    // 兼容 HyperDown 将列表项内容包成 <p> 的情况：<li><p>- [x] ...
+    // 保留 <p> 标签（与下游 </p> 成对），只在其内插入复选框，保证 HTML 平衡
     $content = preg_replace_callback(
-        '/<li>(\s*)\[([ xX])\]\s*/s',
+        '/<li>(\s*)(<p>)?(\s*)\[([ xX])\]\s*/s',
         function ($matches) {
-            $checked = strtolower($matches[2]) === 'x';
+            $checked = strtolower($matches[4]) === 'x';
             $checkbox = '<input type="checkbox" class="task-list-checkbox"' .
                 ($checked ? ' checked' : '') .
                 ' disabled>';
-            return '<li class="task-list-item">' . $matches[1] . $checkbox . ' ';
+            return '<li class="task-list-item">' . $matches[1] . ($matches[2] ?: '') . $matches[3] . $checkbox . ' ';
         },
         $content
     );
