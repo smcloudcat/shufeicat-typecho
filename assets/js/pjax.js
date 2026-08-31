@@ -463,6 +463,10 @@
                     if (typeof window.initCommentSort === 'function') {
                         window.initCommentSort();
                     }
+                    // 重新加载新评论的 IP 归属地
+                    if (typeof window.initCommentIpRegions === 'function') {
+                        window.initCommentIpRegions();
+                    }
                     // 重新渲染评论区中的扩展内容
                     if (typeof window.initMermaid === 'function') {
                         window.initMermaid();
