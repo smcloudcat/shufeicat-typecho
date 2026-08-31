@@ -240,6 +240,30 @@ abstract class ShufeiStorageDriver
     }
 
     /**
+     * 流式计算文件的 SHA256（用于 S3/COS 签名），避免 file_get_contents 整读大文件导致 OOM
+     *
+     * @param string $path
+     * @return string|false 无法读取时返回 false
+     */
+    protected function hashFileSha256($path)
+    {
+        $fh = @fopen($path, 'rb');
+        if ($fh === false) {
+            return false;
+        }
+        $ctx = hash_init('sha256');
+        while (!feof($fh)) {
+            $chunk = fread($fh, 32768);
+            if ($chunk === false) {
+                break;
+            }
+            hash_update($ctx, $chunk);
+        }
+        fclose($fh);
+        return hash_final($ctx);
+    }
+
+    /**
      * 拼接 URL（处理结尾斜杠）
      */
     protected function joinUrl($base, $path)
@@ -387,7 +411,32 @@ class ShufeiStorageDriverLocal extends ShufeiStorageDriver
         if ($rel === '') {
             return false;
         }
-        $fullPath = __TYPECHO_ROOT_DIR__ . '/' . $rel;
+
+        // 安全校验：拒绝空字节、绝对路径、目录穿越（..），并确保目标位于上传根目录之内，防止越权删除任意文件
+        if (strpos($rel, "\0") !== false) {
+            return false;
+        }
+        $normalized = str_replace('\\', '/', $rel);
+        if ($normalized === '' || $normalized[0] == '/' || preg_match('/^[a-zA-Z]:\//', $normalized)) {
+            return false; // 空路径或绝对路径
+        }
+        if (strpos($normalized, '..') !== false) {
+            return false; // 目录穿越
+        }
+
+        $uploadRootDef = defined('__TYPECHO_UPLOAD_DIR__') ? __TYPECHO_UPLOAD_DIR__ : '/usr/uploads';
+        $rootAbs = realpath(__TYPECHO_ROOT_DIR__ . '/' . ltrim($uploadRootDef, '/'));
+        $dirAbs = realpath(dirname(__TYPECHO_ROOT_DIR__ . '/' . $normalized));
+        if ($rootAbs === false || $dirAbs === false) {
+            return false;
+        }
+        // 目标目录必须位于上传根目录之内
+        $rootPrefix = rtrim($rootAbs, '/\\') . DIRECTORY_SEPARATOR;
+        if ($dirAbs !== $rootAbs && strncmp($dirAbs, $rootPrefix, strlen($rootPrefix)) !== 0) {
+            return false;
+        }
+
+        $fullPath = $dirAbs . DIRECTORY_SEPARATOR . basename($normalized);
         return @unlink($fullPath);
     }
 
@@ -918,7 +967,13 @@ class ShufeiStorageDriverS3 extends ShufeiStorageDriver
         $host = $this->resolveHost($config);
 
         $url = $this->buildRequestUrl($config, $host, $key);
-        $headers = $this->signRequestV4($config, 'PUT', $url, $host, $key, $mime, '', file_get_contents($localPath));
+
+        // 流式计算内容哈希用于签名，避免整读大文件导致 OOM
+        $payloadHash = $this->hashFileSha256($localPath);
+        if ($payloadHash === false) {
+            return false;
+        }
+        $headers = $this->signRequestV4($config, 'PUT', $url, $host, $key, $mime, $payloadHash, $payloadHash);
 
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
@@ -928,9 +983,17 @@ class ShufeiStorageDriverS3 extends ShufeiStorageDriver
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
         curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 30);
         curl_setopt($ch, CURLOPT_TIMEOUT, 300);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, file_get_contents($localPath));
+        // 流式上传，避免整读文件
+        $fh = @fopen($localPath, 'rb');
+        if ($fh === false) {
+            return false;
+        }
+        curl_setopt($ch, CURLOPT_UPLOAD, true);
+        curl_setopt($ch, CURLOPT_INFILE, $fh);
+        curl_setopt($ch, CURLOPT_INFILESIZE, filesize($localPath));
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         $resp = curl_exec($ch);
+        fclose($fh);
         $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $err = curl_error($ch);
         curl_close($ch);
@@ -1091,7 +1154,8 @@ class ShufeiStorageDriverS3 extends ShufeiStorageDriver
             $canonicalQuery = implode('&', $parts);
         }
 
-        $payloadHash = hash('sha256', $body);
+        // 优先使用调用方流式预计算的哈希，否则按需对内容取哈希
+        $payloadHash = ($hashedPayload !== '') ? $hashedPayload : hash('sha256', $body);
 
         $canonicalHeaders = "host:" . $host . "\n"
             . "x-amz-content-sha256:" . $payloadHash . "\n"
@@ -1156,7 +1220,6 @@ class ShufeiStorageDriverWebDAV extends ShufeiStorageDriver
     public function upload($localPath, $remoteName, $mime, array $config)
     {
         $url = $this->buildUrl($config, $remoteName);
-        $data = file_get_contents($localPath);
 
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
@@ -1166,7 +1229,14 @@ class ShufeiStorageDriverWebDAV extends ShufeiStorageDriver
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
         curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 30);
         curl_setopt($ch, CURLOPT_TIMEOUT, 300);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+        // 流式上传，避免整读文件导致 OOM
+        $fh = @fopen($localPath, 'rb');
+        if ($fh === false) {
+            return false;
+        }
+        curl_setopt($ch, CURLOPT_UPLOAD, true);
+        curl_setopt($ch, CURLOPT_INFILE, $fh);
+        curl_setopt($ch, CURLOPT_INFILESIZE, filesize($localPath));
         $headers = array('Content-Type: ' . $mime);
         if (!empty($config['username'])) {
             $headers[] = 'Authorization: Basic ' . base64_encode($config['username'] . ':' . (isset($config['password']) ? $config['password'] : ''));
@@ -1176,6 +1246,7 @@ class ShufeiStorageDriverWebDAV extends ShufeiStorageDriver
         $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $err = curl_error($ch);
         curl_close($ch);
+        fclose($fh);
 
         if ($err || $code < 200 || $code >= 300) {
             return false;
@@ -1286,7 +1357,6 @@ class ShufeiStorageDriverAliyunOss extends ShufeiStorageDriver
     {
         $key = $this->buildKey($config, $remoteName);
         $url = $this->buildSignedUrl($config, $key, 'PUT', $mime);
-        $data = file_get_contents($localPath);
 
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
@@ -1295,9 +1365,17 @@ class ShufeiStorageDriverAliyunOss extends ShufeiStorageDriver
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
         curl_setopt($ch, CURLOPT_TIMEOUT, 300);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+        // 流式上传，避免整读文件导致 OOM
+        $fh = @fopen($localPath, 'rb');
+        if ($fh === false) {
+            return false;
+        }
+        curl_setopt($ch, CURLOPT_UPLOAD, true);
+        curl_setopt($ch, CURLOPT_INFILE, $fh);
+        curl_setopt($ch, CURLOPT_INFILESIZE, filesize($localPath));
         curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: ' . $mime, 'Date: ' . gmdate('D, d M Y H:i:s \G\M\T')));
         $resp = curl_exec($ch);
+        fclose($fh);
         $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $err = curl_error($ch);
         curl_close($ch);
@@ -1435,7 +1513,12 @@ class ShufeiStorageDriverTencentCos extends ShufeiStorageDriver
     {
         $key = $this->buildKey($config, $remoteName);
         $url = $this->buildUrl($config, $key);
-        $headers = $this->signV5($config, 'put', $key, $mime, file_get_contents($localPath));
+        // 流式计算内容哈希用于签名，避免整读大文件导致 OOM
+        $payloadHash = $this->hashFileSha256($localPath);
+        if ($payloadHash === false) {
+            return false;
+        }
+        $headers = $this->signV5($config, 'put', $key, $mime, $payloadHash);
 
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
@@ -1444,9 +1527,17 @@ class ShufeiStorageDriverTencentCos extends ShufeiStorageDriver
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
         curl_setopt($ch, CURLOPT_TIMEOUT, 300);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, file_get_contents($localPath));
+        // 流式上传，避免整读文件导致 OOM
+        $fh = @fopen($localPath, 'rb');
+        if ($fh === false) {
+            return false;
+        }
+        curl_setopt($ch, CURLOPT_UPLOAD, true);
+        curl_setopt($ch, CURLOPT_INFILE, $fh);
+        curl_setopt($ch, CURLOPT_INFILESIZE, filesize($localPath));
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         $resp = curl_exec($ch);
+        fclose($fh);
         $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $err = curl_error($ch);
         curl_close($ch);
@@ -1601,7 +1692,8 @@ class ShufeiStorageDriverTencentCos extends ShufeiStorageDriver
             $signedHeaderList[] = strtolower($k);
         }
         $signedHeaders = implode(';', $signedHeaderList);
-        $hashedPayload = hash('sha256', $body);
+        // 调用方传入 64 位十六进制哈希时直接使用（流式预计算），否则按需对内容取哈希
+        $hashedPayload = (strlen($body) === 64 && ctype_xdigit($body)) ? strtolower($body) : hash('sha256', $body);
 
         $canonicalRequest = $httpMethod . "\n" . $canonicalUri . "\n" . $canonicalQueryString . "\n" . $canonicalHeaders . "\n" . $signedHeaders . "\n" . $hashedPayload;
 
@@ -1816,7 +1908,6 @@ class ShufeiStorageDriverUpyun extends ShufeiStorageDriver
         $key = $this->buildKey($config, $remoteName);
         $endpoint = isset($config['endpoint']) ? $config['endpoint'] : 'v0.api.upyun.com';
         $url = 'https://' . $endpoint . '/' . $config['bucket'] . '/' . $key;
-        $data = file_get_contents($localPath);
 
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
@@ -1825,14 +1916,23 @@ class ShufeiStorageDriverUpyun extends ShufeiStorageDriver
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
         curl_setopt($ch, CURLOPT_TIMEOUT, 300);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+        // 流式上传，避免整读文件导致 OOM
+        $fh = @fopen($localPath, 'rb');
+        if ($fh === false) {
+            return false;
+        }
+        $fileSize = filesize($localPath);
+        curl_setopt($ch, CURLOPT_UPLOAD, true);
+        curl_setopt($ch, CURLOPT_INFILE, $fh);
+        curl_setopt($ch, CURLOPT_INFILESIZE, $fileSize);
         $auth = 'Basic ' . base64_encode($config['operator'] . ':' . $config['password']);
         curl_setopt($ch, CURLOPT_HTTPHEADER, array(
             'Authorization: ' . $auth,
             'Content-Type: ' . $mime,
-            'Content-Length: ' . strlen($data),
+            'Content-Length: ' . $fileSize,
         ));
         $resp = curl_exec($ch);
+        fclose($fh);
         $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $err = curl_error($ch);
         curl_close($ch);

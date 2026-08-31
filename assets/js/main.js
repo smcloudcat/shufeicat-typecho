@@ -71,17 +71,35 @@ window.loadScriptOnce = function(src, callback) {
     }
     if (state === 'error') {
         // 上次加载失败：清除错误标记，允许后续调用重试（CDN 故障恢复后可自动恢复）
-        // 避免同一时刻并发重试导致风暴：短暂冷却 10s
+        // 短暂冷却 10s，避免并发重试风暴；冷却期内先缓存本次回调，并安排一次延迟重试，防止回调丢失
         var lastFail = window._loadedScripts[src + '__t'];
         if (lastFail && (Date.now() - lastFail) < 10000) {
+            if (callback) {
+                var q = (window._loadedScripts[src + '__cbs'] = window._loadedScripts[src + '__cbs'] || []);
+                if (q.indexOf(callback) === -1) {
+                    q.push(callback);
+                }
+            }
+            // 对每个 src 只安排一次延迟重试（自动重试上限 12 次，之后交给新调用重新发起）
+            var rc = window._loadedScripts[src + '__rc'] || 0;
+            if (!window._loadedScripts[src + '__retry'] && rc < 12) {
+                window._loadedScripts[src + '__retry'] = true;
+                var wait = Math.max(0, lastFail + 10000 - Date.now());
+                setTimeout(function() {
+                    delete window._loadedScripts[src + '__retry'];
+                    window._loadedScripts[src + '__rc'] = rc + 1;
+                    window.loadScriptOnce(src, null);
+                }, wait);
+            }
             return;
         }
         delete window._loadedScripts[src];
         delete window._loadedScripts[src + '__cbs'];
+        delete window._loadedScripts[src + '__rc'];
     }
-    // 开始加载
+    // 开始加载（合并此前冷却期积压的回调，避免被覆盖丢失）
     window._loadedScripts[src] = 'loading';
-    window._loadedScripts[src + '__cbs'] = callback ? [callback] : [];
+    window._loadedScripts[src + '__cbs'] = (window._loadedScripts[src + '__cbs'] || []).concat(callback ? [callback] : []);
     var script = document.createElement('script');
     script.src = src;
     script.onload = function() {

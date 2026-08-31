@@ -436,10 +436,12 @@
         var parentId = parentInput ? parentInput.value : '';
 
         var currentUrl = window.location.href.split('#')[0];
+        // 加时间戳缓存破坏参数，避免命中旧缓存导致看不到刚提交的新评论
+        var refreshUrl = currentUrl + (currentUrl.indexOf('?') > -1 ? '&' : '?') + '_=' + Date.now();
         var commentAnchor = '#comments';
 
         var xhr = new XMLHttpRequest();
-        xhr.open('GET', currentUrl, true);
+        xhr.open('GET', refreshUrl, true);
         xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
         xhr.onload = function() {
             if (xhr.status >= 200 && xhr.status < 300) {

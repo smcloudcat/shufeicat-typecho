@@ -72,20 +72,35 @@ function shufei_ensure_vote_table()
  */
 function shufei_get_voter_ip()
 {
-    $ip = '';
+    $remote = trim(isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '');
+
+    // 判断是否为内网/保留/环回地址（代理自身）
+    $isPrivate = function ($ip) {
+        return $ip !== '' && filter_var($ip, FILTER_VALIDATE_IP) &&
+            !filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE);
+    };
+
+    // 客户端直连为公网地址时，X-Forwarded-For/X-Real-IP 完全可由客户端伪造，直接忽略，防止刷票
+    if (!empty($remote) && !$isPrivate($remote)) {
+        return filter_var($remote, FILTER_VALIDATE_IP) ? $remote : '0.0.0.0';
+    }
+
+    // 处于反向代理/CDN 之后：从 XFF 最右侧（最近代理追加）向左取第一个公网 IP
     if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-        $ips = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
-        $ip = trim($ips[0]);
-    } elseif (!empty($_SERVER['HTTP_X_REAL_IP'])) {
-        $ip = trim($_SERVER['HTTP_X_REAL_IP']);
-    } elseif (!empty($_SERVER['REMOTE_ADDR'])) {
-        $ip = trim($_SERVER['REMOTE_ADDR']);
+        $ips = array_reverse(array_map('trim', explode(',', $_SERVER['HTTP_X_FORWARDED_FOR'])));
+        foreach ($ips as $cand) {
+            if ($cand !== '' && filter_var($cand, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+                return $cand;
+            }
+        }
     }
-    // 仅保留 IPv4 / IPv6 格式，防止注入
-    if (!filter_var($ip, FILTER_VALIDATE_IP)) {
-        $ip = '0.0.0.0';
+    if (!empty($_SERVER['HTTP_X_REAL_IP'])) {
+        $xrip = trim($_SERVER['HTTP_X_REAL_IP']);
+        if (filter_var($xrip, FILTER_VALIDATE_IP)) {
+            return $xrip;
+        }
     }
-    return $ip;
+    return filter_var($remote, FILTER_VALIDATE_IP) ? $remote : '0.0.0.0';
 }
 
 /**

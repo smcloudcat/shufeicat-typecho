@@ -70,9 +70,10 @@ class ShuFeiCat_Email
                 if ($comment->parent != 0) {
                     $db = \Typecho\Db::get();
                     $parentInfo = $db->fetchRow($db->select('mail')->from('table.comments')->where('coid = ?', $comment->parent));
-                    $parentMail = $parentInfo['mail'];
+                    // 父评论可能已被删除，fetchRow 返回 false，需判空
+                    $parentMail = (is_array($parentInfo) && !empty($parentInfo['mail'])) ? $parentInfo['mail'] : '';
                     /* 被回复的人不是自己时，发送邮件 */
-                    if ($parentMail != $comment->mail) {
+                    if ($parentMail !== '' && $parentMail != $comment->mail) {
                         $title = self::renderSubject($options, 'reply', '您在 [{postTitle}] 的评论有了新的回复！', $comment, $articleUrl);
                         $subtitle = '博主：[ ' . $author . ' ] 在《 <a style="color: ' . $mailAccentColor . ';text-decoration: none;" href="' . $articleUrl . '" target="_blank">' . $title . '</a> 》上回复了您:';
                         $mail->Body = self::renderTemplate($html, self::buildVars($options, $comment, $title, $subtitle, $text, $articleUrl));
@@ -99,9 +100,10 @@ class ShuFeiCat_Email
                     /* 如果发表的评论是回复别人 */
                     $db = \Typecho\Db::get();
                     $parentInfo = $db->fetchRow($db->select('mail')->from('table.comments')->where('coid = ?', $comment->parent));
-                    $parentMail = $parentInfo['mail'];
+                    // 父评论可能已被删除，fetchRow 返回 false，需判空
+                    $parentMail = (is_array($parentInfo) && !empty($parentInfo['mail'])) ? $parentInfo['mail'] : '';
                     /* 被回复的人不是自己时，发送邮件 */
-                    if ($parentMail != $comment->mail) {
+                    if ($parentMail !== '' && $parentMail != $comment->mail) {
                         $title = self::renderSubject($options, 'reply', '您在 [{postTitle}] 的评论有了新的回复！', $comment, $articleUrl);
                         $subtitle = $author . ' 在《 <a style="color: ' . $mailAccentColor . ';text-decoration: none;" href="' . $articleUrl . '" target="_blank">' . $title . '</a> 》上回复了您:';
                         $mail->Body = self::renderTemplate($html, self::buildVars($options, $comment, $title, $subtitle, $text, $articleUrl));

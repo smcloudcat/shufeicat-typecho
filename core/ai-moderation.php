@@ -370,8 +370,9 @@ class AiModeration
                     'error' => true
                 ];
             } else {
+                // errorStrategy=waiting：出错进入人工审核，必须返回 passed=false，由 handleModerationResult 落为 waiting
                 return [
-                    'passed' => true,
+                    'passed' => false,
                     'reason' => 'AI审核请求失败，进入人工审核: ' . $err,
                     'confidence' => 0.5,
                     'error' => true
