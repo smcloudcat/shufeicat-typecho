@@ -183,7 +183,12 @@ function shufei_comment_check($comment, $post) {
         }
     }
 
-    // 2. AI评论审核
+    // 2. AI评论审核（性能优化：ai-moderation.php 已移出无条件加载列表，
+    //    仅在评论提交走到此处时才引入；文件末尾会连带引入 ai-provider.php）
+    $_aiModFile = dirname(__FILE__) . '/ai-moderation.php';
+    if (file_exists($_aiModFile)) {
+        require_once $_aiModFile;
+    }
     if (function_exists('processAiModeration')) {
         $comment = processAiModeration($comment);
     }

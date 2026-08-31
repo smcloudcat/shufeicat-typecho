@@ -122,11 +122,13 @@ endif;
 // 标签云
 if (!isset($this->options->tagsWidgetEnabled) || $this->options->tagsWidgetEnabled === 'on'):
 ob_start();
+// 性能优化：标签云限定最多 60 个（按使用次数降序），避免标签极多时全表输出
 $_tagRows = \Typecho\Db::get()->fetchAll(\Typecho\Db::get()
     ->select('mid', 'name', 'slug', 'count')
     ->from('table.metas')
     ->where('type = ?', 'tag')
-    ->order('table.metas.count', \Typecho\Db::SORT_DESC));
+    ->order('table.metas.count', \Typecho\Db::SORT_DESC)
+    ->limit(60));
 ?>
 <section class="widget tags-widget">
     <h3 class="widget-title"><i class="fa fa-tags"></i><?php _e('标签'); ?></h3>

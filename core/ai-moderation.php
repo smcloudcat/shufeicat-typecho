@@ -614,3 +614,10 @@ function processAiModeration($comment)
     
     return $comment;
 }
+
+/* 性能优化（2026-08）：ai-provider.php 已移出 functions.php 无条件加载列表。
+ * 本文件被引入（评论 AI 审核 / 后台设置）时连带引入基础库，保证加载顺序：
+ * 先定义 AiModeration 类，再加载 AiProvider（其内部 class_exists('AiModeration')
+ * 判断因此仍走「读取 AiModeration 常量」的原路径，与拆分前行为一致）。
+ * require_once 幂等：后台 AJAX 端点自行引入时不会重复加载。 */
+require_once dirname(__FILE__) . '/ai-provider.php';

@@ -2,8 +2,11 @@
 
 if (!defined('__TYPECHO_ROOT_DIR__')) exit;
 
-/* 邮件通知 */
-\Typecho\Plugin::factory('Widget_Feedback')->finishComment = array('ShuFeiCat_Email', 'send');
+/* 邮件通知
+ * 性能优化（2026-08）：本文件不再无条件加载，改由 functions.php 的
+ * shufei_comment_mail_notify() 在 finishComment 钩子触发（评论发布后）时按需引入。
+ * 钩子注册也移至 functions.php（此处原注册行会导致每个前台请求都解析本文件）。
+ */
 
 class ShuFeiCat_Email
 {

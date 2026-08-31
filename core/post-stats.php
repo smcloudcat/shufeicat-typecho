@@ -99,12 +99,23 @@ function shufei_ensure_stats_table()
 function shufei_get_views($cid)
 {
     shufei_ensure_stats_table();
-    
+
+    // 请求级缓存：同一文章页多次调用（post.php 的统计区 + JS 初始化）只查一次库
+    static $cache = array();
+    $cid = intval($cid);
+    if ($cid <= 0) {
+        return 0;
+    }
+    if (array_key_exists($cid, $cache)) {
+        return $cache[$cid];
+    }
+
     $db = \Typecho\Db::get();
     $prefix = shufei_get_db_prefix();
-    
+
     $row = $db->fetchRow($db->select('views')->from($prefix . 'post_stats')->where('cid = ?', $cid));
-    return $row ? intval($row['views']) : 0;
+    $cache[$cid] = $row ? intval($row['views']) : 0;
+    return $cache[$cid];
 }
 
 /**
@@ -115,12 +126,23 @@ function shufei_get_views($cid)
 function shufei_get_likes($cid)
 {
     shufei_ensure_stats_table();
-    
+
+    // 请求级缓存：与 shufei_get_views 一致
+    static $cache = array();
+    $cid = intval($cid);
+    if ($cid <= 0) {
+        return 0;
+    }
+    if (array_key_exists($cid, $cache)) {
+        return $cache[$cid];
+    }
+
     $db = \Typecho\Db::get();
     $prefix = shufei_get_db_prefix();
-    
+
     $row = $db->fetchRow($db->select('likes')->from($prefix . 'post_stats')->where('cid = ?', $cid));
-    return $row ? intval($row['likes']) : 0;
+    $cache[$cid] = $row ? intval($row['likes']) : 0;
+    return $cache[$cid];
 }
 
 /**

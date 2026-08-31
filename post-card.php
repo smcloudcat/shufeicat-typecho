@@ -106,7 +106,8 @@
     <?php if ($hasThumb): ?>
     <div class="post-thumbnail-side">
         <a href="<?php $post->permalink(); ?>" class="thumbnail-link-side" title="<?php $post->title(); ?>">
-            <img src="<?php echo shufei_sanitize_url($thumbnail); ?>" alt="<?php $post->title(); ?>" class="thumbnail-img-side" data-fallback="<?php echo shufei_sanitize_url(shufei_get_random_thumbnail()); ?>" onerror="this.onerror=null;this.src=this.getAttribute('data-fallback');" />
+            <!-- 性能优化：loading=lazy 折叠线以下图片延迟加载；decoding=async 避免解码阻塞主线程 -->
+            <img src="<?php echo shufei_sanitize_url($thumbnail); ?>" alt="<?php $post->title(); ?>" class="thumbnail-img-side" loading="lazy" decoding="async" data-fallback="<?php echo shufei_sanitize_url(shufei_get_random_thumbnail()); ?>" onerror="this.onerror=null;this.src=this.getAttribute('data-fallback');" />
         </a>
     </div>
     <?php endif; ?>

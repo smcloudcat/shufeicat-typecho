@@ -86,6 +86,12 @@ $this->need('header.php');
     }
 
     $postListStyle = !empty($this->options->postListStyle) ? $this->options->postListStyle : 'classic';
+
+    // 性能优化：批量预加载 fields/categories/author，消除列表页逐篇查询的 N+1 问题
+    // （约 60 次 SQL/页 → 3 次左右；预置后模板中 $post->fields 等直接命中缓存）
+    if (!empty($allPosts) && function_exists('shufei_preload_list_data')) {
+        shufei_preload_list_data($allPosts);
+    }
     ?>
     <?php foreach ($allPosts as $post): ?>
         <?php

@@ -2159,11 +2159,16 @@ function themePostFields($layout)
  * 按需加载：前端渲染与评论提交（Widget_Archive / Widget_Feedback）仅加载前端必需模块；
  * 后台/上传专用模块（存储、编辑器、AI 写作、样式推荐、图片处理）仅在管理后台请求时加载，
  * 避免每个前端请求解析约 180KB 的后台代码。后台 AJAX 端点（storage-ajax 等）自行 require 依赖，不受影响。
+ *
+ * 性能优化（2026-08）：mail.php / ai-moderation.php / ai-provider.php 移出无条件加载列表
+ * （合计约 71KB/请求），改为在真正使用的时刻按需 require：
+ *  - mail.php：评论发布通知 → 钩子 trampoline shufei_comment_mail_notify()
+ *  - ai-moderation.php：评论 AI 审核 → shufei_comment_check() 内按需引入
+ *  - ai-provider.php：AI 调用基础库 → 由 ai-moderation.php / ai-summary.php 在使用处引入；
+ *    后台请求（__TYPECHO_ADMIN__）与后台 AJAX 端点（ai-writer-ajax.php / ajax-handler.php）
+ *    仍完整加载，不受影响。
  */
 $_coreLibs = array(
-    dirname(__FILE__) . '/core/mail.php',
-    dirname(__FILE__) . '/core/ai-moderation.php',
-    dirname(__FILE__) . '/core/ai-provider.php',
     dirname(__FILE__) . '/core/ai-summary.php',
     dirname(__FILE__) . '/core/post-stats.php',
     dirname(__FILE__) . '/core/vote.php',
@@ -2213,6 +2218,10 @@ if (defined('__TYPECHO_ADMIN__')) {
         dirname(__FILE__) . '/core/storage-hooks.php',
         dirname(__FILE__) . '/core/editor-ui.php',
         dirname(__FILE__) . '/core/ai-writer.php',
+        // AI 审核与基础库：themeConfig()（AI 设置区）与 ai-writer.php 后台需要，
+        // 前台已改为评论提交时按需加载
+        dirname(__FILE__) . '/core/ai-moderation.php',
+        dirname(__FILE__) . '/core/ai-provider.php',
     );
     foreach ($_adminLibs as $_lib) {
         if (file_exists($_lib)) {
@@ -2264,6 +2273,31 @@ if (defined('__TYPECHO_ADMIN__')) {
 
 // 注册钩子（整合AI审核功能）
 \Typecho\Plugin::factory('Widget_Feedback')->comment = 'shufei_comment_check';
+
+/**
+ * 评论邮件通知（lazy 加载 trampoline）
+ *
+ * 原 mail.php 在文件头注册 finishComment 钩子，导致前台每个请求都要解析 27KB
+ * 邮件模块。现在钩子指向本函数：仅当评论发布后（finishComment 触发）才加载
+ * mail.php 并转调 ShuFeiCat_Email::send()，普通浏览请求零开销。
+ *
+ * @param mixed $comment 评论 widget（Typecho finishComment 钩子传入）
+ * @return mixed
+ */
+function shufei_comment_mail_notify($comment)
+{
+    $_mailFile = dirname(__FILE__) . '/core/mail.php';
+    if (file_exists($_mailFile)) {
+        require_once $_mailFile;
+    }
+    if (class_exists('ShuFeiCat_Email') && method_exists('ShuFeiCat_Email', 'send')) {
+        return ShuFeiCat_Email::send($comment);
+    }
+    return null;
+}
+
+// 注册评论邮件通知钩子（原注册逻辑位于 mail.php 文件头，为配合 lazy 加载移至此处）
+\Typecho\Plugin::factory('Widget_Feedback')->finishComment = 'shufei_comment_mail_notify';
 
 // 注册 KaTeX 内容过滤器（防止 Markdown 破坏数学公式语法）
 // handle 使用 Widget\Base\Contents，因为 ___content() 中 Contents::pluginHandle() 的 static::class 解析为该类

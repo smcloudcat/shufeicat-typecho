@@ -317,6 +317,13 @@ class AiSummary
      */
     private static function getProvider()
     {
+        // 性能优化（2026-08）：ai-provider.php 已移出 functions.php 无条件加载列表，
+        // 仅在真正调用 AI 生成摘要时引入（后台分支与 AJAX 端点已有各自的引入路径）
+        $_aiProviderFile = dirname(__FILE__) . '/ai-provider.php';
+        if (!class_exists('AiProvider') && file_exists($_aiProviderFile)) {
+            require_once $_aiProviderFile;
+        }
+
         $options = \Typecho\Widget::widget('Widget_Options');
         $unified = isset($options->aiUnifiedApi) ? $options->aiUnifiedApi : 'on';
         $writerEnabled = isset($options->aiWriterEnabled) ? $options->aiWriterEnabled : 'off';

@@ -62,17 +62,13 @@ function shufei_get_post_thumbnail($post)
     if (!empty($thumbnail)) {
         return $thumbnail;
     }
-    
-    // 2. 从文章内容中提取第一张图片（支持HTML img标签）
-    $content = $post->content ?? '';
-    preg_match_all('/<img.*?src=["\'](.*?)["\']/', $content, $matches);
-    if (!empty($matches[1])) {
-        return $matches[1][0];
-    }
-    
-    // 3. 从文章原始文本中提取第一张图片（支持Markdown格式 ![alt](url)）
+
+    // 2. 先从文章原始 Markdown 文本提取第一张图片（性能优化：不触发 content 全量解析）
+    //    访问 $post->content 会触发 HyperDown 全文解析 + 16 轮扩展正则，
+    //    列表页每篇文章都解析一次代价极高（约 10-30ms/篇）。Markdown 文章在原始文本
+    //    中即可命中 ![alt](url)，绝大多数场景无需走到第 3 步。
     if (!empty($post->text)) {
-        // 先去掉 Typecho 的 <!--markdown--> 前缀
+        // 去掉 Typecho 的 <!--markdown--> 前缀
         $rawText = preg_replace('/^<!--markdown-->/', '', $post->text);
         // 剔除行内代码块，避免匹配到示例语法如 `![desc](url)` 中的 url
         $cleanText = preg_replace('/`[^`]*`/', '', $rawText);
@@ -81,9 +77,134 @@ function shufei_get_post_thumbnail($post)
             return $mdMatches[1][0];
         }
     }
-    
+
+    // 3. 最后才从解析后的 HTML 内容提取 img 标签（覆盖富文本编辑器撰写的内容，
+    //    仅在原始文本未命中时触发一次全量 content 解析）
+    $content = $post->content ?? '';
+    preg_match_all('/<img.*?src=["\'](.*?)["\']/', $content, $matches);
+    if (!empty($matches[1])) {
+        return $matches[1][0];
+    }
+
     // 4. 使用随机缩略图
     return shufei_get_random_thumbnail();
+}
+
+/**
+ * 列表页批量预加载 fields / categories / author 数据（消除 N+1 查询）
+ *
+ * 原理：Typecho Widget::__get 优先读取 row['#name'] 缓存（见 var/Typecho/Widget.php），
+ * 通过公开的 __set 魔法为每个文章对象预置 '#fields'/'#categories'/'#author'，
+ * 模板随后访问 $post->fields / $post->category(',') / $post->author 均直接命中，不再逐篇查库。
+ *
+ * 查询数：20 篇文章从约 60 次（fields+categories+author 各 1 次/篇）降为 3 次
+ * （fields 1 次批量 IN + relationships/categories 1 次批量 IN + author 每唯一作者 1 次）。
+ *
+ * @param array $posts 文章 widget 对象数组（clone 自 Archive/From）
+ * @return void
+ */
+function shufei_preload_list_data(array $posts)
+{
+    if (empty($posts)) {
+        return;
+    }
+
+    $db = \Typecho\Db::get();
+
+    // 收集 cid 与唯一作者 uid
+    $cids = array();
+    $uids = array();
+    foreach ($posts as $post) {
+        $cid = intval($post->cid);
+        if ($cid > 0) {
+            $cids[] = $cid;
+        }
+        $uid = intval($post->authorId);
+        if ($uid > 0) {
+            $uids[$uid] = true;
+        }
+    }
+    $cids = array_values(array_unique($cids));
+    if (empty($cids)) {
+        return;
+    }
+
+    // ---- 1. fields 批量预取（与 ___fields() 相同的取值逻辑）----
+    $fieldsRows = $db->fetchAll($db->select()->from('table.fields')->where('cid IN ?', $cids));
+    $fieldsByCid = array();
+    foreach ($fieldsRows as $row) {
+        $cid = intval($row['cid']);
+        if (!isset($fieldsByCid[$cid])) {
+            $fieldsByCid[$cid] = array();
+        }
+        $value = 'json' == $row['type'] ? json_decode($row['str_value'], true) : $row[$row['type'] . '_value'];
+        $fieldsByCid[$cid][$row['name']] = $value;
+    }
+
+    // ---- 2. categories 批量预取（结构与 ___categories()/toArray 一致）----
+    // 先取 cid → mid 映射（一次查询），再复用 Rows::alloc() 的全量分类缓存（含 permalink，
+    // 侧边栏分类树也调用 Rows::alloc()，同请求内共享同一次查询）
+    $relRows = $db->fetchAll($db->select('table.relationships.cid', 'table.metas.mid')
+        ->from('table.relationships')
+        ->join('table.metas', 'table.relationships.mid = table.metas.mid')
+        ->where('table.relationships.cid IN ?', $cids)
+        ->where('table.metas.type = ?', 'category'));
+    $midsByCid = array();
+    foreach ($relRows as $row) {
+        $midsByCid[intval($row['cid'])][] = intval($row['mid']);
+    }
+
+    $categoryRows = array();
+    if (!empty($midsByCid)) {
+        try {
+            $allCategories = \Widget\Metas\Category\Rows::alloc()->toArray(array(
+                'mid', 'name', 'slug', 'description', 'order', 'parent', 'count', 'permalink'
+            ));
+            foreach ($allCategories as $cat) {
+                $categoryRows[intval($cat['mid'])] = $cat;
+            }
+        } catch (\Exception $e) {
+            $categoryRows = array();
+        }
+    }
+
+    // ---- 3. author 预取（每唯一 uid 仅查询一次，实例共享给同作者的所有文章）----
+    $authorByUid = array();
+    foreach (array_keys($uids) as $uid) {
+        try {
+            // Author widget 查询 users 表 where uid = ?，实例复用避免重复查询
+            $authorByUid[$uid] = \Widget\Users\Author::allocWithAlias('shufei_preload_author_' . $uid, array('uid' => $uid));
+        } catch (\Exception $e) {
+            // 作者不存在等异常时跳过，回退到模板原有的惰性加载路径
+            unset($authorByUid[$uid]);
+        }
+    }
+
+    // ---- 4. 预置到每个文章对象（__set 检测到 ___xxx 方法存在时写入 row['#xxx'] 缓存）----
+    foreach ($posts as $post) {
+        $cid = intval($post->cid);
+
+        // fields：空字段集合也预置（与 ___fields() 行为一致返回空 Config）
+        $fieldsConfig = new \Typecho\Config(isset($fieldsByCid[$cid]) ? $fieldsByCid[$cid] : array());
+        $post->fields = $fieldsConfig;
+
+        // categories：保持 Rows 全表顺序（Rows 已按 order 排序），与 CategoryRelated 输出结构一致
+        $cats = array();
+        if (isset($midsByCid[$cid])) {
+            foreach ($midsByCid[$cid] as $mid) {
+                if (isset($categoryRows[$mid])) {
+                    $cats[] = $categoryRows[$mid];
+                }
+            }
+        }
+        $post->categories = $cats;
+
+        // author
+        $uid = intval($post->authorId);
+        if ($uid > 0 && isset($authorByUid[$uid])) {
+            $post->author = $authorByUid[$uid];
+        }
+    }
 }
 
 /**

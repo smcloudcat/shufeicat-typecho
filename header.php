@@ -830,11 +830,15 @@
     </div>
     <?php
     // 生成 CSRF token 并同步写入 session，供 ajax-handler.php 校验
+    // 性能优化：写完 token 后立即 session_write_close() 释放文件锁。
+    // 否则 PHP 会持有 session 文件独占锁直到请求结束，点赞/加载更多/AI 摘要等
+    // 并发 AJAX 会被串行化阻塞。
     if (session_status() === PHP_SESSION_NONE) {
         session_start();
     }
     $shufeiAjaxToken = $this->security->getToken('shufei_ajax');
     $_SESSION['shufei_ajax_token'] = $shufeiAjaxToken;
+    session_write_close();
     ?>
     <script>window.csrfToken = '<?php echo $shufeiAjaxToken; ?>';</script>
 </header><!-- end #header -->

@@ -3119,6 +3119,18 @@ window.ReadingFav = (function() {
     function safeWrite(key, val) {
         try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) {}
     }
+    // 收藏数据结构必须是「非数组的普通对象」：{ cid: { title,url,ts } }
+    // 修复：若 localStorage 里存的是 null/字符串/数字/数组/其它异常格式，
+    // 一律按空收藏处理并回写重建，避免 isFav/addFav 报错或误判「已收藏」，
+    // 导致「点收藏总是显示已取消」。
+    function safeFavData() {
+        var data = safeParse(FAV_KEY, {});
+        if (typeof data !== 'object' || data === null || Array.isArray(data)) {
+            data = {};
+            safeWrite(FAV_KEY, data);
+        }
+        return data;
+    }
 
     function getProgress(cid) {
         var data = safeParse(PROGRESS_KEY, {});
@@ -3142,20 +3154,22 @@ window.ReadingFav = (function() {
     }
 
     function isFav(cid) {
-        var data = safeParse(FAV_KEY, {});
+        var data = safeFavData();
         return !!data[cid];
     }
     function addFav(cid, info) {
         if (!cid) return false;
-        var data = safeParse(FAV_KEY, {});
+        var data = safeFavData();
         if (data[cid]) return false;
+        // 到达上限时不新增，并返回 false（调用方据此提示）
+        if (Object.keys(data).length >= MAX_FAV) return false;
         data[cid] = { title: info.title || '', url: info.url || '', ts: Date.now() };
         safeWrite(FAV_KEY, data);
         return true;
     }
     function removeFav(cid) {
         if (!cid) return false;
-        var data = safeParse(FAV_KEY, {});
+        var data = safeFavData();
         if (!data[cid]) return false;
         delete data[cid];
         safeWrite(FAV_KEY, data);
@@ -3163,10 +3177,10 @@ window.ReadingFav = (function() {
     }
     function toggleFav(cid, info) {
         if (isFav(cid)) { removeFav(cid); return false; }
-        addFav(cid, info); return true;
+        return addFav(cid, info);
     }
     function listFav() {
-        var data = safeParse(FAV_KEY, {});
+        var data = safeFavData();
         var arr = [];
         for (var k in data) { if (data.hasOwnProperty(k)) arr.push({ cid: k, title: data[k].title, url: data[k].url, ts: data[k].ts }); }
         arr.sort(function(a, b) { return b.ts - a.ts; });
@@ -3305,10 +3319,19 @@ window.initPostReadingFav = function() {
     function doToggleFav() {
         var title = document.title || '';
         var url = window.location.href.split('#')[0];
+        var wasFav = window.ReadingFav.isFav(cid);
         var nowFav = window.ReadingFav.toggleFav(cid, { title: title, url: url });
         syncFavBtn();
         if (window.showToast) {
-            window.showToast(nowFav ? '已加入收藏' : '已取消收藏', nowFav ? 'success' : 'info');
+            if (wasFav) {
+                // 之前已收藏 → 本次是取消收藏
+                window.showToast(nowFav ? '收藏失败，请重试' : '已取消收藏', nowFav ? 'error' : 'info');
+            } else if (nowFav) {
+                window.showToast('已加入收藏', 'success');
+            } else {
+                // 未收藏却未加入成功：通常是达到收藏上限（MAX_FAV=100）
+                window.showToast('收藏失败（可能已达上限）', 'error');
+            }
         }
         // 通知导航栏收藏下拉同步
         document.dispatchEvent(new CustomEvent('shufei:favchange'));

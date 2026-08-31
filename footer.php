@@ -249,8 +249,10 @@ window.vendorScripts = {
 <script src="<?php echo $jsUrls['pjax']; ?>" defer></script>
 <?php endif; ?>
 
-<!-- 加载更多脚本（开启"加载更多"翻页时生效） -->
+<!-- 加载更多脚本（仅开启"加载更多"翻页时加载，与 Pjax 的条件判断保持一致） -->
+<?php if (!empty($this->options->postListPager) && $this->options->postListPager === 'loadmore'): ?>
 <script src="<?php echo $jsUrls['loadmore']; ?>" defer></script>
+<?php endif; ?>
 
 </body>
 </html>

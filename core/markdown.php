@@ -251,8 +251,27 @@ function shufei_render_post_content($widget)
     $html = shufei_apply_markdown_ext($html);
 
     // 写入缓存（回复可见部分不缓存，因为依赖用户状态）
+    // 性能优化（2026-08）：写入前清理同 cid 的旧版本缓存文件。
+    // 缓存文件名含内容 hash，文章每次编辑都会生成新文件，旧文件永不删除会无限堆积。
     if (!is_dir($cacheDir)) {
         @mkdir($cacheDir, 0755, true);
+    } else {
+        // 仅清理同文章的旧版本（删除 content_{cid}_*，保留当前要写入的文件）
+        foreach ((array)glob($cacheDir . '/content_' . $cid . '_*.html') as $_oldFile) {
+            if ($_oldFile !== $cacheFile && is_file($_oldFile)) {
+                @unlink($_oldFile);
+            }
+        }
+        // 低概率全局 GC：约 1% 的写入请求扫描一次缓存目录，
+        // 删除超过 6 小时（与读取 TTL 一致）未更新的孤儿缓存，防止长期运行磁盘无限增长
+        if (mt_rand(1, 100) === 1) {
+            $expireBefore = time() - 21600;
+            foreach ((array)glob($cacheDir . '/content_*.html') as $_gcFile) {
+                if (is_file($_gcFile) && @filemtime($_gcFile) < $expireBefore) {
+                    @unlink($_gcFile);
+                }
+            }
+        }
     }
     @file_put_contents($cacheFile, $html);
 
