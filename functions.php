@@ -125,11 +125,14 @@ function themeConfig($form)
             '.cat-config-main .description { font-size: 11px; }' .
             '.typecho-option-submit { padding: 12px; }' .
             '.typecho-option-submit button { height: 38px !important; font-size: 12px !important; }' .
+            '.cat-field-error { border-color: #cf1322 !important; box-shadow: 0 0 0 2px rgba(207,19,34,.12) !important; }' .
         '}' .
         '</style>';
     echo $css;
 
-    $html = '<div id="cat-tpl" style="display:none">' .
+    // 后台设置保存 JSON 端点：由前端拦截提交，返回可读的逐字段校验结果
+    $themeSaveAjaxUrl = \Typecho\Common::url('usr/themes/ShuFeiCat/core/theme-save-ajax.php', $options->siteUrl);
+    $html = '<div id="cat-tpl" data-save="' . htmlspecialchars($themeSaveAjaxUrl, ENT_QUOTES, 'UTF-8') . '" style="display:none">' .
         '<div class="cat-config-container">' .
             '<div class="cat-config-aside">' .
                 '<div class="cat-config-logo">ShuFeiCat 设置</div>' .

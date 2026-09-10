@@ -33,6 +33,10 @@ class ShuFeiCat_Email
             $mail->isSMTP();
             $mail->SMTPAuth = true;
             $mail->CharSet = 'UTF-8';
+            // 连接与读写超时（秒）：防止 SMTP 不可达时评论提交被长时间阻塞
+            // PHPMailer 默认 Timeout=300s，足以让前端评论请求超时
+            $mail->Timeout = 10;
+            $mail->SMTPKeepAlive = false;
             // 兼容历史拼写错误 'tsl'，统一修正为 'tls'
             $smtpSecure = $options->commentMailSMTPSecure ? $options->commentMailSMTPSecure : 'ssl';
             if ($smtpSecure === 'tsl') {

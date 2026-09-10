@@ -406,7 +406,8 @@
                 showSubmitTip('网络错误，请检查网络连接', 'error');
             };
 
-            xhr.timeout = 15000;
+            // 评论提交含服务端人机验证与邮件通知等耗时操作，15s 过短易误报超时
+            xhr.timeout = 45000;
             xhr.ontimeout = function() {
                 setSubmitLoading(false);
                 showSubmitTip('请求超时，请稍后重试', 'error');
