@@ -30,7 +30,19 @@ $this->need('header.php');
     <?php endif; ?>
     
     <?php if ($this->have()): ?>
-    <div id="ajax-post-list" class="post-list-<?php echo !empty($this->options->postListStyle) ? $this->options->postListStyle : 'classic'; ?>">
+    <?php
+    // 列表美化设置（列表美化 Tab）：默认值与主题原有外观一致
+    $lbOpt = function_exists('shufei_get_list_beautify_options') ? shufei_get_list_beautify_options() : array();
+    $lbHover = isset($lbOpt['hover']) ? $lbOpt['hover'] : 'lift';
+    $lbAccent = isset($lbOpt['accent']) ? $lbOpt['accent'] : 'off';
+    $lbExcerpt = isset($lbOpt['excerpt']) ? $lbOpt['excerpt'] : 'on';
+    $lbMeta = (isset($lbOpt['meta']) && is_array($lbOpt['meta'])) ? implode(' ', $lbOpt['meta']) : 'author date category comments';
+    ?>
+    <div id="ajax-post-list" class="post-list-<?php echo !empty($this->options->postListStyle) ? $this->options->postListStyle : 'classic'; ?>"
+         data-list-hover="<?php echo htmlspecialchars($lbHover); ?>"
+         data-list-accent="<?php echo htmlspecialchars($lbAccent); ?>"
+         data-list-excerpt="<?php echo htmlspecialchars($lbExcerpt); ?>"
+         data-list-meta="<?php echo htmlspecialchars($lbMeta); ?>">
     <?php
     // 获取所有置顶文章的CID
     $stickyCids = shufei_get_sticky_cids();
@@ -173,6 +185,42 @@ $this->need('header.php');
         <nav class="page-navigator" id="ajax-page-nav">
             <?php $this->pageNav('<i class="fa fa-angle-left"></i> ' . _t('上一页'), _t('下一页') . ' <i class="fa fa-angle-right"></i>', 2); ?>
         </nav>
+    <?php endif; ?>
+
+    <?php
+    // 全局AI助手：首页站点级 AI 入口（全站共享会话，与文章页同一份对话记录）
+    $aiHomeChat = false;
+    if ($this->is('index') && intval($this->_currentPage) <= 1
+        && class_exists('AiSummary') && class_exists('AiChat')
+        && AiSummary::isEnabled() && AiSummary::isGlobalMode() && AiChat::isEnabled()) {
+        $aiHomeChat = true;
+    }
+    ?>
+    <?php if ($aiHomeChat): ?>
+    <div class="ai-summary-box ai-site-assistant" id="ai-summary-box" data-cid="0" data-ai-chat="1" data-ai-scope="global" data-ai-chat-max="<?php echo AiChat::getMaxRounds(); ?>">
+        <div class="ai-summary-header">
+            <i class="fa fa-robot"></i> <span><?php _e('AI 站点助手'); ?></span>
+        </div>
+        <div class="ai-chat-area" id="ai-chat-area">
+            <div class="ai-chat-messages" id="ai-chat-messages"></div>
+            <div class="ai-chat-inputbar">
+                <input type="text" class="ai-chat-input" id="ai-chat-input" maxlength="1000"
+                    placeholder="<?php _e('向 AI 提问本站内容…'); ?>" autocomplete="off">
+                <button type="button" class="ai-chat-send" id="ai-chat-send" title="<?php _e('发送'); ?>">
+                    <i class="fa fa-paper-plane"></i>
+                </button>
+            </div>
+            <div class="ai-chat-footnote"><?php _e('全站共享对话 · 内容由 AI 生成，仅供参考'); ?></div>
+        </div>
+        <div class="ai-summary-footer">
+            <button type="button" class="ai-chat-toggle" id="ai-chat-toggle" data-label="<?php _e('展开对话'); ?>">
+                <i class="fa fa-chevron-down"></i> <?php _e('收起对话'); ?>
+            </button>
+            <button type="button" class="ai-chat-reset" id="ai-chat-reset" title="<?php _e('清空对话记录，开启新对话'); ?>">
+                <i class="fa fa-eraser"></i> <?php _e('新对话'); ?>
+            </button>
+        </div>
+    </div>
     <?php endif; ?>
 </div><!-- end #main-->
 

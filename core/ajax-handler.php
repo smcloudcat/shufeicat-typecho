@@ -21,6 +21,7 @@ require_once dirname(__FILE__) . '/password-rate-limit.php';
 require_once dirname(__FILE__) . '/ai-moderation.php';
 require_once dirname(__FILE__) . '/ai-provider.php';
 require_once dirname(__FILE__) . '/ai-summary.php';
+require_once dirname(__FILE__) . '/ai-chat.php';
 
 // 计算站点根 URL（与后台/核心保持一致），保证 Cookie 前缀一致
 // 直接访问本文件时 Request::getRequestRoot() 会基于脚本路径动态计算（得到 /usr/themes/ShuFeiCat/core），
@@ -232,6 +233,21 @@ switch ($action) {
             exit;
         }
         $result = AiSummary::generate($cid);
+        echo json_encode($result, JSON_UNESCAPED_UNICODE);
+        break;
+
+    case 'ai_chat':
+        // AI 摘要连续对话（访客可用，需后台开启 aiChatMode=on）
+        $cid = isset($_POST['cid']) ? intval($_POST['cid']) : 0;
+        $message = isset($_POST['message']) ? (string)$_POST['message'] : '';
+        $history = array();
+        if (isset($_POST['history']) && $_POST['history'] !== '') {
+            $decoded = json_decode((string)$_POST['history'], true);
+            if (is_array($decoded)) {
+                $history = $decoded;
+            }
+        }
+        $result = AiChat::handle($cid, $message, $history);
         echo json_encode($result, JSON_UNESCAPED_UNICODE);
         break;
 

@@ -133,7 +133,7 @@ try {
                     'image'   => isset($rec['image']) ? (string) $rec['image'] : '',
                     'preview' => array(
                         'themeColor' => isset($settings['themeColor']) ? (string) $settings['themeColor'] : '',
-                        'background' => shufei_recommended_preview_bg($settings),
+                        'background' => shufei_recommended_preview_bg($settings, isset($rec['preview_bg']) ? $rec['preview_bg'] : ''),
                     ),
                 );
             }

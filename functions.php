@@ -140,6 +140,7 @@ function themeConfig($form)
                     '<li data-id="cat-basic" class="active">基本设置</li>' .
                     '<li data-id="cat-avatar">头像外观</li>' .
                     '<li data-id="cat-appearance">外观设置</li>' .
+                    '<li data-id="cat-list">列表美化</li>' .
                     '<li data-id="cat-pjax">Pjax无刷新</li>' .
                     '<li data-id="cat-resource">资源加载</li>' .
                     '<li data-id="cat-article">文章缩略图</li>' .
@@ -795,6 +796,175 @@ function themeConfig($form)
     $postListStyle->setAttribute('class', 'typecho-option cat-group-appearance');
     $form->addInput($postListStyle);
 
+// ===== 列表美化：文章列表 & 侧边栏自定义 =====
+    echo '<div class="typecho-option cat-group-list" style="padding:14px 0 6px;">'
+        . '<div class="cat-data-warning" style="background:#eef7ff;border-color:#bfe0f5;color:#2b6c96;">'
+        . '<i class="fa fa-magic"></i> 列表美化说明：以下选项用于精调前台「文章列表」与「侧边栏」的外观细节，'
+        . '包括卡片圆角/间距/阴影、悬停动效、列表信息项、缩略图宽度，以及侧边栏宽度、标题装饰、悬停效果与粘性跟随。'
+        . '所有选项的默认值均与主题原有外观一致，改坏了下拉选回默认即可。'
+        . '</div>'
+        . '</div>';
+
+    $listRadius = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'listRadius',
+        array('small' => _t('小圆角 (8px)'), 'normal' => _t('标准 (12px)'), 'large' => _t('大圆角 (16px)'), 'xlarge' => _t('超大 (20px)')),
+        'normal',
+        _t('列表卡片圆角'),
+        _t('介绍：控制文章列表卡片与侧边栏盒子的圆角大小，数值越大越柔和，越小越硬朗<br>默认：标准 (12px)')
+    );
+    $listRadius->setAttribute('class', 'typecho-option cat-group-list');
+    $form->addInput($listRadius);
+
+    $listGap = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'listGap',
+        array('compact' => _t('紧凑 (10px)'), 'normal' => _t('标准 (18px)'), 'loose' => _t('宽松 (26px)')),
+        'normal',
+        _t('列表项间距'),
+        _t('介绍：控制文章列表每张卡片之间的垂直间距<br>紧凑：一屏展示更多文章；宽松：留白更多、更透气<br>默认：标准 (18px)')
+    );
+    $listGap->setAttribute('class', 'typecho-option cat-group-list');
+    $form->addInput($listGap);
+
+    $listShadow = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'listShadow',
+        array('none' => _t('无阴影'), 'soft' => _t('轻柔'), 'medium' => _t('中等'), 'strong' => _t('强烈')),
+        'soft',
+        _t('列表卡片阴影'),
+        _t('介绍：设置文章卡片的投影强度，让卡片更有层次感<br>无阴影：纯粹的扁平风格；强烈：立体感最强，适合浅色背景<br>默认：轻柔')
+    );
+    $listShadow->setAttribute('class', 'typecho-option cat-group-list');
+    $form->addInput($listShadow);
+
+    $listHover = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'listHover',
+        array('lift' => _t('上浮'), 'zoom' => _t('微放大'), 'glow' => _t('主色光晕'), 'none' => _t('无动效')),
+        'lift',
+        _t('列表悬停动效'),
+        _t('介绍：鼠标悬停在文章卡片上时的动画效果<br>上浮：卡片轻微上移（经典）；微放大：卡片轻微放大；主色光晕：浮现主题色光晕<br>默认：上浮')
+    );
+    $listHover->setAttribute('class', 'typecho-option cat-group-list');
+    $form->addInput($listHover);
+
+    $listAccent = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'listAccent',
+        array('off' => _t('关闭'), 'left' => _t('左侧竖条'), 'top' => _t('顶部横条')),
+        'off',
+        _t('列表悬停强调线'),
+        _t('介绍：鼠标悬停时，在卡片边缘浮现一条主题色渐变线条，增强交互反馈<br>默认：关闭')
+    );
+    $listAccent->setAttribute('class', 'typecho-option cat-group-list');
+    $form->addInput($listAccent);
+
+    $listThumbWidth = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'listThumbWidth',
+        array('small' => _t('窄 (160px)'), 'normal' => _t('标准 (200px)'), 'large' => _t('宽 (240px)'), 'xlarge' => _t('超宽 (280px)')),
+        'normal',
+        _t('卡片模式缩略图宽度'),
+        _t('介绍：仅对「卡片模式」生效，控制左侧缩略图的宽度<br>宽度越大，图片展示越充分，正文区域相应变窄<br>默认：标准 (200px)')
+    );
+    $listThumbWidth->setAttribute('class', 'typecho-option cat-group-list');
+    $form->addInput($listThumbWidth);
+
+    $listMeta = new \Typecho\Widget\Helper\Form\Element\Checkbox(
+        'listMeta',
+        array(
+            'author' => _t('作者'),
+            'date' => _t('日期'),
+            'category' => _t('分类'),
+            'comments' => _t('评论数')
+        ),
+        array('author', 'date', 'category', 'comments'),
+        _t('列表显示的元信息'),
+        _t('介绍：勾选需要在文章列表中展示的信息项，未勾选的信息将被隐藏<br>默认：全部勾选')
+    );
+    $listMeta->setAttribute('class', 'typecho-option cat-group-list');
+    $form->addInput($listMeta);
+
+    $listExcerpt = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'listExcerpt',
+        array('on' => _t('显示'), 'off' => _t('隐藏')),
+        'on',
+        _t('列表摘要'),
+        _t('介绍：是否在文章列表中显示摘要文字<br>隐藏后列表更加干净紧凑，适合图片站或以标题为主的博客<br>默认：显示')
+    );
+    $listExcerpt->setAttribute('class', 'typecho-option cat-group-list');
+    $form->addInput($listExcerpt);
+
+    $listExcerptLines = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'listExcerptLines',
+        array('one' => _t('1 行'), 'two' => _t('2 行'), 'three' => _t('3 行')),
+        'two',
+        _t('摘要显示行数'),
+        _t('介绍：摘要最多显示的行数，超出部分自动省略<br>默认：2 行')
+    );
+    $listExcerptLines->setAttribute('class', 'typecho-option cat-group-list');
+    $form->addInput($listExcerptLines);
+
+    $sidebarWidth = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'sidebarWidth',
+        array('narrow' => _t('窄 (200px)'), 'normal' => _t('标准 (230px)'), 'wide' => _t('宽 (260px)')),
+        'narrow',
+        _t('右侧栏宽度'),
+        _t('介绍：设置右侧边栏的宽度（仅桌面端生效，移动端自动堆叠）<br>加宽后侧边栏内容更舒展，正文区域会相应变窄<br>默认：窄 (200px，与旧版一致)')
+    );
+    $sidebarWidth->setAttribute('class', 'typecho-option cat-group-list');
+    $form->addInput($sidebarWidth);
+
+    $sidebarRadius = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'sidebarRadius',
+        array('inherit' => _t('跟随列表圆角'), 'small' => _t('小圆角 (8px)'), 'large' => _t('大圆角 (16px)')),
+        'inherit',
+        _t('侧边栏卡片圆角'),
+        _t('介绍：侧边栏各功能盒子（最新文章、标签云等）的圆角样式<br>默认：跟随列表圆角')
+    );
+    $sidebarRadius->setAttribute('class', 'typecho-option cat-group-list');
+    $form->addInput($sidebarRadius);
+
+    $sidebarTitleStyle = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'sidebarTitleStyle',
+        array(
+            'bar' => _t('竖条 + 下划线'),
+            'gradient' => _t('渐变下划线'),
+            'fill' => _t('色块标题'),
+            'minimal' => _t('极简无装饰')
+        ),
+        'bar',
+        _t('侧边栏标题样式'),
+        _t('介绍：侧边栏各功能盒子的标题装饰风格<br>竖条 + 下划线：经典样式（默认）；渐变下划线：更现代的细线；色块标题：标题带主题色背景块<br>默认：竖条 + 下划线')
+    );
+    $sidebarTitleStyle->setAttribute('class', 'typecho-option cat-group-list');
+    $form->addInput($sidebarTitleStyle);
+
+    $sidebarListHover = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'sidebarListHover',
+        array('bg' => _t('底色高亮'), 'slide' => _t('右移展开'), 'glow' => _t('主色描边'), 'none' => _t('无效果')),
+        'bg',
+        _t('侧边栏列表悬停效果'),
+        _t('介绍：鼠标悬停侧边栏列表项（最新文章、归档等）时的效果<br>默认：底色高亮')
+    );
+    $sidebarListHover->setAttribute('class', 'typecho-option cat-group-list');
+    $form->addInput($sidebarListHover);
+
+    $sidebarSticky = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'sidebarSticky',
+        array('off' => _t('关闭'), 'on' => _t('开启')),
+        'off',
+        _t('侧边栏粘性跟随'),
+        _t('介绍：开启后，滚动页面时侧边栏会跟随滚动并吸附在视口顶部，长页面浏览更顺手<br>注意：侧边栏内容比视口高时手动滚动即可查看<br>默认：关闭')
+    );
+    $sidebarSticky->setAttribute('class', 'typecho-option cat-group-list');
+    $form->addInput($sidebarSticky);
+
+    $customCss = new \Typecho\Widget\Helper\Form\Element\Textarea(
+        'customCss',
+        null,
+        null,
+        _t('自定义 CSS'),
+        _t('介绍：在此填写自定义 CSS 代码，将直接注入到前台页面 &lt;style&gt; 中，用于深度定制外观<br>示例：<br><code>.post-title a { letter-spacing: 1px; }</code><br>留空则不注入。请确保 CSS 语法正确')
+    );
+    $customCss->setAttribute('class', 'typecho-option cat-group-list');
+    $form->addInput($customCss);
+
 // ===== 外观：样式存储（默认折叠，点击展开） =====
     $stylePresetsAjax = rtrim($options->themeUrl, '/') . '/core/style-presets-ajax.php';
     echo '<style>'
@@ -849,16 +1019,17 @@ function themeConfig($form)
             $recCards = '';
             foreach ($recommended as $idx => $rc) {
                 $settings = isset($rc['settings']) ? $rc['settings'] : array();
-                $bg = shufei_recommended_preview_bg($settings);
-                $img = isset($rc['image']) ? $rc['image'] : '';
+                $bg = shufei_recommended_preview_bg($settings, isset($rc['preview_bg']) ? $rc['preview_bg'] : '');
+                $img = isset($rc['image']) ? (string) $rc['image'] : '';
                 $name = isset($rc['name']) ? $rc['name'] : '';
                 $desc = isset($rc['desc']) ? $rc['desc'] : '';
                 $checked = $idx === 0 ? ' checked' : '';
                 $on = $idx === 0 ? ' on' : '';
+                $imgHtml = ($img !== '') ? '<img src="' . htmlspecialchars($img) . '" alt="" loading="lazy" />' : '';
                 $recCards .= '<label class="shufei-rec-card' . $on . '">'
                     . '<input type="radio" name="shufei-rec-pick" value="' . htmlspecialchars($rc['id']) . '"' . $checked . ' />'
                     . '<div class="shufei-rec-thumb" style="background:' . htmlspecialchars($bg) . ';">'
-                    . '<img src="' . htmlspecialchars($img) . '" alt="" loading="lazy" />'
+                    . $imgHtml
                     . '<i class="shufei-rec-check">✓</i>'
                     . '</div>'
                     . '<div class="shufei-rec-meta">'
@@ -868,12 +1039,12 @@ function themeConfig($form)
             }
             echo '<style>'
                 . '#shufei-rec-overlay{position:fixed;inset:0;background:rgba(15,30,40,.55);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;}'
-                . '#shufei-rec-dialog{background:#fff;border-radius:10px;width:800px;max-width:100%;max-height:92vh;overflow:auto;box-shadow:0 14px 48px rgba(0,0,0,.3);font-size:13px;}'
+                . '#shufei-rec-dialog{background:#fff;border-radius:10px;width:940px;max-width:100%;max-height:92vh;overflow:auto;box-shadow:0 14px 48px rgba(0,0,0,.3);font-size:13px;}'
                 . '#shufei-rec-dialog .shufei-rec-head{padding:18px 22px 0;}'
                 . '#shufei-rec-dialog .shufei-rec-head b{font-size:16px;color:#262626;display:flex;align-items:center;gap:8px;}'
                 . '#shufei-rec-dialog .shufei-rec-head b i{color:#467B96;}'
                 . '#shufei-rec-dialog .shufei-rec-head p{margin:6px 0 0;color:#8c8c8c;font-size:12px;line-height:1.6;}'
-                . '#shufei-rec-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:16px 22px;}'
+                . '#shufei-rec-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:16px 22px;}'
                 . '.shufei-rec-card{display:block;position:relative;border:2px solid #e3e3e3;border-radius:8px;cursor:pointer;overflow:hidden;background:#fff;transition:border-color .15s,box-shadow .15s;}'
                 . '.shufei-rec-card.on{border-color:#467B96;box-shadow:0 0 0 3px rgba(70,123,150,.18);}'
                 . '.shufei-rec-card input{position:absolute;opacity:0;pointer-events:none;}'
@@ -891,12 +1062,13 @@ function themeConfig($form)
                 . '#shufei-rec-btn:disabled{opacity:.55;cursor:not-allowed;}'
                 . '#shufei-rec-later{background:#fff;color:#555;border:1px solid #d9d9d9;border-radius:4px;padding:8px 14px;cursor:pointer;font-size:13px;}'
                 . '#shufei-rec-never{background:none;border:0;color:#999;cursor:pointer;font-size:12px;margin-left:auto;text-decoration:underline;}'
+                . '@media (max-width:900px){#shufei-rec-grid{grid-template-columns:repeat(2,1fr);}}'
                 . '@media (max-width:640px){#shufei-rec-grid{grid-template-columns:1fr;}.shufei-rec-thumb{height:140px;}}'
                 . '</style>';
             echo '<div id="shufei-rec-overlay" class="shufei-rec-root">'
                 . '<div id="shufei-rec-dialog" role="dialog" aria-modal="true">'
                 . '<div class="shufei-rec-head"><b><i class="fa fa-paint-brush"></i>推荐样式 · 一键焕新外观</b>'
-                . '<p>为你的博客准备了 3 套官方外观风格，点击卡片即可选中，一键应用后可在「外观设置」中继续微调。</p></div>'
+                . '<p>为你的博客准备了 ' . count($recommended) . ' 套官方外观风格，点击卡片即可选中，一键应用后可在「外观设置」中继续微调。</p></div>'
                 . '<div id="shufei-rec-grid">' . $recCards . '</div>'
                 . '<div id="shufei-rec-foot">'
                 . '<button type="button" id="shufei-rec-btn"><i class="fa fa-bolt"></i> 立即应用所选风格</button>'
@@ -1338,10 +1510,20 @@ function themeConfig($form)
         array('off' => _t('关闭'), 'on' => _t('开启')),
         'off',
         _t('文章AI总结'),
-        _t('介绍：开启后，前台文章页可展示由 AI 生成的摘要。单篇文章是否显示需在发布文章时单独开启（默认关闭）')
+        _t('介绍：开启后，前台文章页可展示由 AI 生成的摘要。默认需在单篇文章中单独开启「AI摘要」字段；若开启下方「全局AI助手」，则所有公开文章自动启用')
     );
     $aiSummaryEnabled->setAttribute('class', 'typecho-option cat-group-ai ai-summary-field');
     $form->addInput($aiSummaryEnabled);
+
+    $aiAssistantGlobal = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'aiAssistantGlobal',
+        array('off' => _t('关闭'), 'on' => _t('开启')),
+        'off',
+        _t('全局AI助手'),
+        _t('介绍：开启后所有公开文章自动启用 AI 摘要与对话（无需逐篇设置 aiSummary 字段），访客首次浏览未缓存文章时将自动生成摘要。密码文章仅在输入正确密码解锁后才会生成摘要，隐藏/草稿/待审文章不受影响')
+    );
+    $aiAssistantGlobal->setAttribute('class', 'typecho-option cat-group-ai ai-summary-field');
+    $form->addInput($aiAssistantGlobal);
 
     $aiSummaryCacheTime = new \Typecho\Widget\Helper\Form\Element\Text(
         'aiSummaryCacheTime',
@@ -1372,6 +1554,41 @@ function themeConfig($form)
     );
     $aiSummaryStream->setAttribute('class', 'typecho-option cat-group-ai ai-summary-field');
     $form->addInput($aiSummaryStream);
+
+    // ===== AI 摘要连续对话 =====
+    $aiChatMode = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'aiChatMode',
+        array(
+            'off'          => _t('关闭（仅显示摘要）'),
+            'summary_only' => _t('仅生成摘要（不开放对话）'),
+            'on'           => _t('摘要 + AI 对话（访客可提问）'),
+        ),
+        'off',
+        _t('AI摘要连续对话'),
+        _t('介绍：开启后，前台文章摘要卡片下方会出现「询问 AI」对话区，访客可就本文或站内内容与 AI 连续提问。AI 可调用站内工具（搜索公开文章、搜索公开评论、获取站点信息等）辅助回答；密码文章、隐藏文章、草稿及评论者隐私信息（邮箱/IP 等）已从代码层面锁死，任何情况下都不会提供给 AI')
+    );
+    $aiChatMode->setAttribute('class', 'typecho-option cat-group-ai ai-summary-field');
+    $form->addInput($aiChatMode);
+
+    $aiChatMaxRounds = new \Typecho\Widget\Helper\Form\Element\Text(
+        'aiChatMaxRounds',
+        null,
+        '10',
+        _t('AI对话最大轮数'),
+        _t('介绍：单个访客在同一篇文章中与 AI 对话的最大轮数（1-30），防止滥用接口。默认 10 轮，刷新页面可开启新对话')
+    );
+    $aiChatMaxRounds->setAttribute('class', 'typecho-option cat-group-ai ai-summary-field');
+    $form->addInput($aiChatMaxRounds);
+
+    $aiChatSystemPrompt = new \Typecho\Widget\Helper\Form\Element\Textarea(
+        'aiChatSystemPrompt',
+        null,
+        null,
+        _t('AI对话补充提示词（可选）'),
+        _t('介绍：留空则使用内置默认规则。填写后将追加到对话系统提示词末尾，可用来定制 AI 的说话风格等')
+    );
+    $aiChatSystemPrompt->setAttribute('class', 'typecho-option cat-group-ai ai-summary-field');
+    $form->addInput($aiChatSystemPrompt);
 
     // 接口模式：统一接口 or 分别设置
     $aiUnifiedApi = new \Typecho\Widget\Helper\Form\Element\Radio(
@@ -2105,6 +2322,241 @@ function themeConfig($form)
 
     // 输出推荐设置提醒弹窗
     shufei_render_style_reminder();
+
+    // 输出 AI 设置助手面板（对话式修改主题设置）
+    shufei_render_ai_settings_assistant();
+}
+
+/**
+ * 后台「AI 设置助手」悬浮窗
+ * 右下角常驻悬浮球 + 悬浮对话窗（JS 将节点挂到 body，切换设置标签页也随时可用）
+ * 管理员通过对话让 AI 读取/修改主题设置；端点 core/ai-settings-ajax.php
+ * 仅 administrator 可用，敏感字段（密钥/密码）代码层锁死不可读写
+ */
+function shufei_render_ai_settings_assistant()
+{
+    $options = \Widget\Options::alloc();
+    $endpoint = \Typecho\Common::url('usr/themes/ShuFeiCat/core/ai-settings-ajax.php', $options->siteUrl);
+    $endpointJs = json_encode($endpoint);
+    $providerReady = false;
+    try {
+        $_aiProviderFile = dirname(__FILE__) . '/core/ai-provider.php';
+        if (!class_exists('AiProvider') && file_exists($_aiProviderFile)) {
+            require_once $_aiProviderFile;
+        }
+        if (class_exists('AiProvider')) {
+            // 与前台/端点一致的 provider 选择逻辑；免费接口模式内置配置同样视为已就绪
+            $providerReady = AiProvider::fromUnifiedOptions()->isConfigured();
+        }
+    } catch (\Throwable $e) {
+        $providerReady = false;
+    }
+?>
+<div class="typecho-option cat-group-ai">
+    <div class="aias-entry">
+        <span class="aias-entry-icon"><i class="fa fa-magic"></i></span>
+        <div class="aias-entry-txt">
+            <b>AI 设置助手（悬浮窗）</b>
+            <span>已升级为页面右下角悬浮窗，切换任何设置标签页都能随时唤起。让 AI 读取或修改主题设置，例如「把主色调换成 #6C5CE7」「开启评论邮件通知」。</span>
+        </div>
+        <button type="button" class="aias-entry-btn" id="aias-open-btn"><i class="fa fa-comments-o"></i> 打开助手</button>
+    </div>
+</div>
+
+<style>
+    .shufei-aias-root{position:fixed;right:26px;bottom:26px;z-index:99992;font-size:13px;}
+    .aias-launcher{width:54px;height:54px;border-radius:50%;border:none;cursor:pointer;background:linear-gradient(135deg,#467B96,#3a6a83);color:#fff;font-size:21px;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 26px rgba(70,123,150,.42);transition:transform .18s ease,box-shadow .18s ease;}
+    .aias-launcher:hover{transform:translateY(-2px);box-shadow:0 14px 32px rgba(70,123,150,.52);}
+    .aias-launcher .aias-i-close{display:none;}
+    .aias-launcher.open .aias-i-open{display:none;}
+    .aias-launcher.open .aias-i-close{display:inline-block;}
+    .aias-window{position:absolute;right:0;bottom:68px;width:384px;max-width:calc(100vw - 32px);height:min(560px,calc(100vh - 120px));display:flex;flex-direction:column;background:#fff;border-radius:14px;overflow:hidden;border:1px solid rgba(15,30,40,.08);box-shadow:0 18px 56px rgba(15,30,40,.22),0 2px 10px rgba(15,30,40,.08);animation:aias-pop .18s ease-out;}
+    .aias-window[hidden]{display:none;}
+    @keyframes aias-pop{from{opacity:0;transform:translateY(10px) scale(.98);}to{opacity:1;transform:none;}}
+    .aias-head{display:flex;align-items:center;gap:8px;padding:12px 14px;background:linear-gradient(135deg,#467B96,#3a6a83);color:#fff;flex:none;}
+    .aias-head b{font-size:13px;}
+    .aias-head .aias-clear{margin-left:auto;background:rgba(255,255,255,.16);border:none;color:#fff;font-size:12px;padding:3px 10px;border-radius:4px;cursor:pointer;}
+    .aias-head .aias-clear:hover{background:rgba(255,255,255,.28);}
+    .aias-head .aias-close{background:none;border:none;color:#fff;font-size:15px;line-height:1;cursor:pointer;padding:2px 4px;opacity:.85;}
+    .aias-head .aias-close:hover{opacity:1;}
+    .aias-messages{flex:1;min-height:0;overflow-y:auto;padding:12px 14px;background:#fff;}
+    .aias-msg{max-width:86%;margin-bottom:10px;padding:8px 12px;border-radius:10px;font-size:13px;line-height:1.65;word-break:break-word;white-space:pre-wrap;}
+    .aias-msg.user{margin-left:auto;background:#467B96;color:#fff;border-bottom-right-radius:3px;}
+    .aias-msg.assistant{background:#f2f5f7;color:#333;border-bottom-left-radius:3px;}
+    .aias-msg.action{background:#fff8e6;border:1px solid #ffe1a1;color:#8a6116;font-size:12px;padding:6px 10px;}
+    .aias-msg.error{background:#fdf0f0;border:1px solid #f3c1c1;color:#a03030;font-size:12px;padding:6px 10px;}
+    .aias-warn{padding:8px 14px;font-size:12px;color:#8a6116;background:#fff8e6;border-bottom:1px solid #ffe1a1;flex:none;}
+    .aias-inputbar{display:flex;gap:8px;padding:10px 12px;background:#fff;border-top:1px solid #e3e8ec;flex:none;}
+    .aias-input{flex:1;border:1px solid #d9dfe4;border-radius:6px;padding:8px 10px;font-size:13px;outline:none;font-family:inherit;}
+    .aias-input:focus{border-color:#467B96;box-shadow:0 0 0 2px rgba(70,123,150,.15);}
+    .aias-send{background:#467B96;color:#fff;border:none;border-radius:6px;padding:8px 16px;font-size:13px;cursor:pointer;font-weight:600;}
+    .aias-send:hover{background:#3a6a83;}
+    .aias-send:disabled{opacity:.55;cursor:not-allowed;}
+    .aias-tip{padding:8px 14px;font-size:12px;color:#8c8c8c;background:#fff;border-top:1px dashed #e3e8ec;flex:none;}
+    .aias-entry{display:flex;align-items:center;gap:12px;padding:12px 14px;background:#f4f8fa;border:1px solid #dbe8ee;border-radius:8px;}
+    .aias-entry-icon{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#467B96,#3a6a83);color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;flex:none;}
+    .aias-entry-txt{flex:1;min-width:0;}
+    .aias-entry-txt b{display:block;font-size:13px;color:#333;}
+    .aias-entry-txt span{display:block;margin-top:3px;font-size:12px;color:#8c8c8c;line-height:1.6;}
+    .aias-entry-btn{background:#467B96;color:#fff;border:none;border-radius:5px;padding:7px 14px;font-size:12px;cursor:pointer;flex:none;}
+    .aias-entry-btn:hover{background:#3a6a83;}
+    @media (max-width:640px){.shufei-aias-root{right:14px;bottom:14px;}.aias-window{width:calc(100vw - 28px);height:72vh;}}
+</style>
+<div class="shufei-aias-root" id="shufei-aias-root">
+    <button type="button" class="aias-launcher" id="aias-launcher" title="AI 设置助手">
+        <i class="fa fa-magic aias-i-open"></i>
+        <i class="fa fa-times aias-i-close"></i>
+    </button>
+    <div class="aias-window" id="aias-window" hidden>
+        <div class="aias-head">
+            <i class="fa fa-magic"></i> <b>AI 设置助手</b>
+            <button type="button" class="aias-clear" id="aias-clear">清空对话</button>
+            <button type="button" class="aias-close" id="aias-close" title="收起"><i class="fa fa-times"></i></button>
+        </div>
+        <?php if (!$providerReady): ?>
+        <div class="aias-warn"><i class="fa fa-exclamation-triangle"></i> 尚未检测到可用的 AI 接口配置，请先在「AI 助手」设置中完成接口配置，否则对话无法调用 AI。</div>
+        <?php endif; ?>
+        <div class="aias-messages" id="aias-messages"></div>
+        <div class="aias-inputbar">
+            <input type="text" class="aias-input" id="aias-input" maxlength="1000" placeholder="例如：把主色调换成 #6C5CE7，打开评论邮件通知…" autocomplete="off">
+            <button type="button" class="aias-send" id="aias-send">发送</button>
+        </div>
+        <div class="aias-tip">AI 可直接读取并修改主题设置（保存即生效）。密钥、密码等敏感字段对 AI 不可见，请手动填写。修改后刷新页面可看到表单新值。</div>
+    </div>
+</div>
+    <script>
+    (function(){
+        var endpoint = <?php echo $endpointJs; ?>;
+        var root = document.getElementById('shufei-aias-root');
+        if (!root) return;
+        // 挂到 body 下，避免被设置页容器的 overflow / transform 影响 fixed 定位
+        if (root.parentNode !== document.body) { document.body.appendChild(root); }
+
+        var launcher = document.getElementById('aias-launcher');
+        var win = document.getElementById('aias-window');
+        var openBtn = document.getElementById('aias-open-btn');
+        var closeBtn = document.getElementById('aias-close');
+        var messagesEl = document.getElementById('aias-messages');
+        var input = document.getElementById('aias-input');
+        var sendBtn = document.getElementById('aias-send');
+        var clearBtn = document.getElementById('aias-clear');
+        if (!launcher || !win || !messagesEl || !input || !sendBtn) return;
+
+        var STORE_KEY = 'shufei_admin_ai_settings_chat';
+        var history = [];
+        var busy = false;
+
+        function setOpen(open){
+            if (open) {
+                win.hidden = false;
+                launcher.classList.add('open');
+                launcher.title = '收起 AI 设置助手';
+                if (!busy) input.focus();
+            } else {
+                win.hidden = true;
+                launcher.classList.remove('open');
+                launcher.title = 'AI 设置助手';
+            }
+        }
+        launcher.addEventListener('click', function(){ setOpen(win.hidden); });
+        if (openBtn) { openBtn.addEventListener('click', function(){ setOpen(true); }); }
+        if (closeBtn) { closeBtn.addEventListener('click', function(){ setOpen(false); }); }
+        document.addEventListener('keydown', function(e){
+            if (e.key === 'Escape' && !win.hidden) { setOpen(false); }
+        });
+
+        function addMsg(cls, text){
+            var div = document.createElement('div');
+            div.className = 'aias-msg ' + cls;
+            div.textContent = text;
+            messagesEl.appendChild(div);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+            return div;
+        }
+        function load(){
+            try{
+                var raw = window.localStorage.getItem(STORE_KEY);
+                if(!raw) return [];
+                var arr = JSON.parse(raw);
+                if(!Array.isArray(arr)) return [];
+                var out = [];
+                for(var i=0;i<arr.length && i<12;i++){
+                    var h = arr[i];
+                    if(h && (h.role==='user'||h.role==='assistant') && typeof h.content==='string' && h.content){
+                        out.push({role:h.role, content:h.content.slice(0,1500)});
+                    }
+                }
+                return out;
+            }catch(e){return [];}
+        }
+        function save(){
+            try{ window.localStorage.setItem(STORE_KEY, JSON.stringify(history.slice(-12))); }catch(e){}
+        }
+        function clear(){
+            try{ window.localStorage.removeItem(STORE_KEY); }catch(e){}
+            history = [];
+            messagesEl.innerHTML = '';
+            addMsg('assistant', '你好！告诉我你想调整什么设置，我来帮你改～比如「把主色调换成 #6C5CE7」「开启评论邮件通知」「看看当前都有哪些设置」。\n提示：请先在「AI 助手」设置中配置好 AI 接口。');
+        }
+
+        history = load();
+        if (history.length) {
+            for (var i=0;i<history.length;i++) addMsg(history[i].role, history[i].content);
+        } else {
+            clear();
+        }
+
+        clearBtn.addEventListener('click', clear);
+
+        function send(){
+            if (busy) return;
+            var text = input.value.replace(/\s+$/g,'').trim();
+            if (!text) return;
+            busy = true;
+            sendBtn.disabled = true;
+            sendBtn.textContent = '思考中…';
+            addMsg('user', text);
+            history.push({role:'user', content:text});
+            input.value = '';
+
+            var fd = new FormData();
+            fd.append('message', text);
+            fd.append('history', JSON.stringify(history.slice(-12)));
+            fetch(endpoint, {method:'POST', body:fd, credentials:'same-origin'})
+                .then(function(r){ return r.json(); })
+                .then(function(data){
+                    if (data && data.success && data.reply) {
+                        history.push({role:'assistant', content:data.reply});
+                        save();
+                        addMsg('assistant', data.reply);
+                        if (data.actions && data.actions.length) {
+                            for (var i=0;i<data.actions.length;i++) addMsg('action', data.actions[i]);
+                        }
+                    } else {
+                        history.pop();
+                        save();
+                        addMsg('error', (data && data.message) ? data.message : '请求失败，请稍后重试');
+                    }
+                })
+                .catch(function(){
+                    history.pop();
+                    save();
+                    addMsg('error', '网络错误，请稍后重试');
+                })
+                .then(function(){
+                    busy = false;
+                    sendBtn.disabled = false;
+                    sendBtn.textContent = '发送';
+                    input.focus();
+                });
+        }
+        sendBtn.addEventListener('click', send);
+        input.addEventListener('keydown', function(e){
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+        });
+    })();
+    </script>
+<?php
 }
 
 
@@ -2173,6 +2625,7 @@ function themePostFields($layout)
  */
 $_coreLibs = array(
     dirname(__FILE__) . '/core/ai-summary.php',
+    dirname(__FILE__) . '/core/ai-chat.php',
     dirname(__FILE__) . '/core/post-stats.php',
     dirname(__FILE__) . '/core/vote.php',
     dirname(__FILE__) . '/core/template-helpers.php',

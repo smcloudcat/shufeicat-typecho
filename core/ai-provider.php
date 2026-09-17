@@ -300,6 +300,121 @@ class AiProvider
     }
 
     /**
+     * 带 Function Calling 的 Chat Completions 调用
+     *
+     * @param array $messages   [{role, content}, ...]
+     * @param array $tools      OpenAI tools 定义
+     * @param float $temperature
+     * @param int   $maxTokens
+     * @return array [
+     *   'success'           => bool,
+     *   'content'           => string,           // 模型文本回复（无 tool_calls 时）
+     *   'tool_calls'        => array,            // [{id, name, arguments}]（有调用时）
+     *   'assistant_message' => array,            // 原始 assistant 消息（含 tool_calls，需回传给 API）
+     *   'tool_unsupported'  => bool,             // 接口不支持 tools 时为 true（调用方可降级）
+     *   'message'           => string,
+     * ]
+     */
+    public function chatWithTools($messages, $tools, $temperature = 0.7, $maxTokens = 2000)
+    {
+        if (empty($this->chatUrl)) {
+            return array('success' => false, 'tool_unsupported' => true, 'message' => '当前提供商不支持工具调用');
+        }
+        if (empty($this->apiKey)) {
+            return array('success' => false, 'tool_unsupported' => false, 'message' => 'AI接口未配置，请填写 API 密钥');
+        }
+
+        $postData = array(
+            'model'       => $this->model,
+            'messages'    => $messages,
+            'temperature' => floatval($temperature),
+            'tools'       => $tools,
+            'tool_choice' => 'auto',
+        );
+        if ($maxTokens > 0) {
+            $postData['max_tokens'] = intval($maxTokens);
+        }
+
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $this->chatUrl);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($postData));
+        curl_setopt($ch, CURLOPT_TIMEOUT, $this->timeout);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+            'Content-Type: application/json',
+            'Authorization: Bearer ' . $this->apiKey,
+        ));
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error = curl_error($ch);
+        curl_close($ch);
+
+        if ($error) {
+            return array('success' => false, 'tool_unsupported' => false, 'message' => '连接失败: ' . $error, 'http_code' => 0);
+        }
+        if ($httpCode !== 200) {
+            $apiError = self::extractApiError($response);
+            $detail = $apiError ? '：' . $apiError : '';
+            // 400/404/422 常见于接口不支持 tools 参数，标记可降级
+            $toolUnsupported = ($httpCode === 400 || $httpCode === 404 || $httpCode === 422);
+            return array(
+                'success' => false,
+                'tool_unsupported' => $toolUnsupported,
+                'message' => 'API返回错误 (HTTP ' . $httpCode . $detail . ')',
+                'http_code' => $httpCode,
+            );
+        }
+
+        $result = json_decode($response, true);
+        if (!is_array($result) || !isset($result['choices'][0])) {
+            return array('success' => false, 'tool_unsupported' => false, 'message' => 'API响应格式异常', 'http_code' => $httpCode);
+        }
+
+        $choice = $result['choices'][0];
+        $message = isset($choice['message']) && is_array($choice['message']) ? $choice['message'] : array();
+        $content = isset($message['content']) ? (string)$message['content'] : '';
+
+        // 解析 tool_calls
+        $toolCalls = array();
+        $assistantMessage = array('role' => 'assistant');
+        if (!empty($message['tool_calls']) && is_array($message['tool_calls'])) {
+            foreach ($message['tool_calls'] as $tc) {
+                if (!is_array($tc) || !isset($tc['id'], $tc['function'])) {
+                    continue;
+                }
+                $fn = $tc['function'];
+                $toolCalls[] = array(
+                    'id'        => (string)$tc['id'],
+                    'name'      => isset($fn['name']) ? (string)$fn['name'] : '',
+                    'arguments' => isset($fn['arguments']) ? (string)$fn['arguments'] : '{}',
+                );
+            }
+        }
+
+        if (!empty($toolCalls)) {
+            // 保留原始 tool_calls 结构（含 type 字段），API 要求回传完整 assistant 消息
+            $assistantMessage['tool_calls'] = $message['tool_calls'];
+            if ($content !== '' && $content !== null) {
+                $assistantMessage['content'] = $content;
+            }
+        }
+
+        return array(
+            'success'           => true,
+            'content'           => $content,
+            'tool_calls'        => $toolCalls,
+            'assistant_message' => $assistantMessage,
+            'tool_unsupported'  => false,
+            'http_code'         => $httpCode,
+        );
+    }
+
+    /**
      * 调用 Responses API
      *
      * @param string $systemPrompt 系统提示

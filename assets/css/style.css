@@ -8326,6 +8326,178 @@ article.post {
     border-top-color: rgba(255, 255, 255, 0.08);
 }
 
+/* ===== AI 对话（摘要卡片内，需后台开启） ===== */
+.ai-chat-area {
+    margin-top: 12px;
+    border-top: 1px dashed rgba(0, 0, 0, 0.08);
+    padding-top: 12px;
+}
+.ai-chat-messages {
+    max-height: 320px;
+    min-height: 60px;
+    overflow-y: auto;
+    padding: 2px 2px 6px;
+    scroll-behavior: smooth;
+}
+.ai-chat-bubble {
+    display: flex;
+    margin-bottom: 10px;
+}
+.ai-chat-bubble.user {
+    justify-content: flex-end;
+}
+.ai-chat-bubble-inner {
+    max-width: 84%;
+    padding: 8px 12px;
+    border-radius: 12px;
+    font-size: 13.5px;
+    line-height: 1.75;
+    word-break: break-word;
+    white-space: pre-wrap;
+}
+.ai-chat-bubble.assistant .ai-chat-bubble-inner {
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    color: var(--text-color, #333);
+    border-top-left-radius: 4px;
+}
+.ai-chat-bubble.user .ai-chat-bubble-inner {
+    background: var(--primary-color, #467B96);
+    color: #fff;
+    border-top-right-radius: 4px;
+}
+.ai-chat-loading .ai-chat-bubble-inner {
+    color: #999;
+    font-style: normal;
+}
+.ai-chat-tip {
+    text-align: center;
+    font-size: 12px;
+    color: #999;
+    margin: 6px 0;
+}
+.ai-chat-inputbar {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+}
+.ai-chat-input {
+    flex: 1;
+    min-width: 0;
+    padding: 8px 12px;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    border-radius: 8px;
+    font-size: 13.5px;
+    font-family: inherit;
+    background: rgba(255, 255, 255, 0.9);
+    color: var(--text-color, #333);
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+.ai-chat-input:focus {
+    border-color: var(--primary-color, #467B96);
+    box-shadow: 0 0 0 3px rgba(70, 123, 150, 0.12);
+}
+.ai-chat-send {
+    flex-shrink: 0;
+    width: 40px;
+    border: none;
+    border-radius: 8px;
+    background: var(--primary-color, #467B96);
+    color: #fff;
+    font-size: 14px;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.2s;
+}
+.ai-chat-send:hover {
+    opacity: 0.88;
+    transform: translateY(-1px);
+}
+.ai-chat-send.disabled,
+.ai-chat-send:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+.ai-chat-footnote {
+    font-size: 11px;
+    color: #aaa;
+    margin-top: 6px;
+    text-align: center;
+}
+.ai-chat-toggle {
+    background: transparent;
+    border: none;
+    color: var(--primary-color, #467B96);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: all 0.2s;
+    font-family: inherit;
+    margin-right: auto;
+}
+.ai-chat-toggle:hover,
+.ai-chat-toggle.open {
+    background: rgba(70, 123, 150, 0.1);
+}
+.ai-chat-reset {
+    background: transparent;
+    border: none;
+    color: #999;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: all 0.2s;
+    font-family: inherit;
+}
+.ai-chat-reset:hover {
+    color: var(--primary-color, #467B96);
+    background: rgba(70, 123, 150, 0.1);
+}
+/* 首页站点 AI 助手卡片：默认展开，消息区限高 */
+.ai-site-assistant .ai-chat-area {
+    border-top: none;
+}
+.ai-site-assistant .ai-chat-messages {
+    max-height: 360px;
+}
+/* 折叠摘要时隐藏对话区 */
+.ai-summary-box.collapsed .ai-chat-area {
+    display: none;
+}
+
+[data-theme="dark"] .ai-chat-area {
+    border-top-color: rgba(255, 255, 255, 0.08);
+}
+[data-theme="dark"] .ai-chat-bubble.assistant .ai-chat-bubble-inner {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: #d0d0d8;
+}
+[data-theme="dark"] .ai-chat-input {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.14);
+    color: #d0d0d8;
+}
+[data-theme="dark"] .ai-chat-input:focus {
+    border-color: var(--primary-color, #467B96);
+}
+[data-theme="dark"] .ai-chat-toggle:hover,
+[data-theme="dark"] .ai-chat-toggle.open {
+    background: rgba(70, 123, 150, 0.2);
+}
+[data-theme="dark"] .ai-chat-reset {
+    color: #777;
+}
+[data-theme="dark"] .ai-chat-reset:hover {
+    color: var(--primary-color, #467B96);
+    background: rgba(70, 123, 150, 0.2);
+}
+
 /* ===== AI 总结悬浮弹球 ===== */
 .ai-summary-ball {
     position: relative;
@@ -9739,3 +9911,466 @@ article.post {
         color-scheme: dark;
     }
 }
+
+/* ============================================================
+ * 列表美化 & 侧边栏自定义（后台「列表美化」Tab）
+ * ------------------------------------------------------------
+ * 数值变量由 header.php 按后台设置注入到 :root；
+ * 此处声明兜底值，未配置时与主题原有外观保持一致。
+ * ============================================================ */
+
+:root {
+    --lb-radius: 12px;
+    --lb-gap: 18px;
+    --lb-thumb-width: 200px;
+    --lb-excerpt-lines: 2;
+    --lb-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+    --lb-shadow-hover: 0 8px 30px rgba(0, 0, 0, 0.08);
+    --lb-side-width: 200px;
+    --lb-side-radius: 12px;
+}
+
+/* ---------- 1. 列表卡片：圆角 / 间距 / 阴影 ---------- */
+#ajax-post-list .post {
+    border-radius: var(--lb-radius, 12px);
+    margin-bottom: var(--lb-gap, 18px);
+    box-shadow: var(--lb-shadow, 0 2px 12px rgba(0, 0, 0, 0.04));
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                box-shadow 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                border-color 0.35s ease,
+                background 0.35s ease;
+}
+
+#ajax-post-list .post:last-child {
+    margin-bottom: 0;
+}
+
+#ajax-post-list .post-link {
+    border-radius: var(--lb-radius, 12px);
+}
+
+#ajax-post-list.post-list-card .post.has-thumbnail,
+#ajax-post-list.post-list-card .post-thumbnail-side {
+    border-radius: var(--lb-radius, 12px) 0 0 var(--lb-radius, 12px);
+}
+
+#ajax-post-list.post-list-card .post.has-thumbnail {
+    border-radius: var(--lb-radius, 12px);
+}
+
+#ajax-post-list.post-list-classic .post.has-thumbnail,
+#ajax-post-list.post-list-classic .post.has-thumbnail::before,
+#ajax-post-list.post-list-classic .post.has-thumbnail .post-overlay,
+#ajax-post-list.post-list-classic .post.has-thumbnail.post-sticky::before {
+    border-radius: var(--lb-radius, 12px);
+}
+
+/* 极简模式：整块列表为一个整体卡片 */
+#ajax-post-list.post-list-minimal {
+    border-radius: var(--lb-radius, 12px);
+    overflow: hidden;
+}
+
+/* 极简模式：行保持紧凑无间距、无独立圆角，整体圆角由容器承担 */
+#ajax-post-list.post-list-minimal .post.minimal-item {
+    border-radius: 0;
+    margin-bottom: 0;
+}
+
+/* 极简模式悬停：横向右移，避免整行上下跳动 */
+#ajax-post-list.post-list-minimal[data-list-hover="lift"] .post.minimal-item:hover {
+    transform: translateX(4px);
+}
+
+#ajax-post-list.post-list-minimal[data-list-hover="zoom"] .post.minimal-item:hover {
+    transform: scale(1.006);
+}
+
+/* ---------- 2. 悬停动效（data-list-hover） ---------- */
+#ajax-post-list[data-list-hover="lift"] .post:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--lb-shadow-hover, 0 8px 30px rgba(0, 0, 0, 0.08));
+}
+
+#ajax-post-list[data-list-hover="zoom"] .post:hover {
+    transform: scale(1.012);
+    box-shadow: var(--lb-shadow-hover, 0 8px 30px rgba(0, 0, 0, 0.08));
+}
+
+#ajax-post-list[data-list-hover="glow"] .post:hover {
+    transform: translateY(-2px);
+    border-color: color-mix(in srgb, var(--primary-color) 32%, transparent);
+    box-shadow: 0 10px 34px color-mix(in srgb, var(--primary-color) 24%, transparent),
+                var(--lb-shadow-hover, 0 8px 30px rgba(0, 0, 0, 0.08));
+}
+
+#ajax-post-list[data-list-hover="none"] .post:hover {
+    transform: none;
+    box-shadow: var(--lb-shadow, 0 2px 12px rgba(0, 0, 0, 0.04));
+}
+
+/* ---------- 3. 悬停强调线（data-list-accent） ---------- */
+#ajax-post-list[data-list-accent="left"] .post::after,
+#ajax-post-list[data-list-accent="top"] .post::after {
+    content: '';
+    position: absolute;
+    background: linear-gradient(180deg, var(--primary-color) 0%, var(--primary-hover) 100%);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 5;
+    transition: opacity 0.28s ease, transform 0.34s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#ajax-post-list[data-list-accent="left"] .post::after {
+    left: 0;
+    top: 13%;
+    bottom: 13%;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+    transform: scaleY(0.2);
+}
+
+#ajax-post-list[data-list-accent="top"] .post::after {
+    left: 12%;
+    right: 12%;
+    top: 0;
+    height: 3px;
+    border-radius: 0 0 3px 3px;
+    background: linear-gradient(90deg, var(--primary-color) 0%, var(--primary-hover) 100%);
+    transform: scaleX(0.2);
+}
+
+#ajax-post-list[data-list-accent="left"] .post:hover::after,
+#ajax-post-list[data-list-accent="top"] .post:hover::after {
+    opacity: 1;
+    transform: none;
+}
+
+/* ---------- 4. 元信息 / 摘要显示控制 ---------- */
+#ajax-post-list:not([data-list-meta~="author"]) .meta-author,
+#ajax-post-list:not([data-list-meta~="date"]) .meta-date,
+#ajax-post-list:not([data-list-meta~="category"]) .meta-category,
+#ajax-post-list:not([data-list-meta~="comments"]) .meta-comments {
+    display: none !important;
+}
+
+#ajax-post-list[data-list-excerpt="off"] .post-excerpt,
+#ajax-post-list[data-list-excerpt="off"] .minimal-excerpt {
+    display: none;
+}
+
+#ajax-post-list .excerpt-text {
+    -webkit-line-clamp: var(--lb-excerpt-lines, 2);
+    line-clamp: var(--lb-excerpt-lines, 2);
+}
+
+/* ---------- 5. 卡片模式：缩略图与元信息抛光 ---------- */
+@media (min-width: 769px) {
+    #ajax-post-list.post-list-card .post-thumbnail-side,
+    #ajax-post-list.post-list-card .thumbnail-link-side {
+        width: var(--lb-thumb-width, 200px);
+        flex: 0 0 var(--lb-thumb-width, 200px);
+    }
+}
+
+/* 缩略图悬停：主题色微光掠过 */
+#ajax-post-list.post-list-card .thumbnail-link-side::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(115deg, color-mix(in srgb, var(--primary-color) 30%, transparent) 0%, transparent 60%);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.45s ease;
+    z-index: 3;
+}
+
+#ajax-post-list.post-list-card .thumbnail-link-side:hover::after {
+    opacity: 1;
+}
+
+/* 无缩略图卡片：左侧渐变光带替代纯色描边 */
+#ajax-post-list.post-list-card .post.no-thumbnail {
+    border-left-color: transparent;
+}
+
+#ajax-post-list.post-list-card .post.no-thumbnail::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: linear-gradient(180deg, var(--primary-color) 0%, var(--primary-hover) 100%);
+    opacity: 0.32;
+    transition: opacity 0.3s ease;
+    z-index: 4;
+}
+
+#ajax-post-list.post-list-card .post.no-thumbnail:hover::before {
+    opacity: 1;
+}
+
+/* 元信息胶囊化 */
+#ajax-post-list.post-list-card .post-meta-top {
+    gap: 8px;
+}
+
+#ajax-post-list.post-list-card .post-meta-top li {
+    padding: 3px 10px;
+    border-radius: 20px;
+    background: color-mix(in srgb, var(--primary-color) 5%, transparent);
+    transition: background 0.3s ease, color 0.3s ease;
+}
+
+#ajax-post-list.post-list-card .post-meta-top li:hover {
+    background: color-mix(in srgb, var(--primary-color) 14%, transparent);
+}
+
+#ajax-post-list.post-list-card .post-meta-top li i {
+    opacity: 0.85;
+}
+
+[data-theme="dark"] #ajax-post-list.post-list-card .post-meta-top li {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+[data-theme="dark"] #ajax-post-list.post-list-card .post-meta-top li:hover {
+    background: color-mix(in srgb, var(--primary-color) 22%, transparent);
+}
+
+/* 极简模式：行悬停左侧光带 + 日期胶囊 */
+#ajax-post-list.post-list-minimal .post.minimal-item::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: linear-gradient(180deg, var(--primary-color) 0%, var(--primary-hover) 100%);
+    opacity: 0;
+    transform: scaleY(0.4);
+    transition: opacity 0.25s ease, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 3;
+}
+
+#ajax-post-list.post-list-minimal .post.minimal-item:hover::before {
+    opacity: 1;
+    transform: none;
+}
+
+#ajax-post-list.post-list-minimal .minimal-date {
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--primary-color) 6%, transparent);
+    color: color-mix(in srgb, var(--primary-color) 62%, #666);
+    transition: background 0.25s ease, color 0.25s ease;
+}
+
+#ajax-post-list.post-list-minimal .post.minimal-item:hover .minimal-date {
+    background: color-mix(in srgb, var(--primary-color) 14%, transparent);
+    color: var(--primary-color);
+}
+
+[data-theme="dark"] #ajax-post-list.post-list-minimal .minimal-date {
+    background: rgba(255, 255, 255, 0.07);
+    color: #b0b0b8;
+}
+
+[data-theme="dark"] #ajax-post-list.post-list-minimal .post.minimal-item:hover .minimal-date {
+    background: color-mix(in srgb, var(--primary-color) 24%, transparent);
+    color: #fff;
+}
+
+/* ---------- 6. 经典模式：遮罩与可读性增强 ---------- */
+#ajax-post-list.post-list-classic .post.has-thumbnail .post-overlay {
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.26) 42%, rgba(0, 0, 0, 0.78) 100%);
+    transition: background 0.45s ease;
+}
+
+#ajax-post-list.post-list-classic .post.has-thumbnail:hover .post-overlay {
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.06) 0%, rgba(0, 0, 0, 0.36) 42%, rgba(0, 0, 0, 0.88) 100%);
+}
+
+/* ---------- 7. 右侧栏：宽度 / 圆角 / 粘性 ---------- */
+@media (min-width: 993px) {
+    .right-sidebar {
+        width: var(--lb-side-width, 200px);
+        flex: 0 0 var(--lb-side-width, 200px);
+    }
+
+    /* 主内容自适应剩余空间，避免侧栏加宽后布局溢出换行 */
+    #main.col-8 {
+        flex: 1 1 0;
+        max-width: none;
+        min-width: 0;
+    }
+
+    body[data-side-sticky="on"] .right-sidebar {
+        position: sticky;
+        top: 88px;
+        align-self: flex-start;
+        max-height: calc(100vh - 108px);
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding-right: 6px;
+        scrollbar-width: thin;
+    }
+
+    body[data-side-sticky="on"] .right-sidebar::-webkit-scrollbar {
+        width: 4px;
+    }
+
+    body[data-side-sticky="on"] .right-sidebar::-webkit-scrollbar-thumb {
+        background: color-mix(in srgb, var(--primary-color) 30%, transparent);
+        border-radius: 4px;
+    }
+}
+
+#secondary .widget,
+.right-sidebar .widget {
+    border-radius: var(--lb-side-radius, 12px);
+}
+
+.right-sidebar .widget-title > i {
+    color: var(--primary-color);
+    font-size: 15px;
+}
+
+/* 侧边栏卡片悬停：轻微抬升 */
+.right-sidebar .widget {
+    transition: box-shadow 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                transform 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                border-color 0.35s ease;
+}
+
+.right-sidebar .widget:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--lb-shadow-hover, 0 8px 30px rgba(0, 0, 0, 0.08));
+}
+
+/* ---------- 8. 侧边栏标题样式变体（data-side-title） ---------- */
+body[data-side-title="gradient"] .right-sidebar .widget-title {
+    position: relative;
+    border-bottom: none;
+    padding-bottom: 12px;
+}
+
+body[data-side-title="gradient"] .right-sidebar .widget-title::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 46px;
+    height: 3px;
+    background: linear-gradient(90deg, var(--primary-color) 0%, color-mix(in srgb, var(--primary-color) 8%, transparent) 100%);
+    border-radius: 3px;
+}
+
+body[data-side-title="fill"] .right-sidebar .widget-title {
+    border-bottom: none;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--primary-color) 13%, transparent) 0%, color-mix(in srgb, var(--primary-color) 4%, transparent) 100%);
+    padding: 9px 13px;
+    border-radius: calc(var(--lb-side-radius, 12px) - 2px);
+    margin-bottom: 12px;
+}
+
+body[data-side-title="fill"] .right-sidebar .widget-title::before {
+    display: none;
+}
+
+body[data-side-title="minimal"] .right-sidebar .widget-title {
+    border-bottom: none;
+    padding-bottom: 6px;
+}
+
+body[data-side-title="minimal"] .right-sidebar .widget-title::before {
+    display: none;
+}
+
+[data-theme="dark"] body[data-side-title="fill"] .right-sidebar .widget-title {
+    background: linear-gradient(135deg, color-mix(in srgb, var(--primary-color) 24%, transparent) 0%, rgba(255, 255, 255, 0.04) 100%);
+}
+
+/* ---------- 9. 侧边栏列表悬停变体（data-side-hover） ---------- */
+body[data-side-hover="slide"] .right-sidebar .widget-list li a {
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), color 0.28s ease;
+}
+
+body[data-side-hover="slide"] .right-sidebar .widget-list li a:hover {
+    transform: translateX(6px);
+    background: none;
+}
+
+body[data-side-hover="glow"] .right-sidebar .widget-list li a {
+    padding-left: 8px;
+    margin-left: -8px;
+    border-radius: 6px;
+    transition: box-shadow 0.28s ease, background 0.28s ease, color 0.28s ease;
+}
+
+body[data-side-hover="glow"] .right-sidebar .widget-list li a:hover {
+    background: color-mix(in srgb, var(--primary-color) 6%, transparent);
+    box-shadow: inset 3px 0 0 var(--primary-color);
+}
+
+body[data-side-hover="none"] .right-sidebar .widget-list li a:hover {
+    background: none;
+}
+
+/* ---------- 10. 左侧栏与站点卡片抛光 ---------- */
+.left-sidebar .sidebar-panel {
+    transition: box-shadow 0.35s ease, background 0.35s ease;
+}
+
+.left-sidebar .sidebar-panel:hover {
+    box-shadow: 0 8px 26px color-mix(in srgb, var(--primary-color) 10%, rgba(0, 0, 0, 0.06));
+}
+
+.author-card .author-avatar-wrap {
+    position: relative;
+}
+
+.author-card .author-stat-item {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s ease;
+}
+
+.author-card .author-stat-item:hover {
+    transform: translateY(-2px);
+}
+
+/* 标签云：悬停时轻微放大 */
+.tag-cloud .tag-pill {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tag-cloud .tag-pill:hover {
+    transform: translateY(-2px) scale(1.04);
+}
+
+/* ---------- 11. 分页与加载更多抛光 ---------- */
+.page-navigator a,
+.page-navigator span {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.load-more-btn {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.load-more-btn:hover {
+    transform: translateY(-2px);
+}
+
+/* ---------- 12. 移动端适配 ---------- */
+@media (max-width: 768px) {
+    #ajax-post-list .post {
+        border-radius: min(var(--lb-radius, 12px), 14px);
+    }
+
+    #ajax-post-list.post-list-card .post-thumbnail-side,
+    #ajax-post-list.post-list-card .post.has-thumbnail {
+        border-radius: min(var(--lb-radius, 12px), 14px) min(var(--lb-radius, 12px), 14px) 0 0;
+    }
+}
+

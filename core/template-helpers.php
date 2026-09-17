@@ -582,3 +582,144 @@ function shufei_render_password_protection($widget, $title = '文章已加密~',
     return $html;
 }
 
+/**
+ * 读取「列表美化」分组设置并归一化为前端可直接使用的值
+ *
+ * 所有字段均提供与旧版一致的默认值，未配置时等同于主题原有外观。
+ *
+ * @return array
+ *   radius        卡片圆角像素值（int）
+ *   gap           列表项间距像素值（int）
+ *   shadow        阴影档位：none|soft|medium|strong
+ *   hover         悬停动效：lift|zoom|glow|none
+ *   accent        悬停强调线：off|left|top
+ *   thumbWidth    卡片模式缩略图宽度像素值（int）
+ *   meta          元信息显示项数组（author/date/category/comments）
+ *   excerpt       摘要显示：on|off
+ *   excerptLines  摘要行数（int 1-3）
+ *   sidebarWidth      右侧栏宽度像素值（int）
+ *   sidebarRadius     侧边栏圆角像素值（int）
+ *   sidebarTitle      侧边栏标题样式：bar|gradient|fill|minimal
+ *   sidebarHover      侧边栏列表悬停：bg|slide|glow|none
+ *   sidebarSticky     侧边栏粘性跟随：on|off
+ *   customCss         自定义 CSS 文本（已去首尾空白）
+ */
+function shufei_get_list_beautify_options()
+{
+    static $cache = null;
+    if ($cache !== null) {
+        return $cache;
+    }
+
+    $options = \Typecho\Widget::widget('Widget_Options');
+
+    $pick = function ($name, $default) use ($options) {
+        $v = isset($options->{$name}) ? $options->{$name} : '';
+        if (is_array($v)) {
+            return !empty($v) ? $v : $default;
+        }
+        return ($v === '' || $v === null) ? $default : $v;
+    };
+
+    $radiusMap = array('small' => 8, 'normal' => 12, 'large' => 16, 'xlarge' => 20);
+    $gapMap = array('compact' => 10, 'normal' => 18, 'loose' => 26);
+    $thumbMap = array('small' => 160, 'normal' => 200, 'large' => 240, 'xlarge' => 280);
+    $linesMap = array('one' => 1, 'two' => 2, 'three' => 3);
+    $sideWidthMap = array('narrow' => 200, 'normal' => 230, 'wide' => 260);
+
+    $radiusKey = $pick('listRadius', 'normal');
+    $radius = isset($radiusMap[$radiusKey]) ? $radiusMap[$radiusKey] : 12;
+
+    $gapKey = $pick('listGap', 'normal');
+    $gap = isset($gapMap[$gapKey]) ? $gapMap[$gapKey] : 18;
+
+    $thumbKey = $pick('listThumbWidth', 'normal');
+    $thumbWidth = isset($thumbMap[$thumbKey]) ? $thumbMap[$thumbKey] : 200;
+
+    $linesKey = $pick('listExcerptLines', 'two');
+    $excerptLines = isset($linesMap[$linesKey]) ? $linesMap[$linesKey] : 2;
+
+    $sideWidthKey = $pick('sidebarWidth', 'narrow');
+    $sideWidth = isset($sideWidthMap[$sideWidthKey]) ? $sideWidthMap[$sideWidthKey] : 200;
+
+    $sideRadiusKey = $pick('sidebarRadius', 'inherit');
+    if ($sideRadiusKey === 'inherit') {
+        $sideRadius = $radius;
+    } elseif ($sideRadiusKey === 'small') {
+        $sideRadius = 8;
+    } elseif ($sideRadiusKey === 'large') {
+        $sideRadius = 16;
+    } else {
+        $sideRadius = $radius;
+    }
+
+    // 元信息（Checkbox 存数组；兼容逗号分隔字符串/序列化残留）
+    // 注意：空数组（= 站长取消了全部勾选）需保留为空，不可回退默认值
+    $metaRaw = isset($options->listMeta) ? $options->listMeta : null;
+    if (is_string($metaRaw)) {
+        $decoded = @unserialize($metaRaw);
+        if (is_array($decoded)) {
+            $metaRaw = $decoded;
+        } elseif ($metaRaw !== '') {
+            $metaRaw = array_filter(array_map('trim', explode(',', $metaRaw)));
+        } else {
+            $metaRaw = array();
+        }
+    } elseif ($metaRaw === null) {
+        // 从未配置过（老用户升级）→ 默认全部显示
+        $metaRaw = array('author', 'date', 'category', 'comments');
+    }
+    if (!is_array($metaRaw)) {
+        $metaRaw = array();
+    }
+    $metaRawStr = array_map('strval', array_values($metaRaw));
+    $meta = array();
+    foreach (array('author', 'date', 'category', 'comments') as $mKey) {
+        if (in_array($mKey, $metaRawStr, true)) {
+            $meta[] = $mKey;
+        }
+    }
+
+    // 白名单校验（值不在名单内时回退默认，防止脏数据注入 CSS）
+    // 结构：字段名 => array(合法值列表, 默认值)
+    $allowed = array(
+        'listShadow' => array(array('none', 'soft', 'medium', 'strong'), 'soft'),
+        'listHover' => array(array('lift', 'zoom', 'glow', 'none'), 'lift'),
+        'listAccent' => array(array('off', 'left', 'top'), 'off'),
+        'listExcerpt' => array(array('on', 'off'), 'on'),
+        'sidebarTitleStyle' => array(array('bar', 'gradient', 'fill', 'minimal'), 'bar'),
+        'sidebarListHover' => array(array('bg', 'slide', 'glow', 'none'), 'bg'),
+        'sidebarSticky' => array(array('off', 'on'), 'off'),
+    );
+    $safe = array();
+    foreach ($allowed as $name => $spec) {
+        $list = $spec[0];
+        $default = $spec[1];
+        $v = (string) $pick($name, $default);
+        $safe[$name] = in_array($v, $list, true) ? $v : $default;
+    }
+
+    $customCss = $pick('customCss', '');
+    $customCss = is_string($customCss) ? trim($customCss) : '';
+
+    $cache = array(
+        'radius' => $radius,
+        'gap' => $gap,
+        'shadow' => $safe['listShadow'],
+        'hover' => $safe['listHover'],
+        'accent' => $safe['listAccent'],
+        'thumbWidth' => $thumbWidth,
+        'meta' => $meta,
+        'excerpt' => $safe['listExcerpt'],
+        'excerptLines' => $excerptLines,
+        'sidebarWidth' => $sideWidth,
+        'sidebarRadius' => $sideRadius,
+        'sidebarTitle' => $safe['sidebarTitleStyle'],
+        'sidebarHover' => $safe['sidebarListHover'],
+        'sidebarSticky' => $safe['sidebarSticky'],
+        'customCss' => $customCss,
+    );
+
+    return $cache;
+}
+

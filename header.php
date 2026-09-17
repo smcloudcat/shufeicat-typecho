@@ -605,6 +605,38 @@
     </style>
     <?php endif; ?>
 
+    <?php
+    // ===== 列表美化 & 侧边栏自定义（后台「列表美化」Tab） =====
+    // 所有变量均带默认值，未配置时与主题原有外观完全一致
+    $lbOpt = function_exists('shufei_get_list_beautify_options') ? shufei_get_list_beautify_options() : array();
+    $lbShadowMap = array(
+        'none'   => array('none', 'none'),
+        'soft'   => array('0 2px 12px rgba(0, 0, 0, 0.04)', '0 8px 30px rgba(0, 0, 0, 0.08)'),
+        'medium' => array('0 4px 18px rgba(0, 0, 0, 0.07)', '0 14px 40px rgba(0, 0, 0, 0.13)'),
+        'strong' => array('0 6px 24px rgba(0, 0, 0, 0.10)', '0 20px 52px rgba(0, 0, 0, 0.20)'),
+    );
+    $lbShadowKey = isset($lbOpt['shadow']) && isset($lbShadowMap[$lbOpt['shadow']]) ? $lbOpt['shadow'] : 'soft';
+    $lbShadow = $lbShadowMap[$lbShadowKey];
+    ?>
+    <style>
+    :root {
+        --lb-radius: <?php echo intval(isset($lbOpt['radius']) ? $lbOpt['radius'] : 12); ?>px;
+        --lb-gap: <?php echo intval(isset($lbOpt['gap']) ? $lbOpt['gap'] : 18); ?>px;
+        --lb-thumb-width: <?php echo intval(isset($lbOpt['thumbWidth']) ? $lbOpt['thumbWidth'] : 200); ?>px;
+        --lb-excerpt-lines: <?php echo intval(isset($lbOpt['excerptLines']) ? $lbOpt['excerptLines'] : 2); ?>;
+        --lb-shadow: <?php echo $lbShadow[0]; ?>;
+        --lb-shadow-hover: <?php echo $lbShadow[1]; ?>;
+        --lb-side-width: <?php echo intval(isset($lbOpt['sidebarWidth']) ? $lbOpt['sidebarWidth'] : 200); ?>px;
+        --lb-side-radius: <?php echo intval(isset($lbOpt['sidebarRadius']) ? $lbOpt['sidebarRadius'] : 12); ?>px;
+    }
+    </style>
+    <?php if (!empty($lbOpt['customCss'])): ?>
+    <style>
+    /* ===== 站长自定义 CSS（后台「列表美化」配置） ===== */
+    <?php echo $lbOpt['customCss']; ?>
+    </style>
+    <?php endif; ?>
+
     <?php $this->header(); ?>
 
     <?php
@@ -769,7 +801,14 @@
     })();
     </script>
 </head>
-<body>
+<body<?php
+// 列表美化：侧边栏样式标记（默认值与主题原有外观一致）
+if (!empty($lbOpt) && is_array($lbOpt)) {
+    echo ' data-side-title="' . htmlspecialchars(isset($lbOpt['sidebarTitle']) ? $lbOpt['sidebarTitle'] : 'bar') . '"';
+    echo ' data-side-hover="' . htmlspecialchars(isset($lbOpt['sidebarHover']) ? $lbOpt['sidebarHover'] : 'bg') . '"';
+    echo ' data-side-sticky="' . htmlspecialchars(isset($lbOpt['sidebarSticky']) ? $lbOpt['sidebarSticky'] : 'off') . '"';
+}
+?>>
 
 <header id="header">
     <div class="header-inner">

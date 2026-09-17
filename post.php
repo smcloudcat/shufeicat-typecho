@@ -12,11 +12,17 @@
     // 获取点赞功能控制
     $disableLike = $this->fields->disableLike;
     // 判断文章 AI 总结
+    // 全局AI助手模式：开启后所有公开文章自动启用（密码文章未解锁时 $this->hidden 为 true，不显示）
     $aiSummaryEnabled = false;
-    if (class_exists('AiSummary') && AiSummary::isEnabled()) {
-        $aiSummaryEnabled = AiSummary::isArticleEnabled($this->cid);
+    $aiGlobalMode = false;
+    if (class_exists('AiSummary') && AiSummary::isEnabled() && !$this->hidden) {
+        $aiGlobalMode = AiSummary::isGlobalMode();
+        $aiSummaryEnabled = $aiGlobalMode ? true : AiSummary::isArticleEnabled($this->cid);
     }
     $aiSummaryCached = ($aiSummaryEnabled && class_exists('AiSummary')) ? AiSummary::getCached($this->cid) : null;
+    // AI 摘要连续对话（off / summary_only / on）
+    $aiChatMode = ($aiSummaryEnabled && class_exists('AiChat')) ? AiChat::getMode() : 'off';
+    $aiChatOn = ($aiChatMode === 'on');
     ?>
     <?php if (!empty($articleAlert)): ?>
     <div class="article-alert-box" id="article-alert-box">
@@ -70,16 +76,43 @@
             </div>
         </header>
 
-        <?php if ($aiSummaryEnabled && $aiSummaryCached): ?>
-        <div class="ai-summary-box" id="ai-summary-box" data-cid="<?php echo $this->cid; ?>">
+        <?php if ($aiSummaryEnabled && ($aiSummaryCached !== null || $aiGlobalMode)): ?>
+        <div class="ai-summary-box" id="ai-summary-box" data-cid="<?php echo $this->cid; ?>" data-ai-chat="<?php echo $aiChatOn ? '1' : '0'; ?>" data-ai-scope="<?php echo $aiGlobalMode ? 'global' : 'post'; ?>"<?php if ($aiChatOn): ?> data-ai-chat-max="<?php echo (class_exists('AiChat') ? AiChat::getMaxRounds() : 10); ?>"<?php endif; ?><?php if (!$aiSummaryCached && $aiGlobalMode): ?> data-ai-auto="1"<?php endif; ?>>
             <div class="ai-summary-header">
                 <i class="fa fa-magic"></i> <span><?php _e('AI 文章摘要'); ?></span>
+                <?php if ($aiSummaryCached !== null): ?>
                 <span class="ai-summary-source"><?php _e('已缓存'); ?></span>
+                <?php endif; ?>
             </div>
             <div class="ai-summary-content" id="ai-summary-content">
+                <?php if ($aiSummaryCached !== null): ?>
                 <p><?php echo nl2br(htmlspecialchars($aiSummaryCached)); ?></p>
+                <?php else: ?>
+                <div class="ai-summary-loading"><i class="fa fa-spinner fa-spin"></i> <?php _e('正在生成 AI 摘要...'); ?></div>
+                <?php endif; ?>
             </div>
+            <?php if ($aiChatOn): ?>
+            <div class="ai-chat-area" id="ai-chat-area" hidden>
+                <div class="ai-chat-messages" id="ai-chat-messages"></div>
+                <div class="ai-chat-inputbar">
+                    <input type="text" class="ai-chat-input" id="ai-chat-input" maxlength="1000"
+                        placeholder="<?php _e('向 AI 提问本文或站内内容…'); ?>" autocomplete="off">
+                    <button type="button" class="ai-chat-send" id="ai-chat-send" title="<?php _e('发送'); ?>">
+                        <i class="fa fa-paper-plane"></i>
+                    </button>
+                </div>
+                <div class="ai-chat-footnote"><?php _e('内容由 AI 生成，仅供参考'); ?></div>
+            </div>
+            <?php endif; ?>
             <div class="ai-summary-footer">
+                <?php if ($aiChatOn): ?>
+                <button type="button" class="ai-chat-toggle" id="ai-chat-toggle">
+                    <i class="fa fa-comments-o"></i> <?php _e('询问 AI'); ?>
+                </button>
+                <button type="button" class="ai-chat-reset" id="ai-chat-reset" title="<?php _e('清空对话记录，开启新对话'); ?>">
+                    <i class="fa fa-eraser"></i> <?php _e('新对话'); ?>
+                </button>
+                <?php endif; ?>
                 <button type="button" class="ai-summary-regenerate" id="ai-summary-regenerate" title="<?php _e('重新生成'); ?>">
                     <i class="fa fa-refresh"></i> <?php _e('重新生成'); ?>
                 </button>

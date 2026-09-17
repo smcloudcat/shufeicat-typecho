@@ -96,136 +96,10 @@ if (!shufei_admin_csrf_verify()) {
 }
 
 /**
- * 与 Typecho Common::safeUrl + Validate::url 一致的 URL 校验
- * 返回 [bool 合法, string 清洗后值]
+ * URL 校验规则已抽到共享库 theme-url-rules.php
+ * （ai-settings-ajax.php 的 AI 设置助手 update 工具同样复用）
  */
-function shufei_theme_save_check_url($raw)
-{
-    $str = (string) $raw;
-
-    // 快速通过：合法原样返回
-    if (shufei_theme_save_php_url_valid($str)) {
-        return array(true, $str);
-    }
-
-    // 清洗：去除引号、尖括号、反引号、反斜杠、控制字符与首尾空白
-    $cleaned = str_replace(array('"', "'", '<', '>', '`', '\\'), '', $str);
-    $cleaned = preg_replace('/[\x00-\x1f\x7f]/', '', $cleaned);
-    $cleaned = preg_replace('/[\x{00A0}\x{3000}]/u', '', $cleaned);
-    $cleaned = trim($cleaned);
-
-    if ($cleaned !== '' && shufei_theme_save_php_url_valid($cleaned)) {
-        return array(true, $cleaned);
-    }
-
-    // 中文等非 ASCII 是 FILTER_VALIDATE_URL 的硬限制：尝试对路径/查询部分做 rawurlencode
-    $ascii = shufei_theme_save_encode_nonascii($cleaned);
-    if ($ascii !== '' && shufei_theme_save_php_url_valid($ascii)) {
-        return array(true, $ascii);
-    }
-
-    return array(false, '');
-}
-
-/**
- * 精确复现 Typecho Validate::url 的判定
- */
-function shufei_theme_save_php_url_valid($str)
-{
-    if ($str === '') {
-        return false;
-    }
-    $url = shufei_theme_save_safe_url($str);
-    return (bool) (filter_var($str, FILTER_VALIDATE_URL) && ($url === $str));
-}
-
-function shufei_theme_save_safe_url($url)
-{
-    $params = parse_url(str_replace(["\r", "\n", "\t", ' '], '', $url));
-
-    if (isset($params['scheme'])) {
-        if (!in_array($params['scheme'], array('http', 'https'))) {
-            return '/';
-        }
-    }
-
-    $params = array_map(function ($string) {
-        $string = str_replace(array('%0d', '%0a'), '', strip_tags($string));
-        $string = preg_replace(
-            array("/\(\s*([\"'])/i", "/([\"'])\s*\)/i"),
-            '',
-            $string
-        );
-        $string = str_replace(array('"', "'", '<', '>'), '', $string);
-        return $string;
-    }, $params);
-
-    return shufei_theme_save_build_url($params);
-}
-
-function shufei_theme_save_build_url(array $params)
-{
-    return (isset($params['scheme']) ? $params['scheme'] . '://' : null)
-        . (isset($params['user']) ? $params['user']
-            . (isset($params['pass']) ? ':' . $params['pass'] : null) . '@' : null)
-        . (isset($params['host']) ? $params['host'] : null)
-        . (isset($params['port']) ? ':' . $params['port'] : null)
-        . (isset($params['path']) ? $params['path'] : null)
-        . (isset($params['query']) ? '?' . $params['query'] : null)
-        . (isset($params['fragment']) ? '#' . $params['fragment'] : null);
-}
-
-/**
- * 将主机名之外的部分（路径/查询/锚点）中的非 ASCII 字符 percent-encode，
- * 以兼容 PHP FILTER_VALIDATE_URL 的 ASCII 限制
- */
-function shufei_theme_save_encode_nonascii($url)
-{
-    $parts = parse_url($url);
-    if (!isset($parts['scheme'], $parts['host'])) {
-        return '';
-    }
-    $host = $parts['host'];
-    // 主机含非 ASCII（如中文域名）时转 punycode 不可行，直接判失败
-    if (preg_match('/[^\x20-\x7e]/', $host)) {
-        return '';
-    }
-    $rebuilt = $parts['scheme'] . '://';
-    if (isset($parts['user'])) {
-        $rebuilt = rawurlencode($parts['user']);
-        $host = $rebuilt . (isset($parts['pass']) ? ':' . rawurlencode($parts['pass']) : '') . '@' . $host;
-    }
-    $out = $parts['scheme'] . '://' . $host;
-    if (isset($parts['port'])) {
-        $out .= ':' . $parts['port'];
-    }
-    foreach (array('path', 'query', 'fragment') as $part) {
-        if (!isset($parts[$part])) {
-            continue;
-        }
-        $enc = preg_replace_callback('/[^\x21-\x7e]+/u', function ($m) {
-            return rawurlencode($m[0]);
-        }, $parts[$part]);
-        $out .= ($part === 'path' ? $enc : ($part === 'query' ? '?' . $enc : '#' . $enc));
-    }
-    return $out;
-}
-
-/**
- * 需要校验 URL 的字段及其展示名
- */
-function shufei_theme_save_url_fields()
-{
-    return array(
-        'logoUrl'           => 'Logo 图片地址',
-        'shufeiUpdateApiUrl' => '更新接口地址',
-        'footerBeianLink'   => '备案链接',
-        'footerGonganLink'  => '公安备案链接',
-        'bgImage'           => '背景图片',
-        'customCdn'         => '自定义 CDN 地址',
-        'seoOgImage'        => 'OG 分享图',
-    );
-}
+require_once dirname(__FILE__) . '/theme-url-rules.php';
 
 try {
     $theme = $options->theme;
@@ -247,6 +121,17 @@ try {
     if (empty($settings)) {
         echo json_encode(array('success' => false, 'message' => '未收到任何设置数据'));
         exit;
+    }
+
+    // 多选（Checkbox）字段：全部取消勾选时浏览器不会提交该键，
+    // 此处显式补空数组，避免"取消全部勾选"保存后又回退为默认值。
+    // 仅当本次提交确实来自含该字段的新版表单时生效（防旧版表单误伤）。
+    if (array_key_exists('listRadius', $settings)) {
+        foreach (array('listMeta') as $multiField) {
+            if (!array_key_exists($multiField, $settings)) {
+                $settings[$multiField] = array();
+            }
+        }
     }
 
     // URL 字段校验 + 修复式清洗

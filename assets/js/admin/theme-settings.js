@@ -9,7 +9,7 @@
         var pWrap = c.querySelector("#cat-panes");
         if (!pWrap) return;
         f.insertBefore(c, f.firstChild);
-        var ids = ["cat-basic", "cat-avatar", "cat-appearance", "cat-pjax", "cat-resource", "cat-article", "cat-sidebar", "cat-seo", "cat-mail", "cat-ai", "cat-storage", "cat-verify", "cat-enhance", "cat-data", "cat-update"];
+        var ids = ["cat-basic", "cat-avatar", "cat-appearance", "cat-list", "cat-pjax", "cat-resource", "cat-article", "cat-sidebar", "cat-seo", "cat-mail", "cat-ai", "cat-storage", "cat-verify", "cat-enhance", "cat-data", "cat-update"];
         ids.forEach(function(id) {
             var p = document.createElement("div");
             p.id = id; p.className = "cat-pane" + (id === "cat-basic" ? " active" : "");

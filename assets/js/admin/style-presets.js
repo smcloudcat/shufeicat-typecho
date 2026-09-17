@@ -77,13 +77,14 @@
             container.innerHTML = "";
             return;
         }
-        var html = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">';
+        var html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;">';
         recs.forEach(function (r) {
             var bg = esc(r.preview && r.preview.background ? r.preview.background : "#ffffff");
             var dot = r.preview && r.preview.themeColor ? '<i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + esc(r.preview.themeColor) + ';margin-right:4px;vertical-align:middle;"></i>' : "";
+            var imgHtml = r.image ? '<img src="' + esc(r.image) + '" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" onerror="this.style.display=\'none\';" />' : "";
             html += '<div style="border:1px solid #e3e3e3;border-radius:6px;overflow:hidden;background:#fff;display:flex;flex-direction:column;">' +
                 '<a class="style-preset-rec-app" href="javascript:;" data-id="' + esc(r.id) + '" title="' + esc(r.name) + '" style="display:block;height:86px;background:' + bg + ';position:relative;overflow:hidden;text-decoration:none;cursor:pointer;">' +
-                '<img src="' + esc(r.image) + '" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" onerror="this.style.display=\'none\';" />' +
+                imgHtml +
                 '<span style="position:absolute;left:8px;bottom:8px;background:rgba(0,0,0,.55);color:#fff;font-size:11px;border-radius:10px;padding:2px 8px;white-space:nowrap;">' + dot + '一键应用</span>' +
                 '</a>' +
                 '<div style="padding:8px 10px 10px;display:flex;flex-direction:column;gap:2px;">' +

@@ -43,14 +43,14 @@
             <?php endif; ?>
             <div class="post-footer">
                 <ul class="post-meta-inline">
-                    <li itemprop="author" itemscope itemtype="http://schema.org/Person">
+                    <li class="meta-author" itemprop="author" itemscope itemtype="http://schema.org/Person">
                         <a itemprop="name" href="<?php $post->author->permalink(); ?>" rel="author"><?php $post->author(); ?></a>
                     </li>
-                    <li>
+                    <li class="meta-date">
                         <time datetime="<?php $post->date('c'); ?>" itemprop="datePublished"><?php $post->date(); ?></time>
                     </li>
-                    <li><?php $post->category(','); ?></li>
-                    <li itemprop="interactionCount">
+                    <li class="meta-category"><?php $post->category(','); ?></li>
+                    <li class="meta-comments" itemprop="interactionCount">
                         <a itemprop="discussionUrl" href="<?php $post->permalink() ?>#comments"><?php $post->commentsNum(_t('0'), _t('1'), _t('%d')); ?></a>
                     </li>
                 </ul>
@@ -74,11 +74,11 @@
         </h2>
         <div class="minimal-meta">
             <?php if (!$post->hidden): ?>
-            <span class="minimal-comments" title="评论数">
+            <span class="minimal-comments meta-comments" title="评论数">
                 <i class="fa fa-comment-o"></i> <?php $post->commentsNum(_t('0'), _t('1'), _t('%d')); ?>
             </span>
             <?php endif; ?>
-            <span class="minimal-category" title="分类">
+            <span class="minimal-category meta-category" title="分类">
                 <i class="fa fa-folder-o"></i> <?php $post->category(','); ?>
             </span>
         </div>
@@ -118,9 +118,9 @@
                 <a itemprop="url" href="<?php $post->permalink(); ?>"><?php $post->title(); ?></a>
             </h2>
             <ul class="post-meta-top">
-                <li><i class="fa fa-user"></i> <a href="<?php $post->author->permalink(); ?>" rel="author"><?php $post->author(); ?></a></li>
-                <li><i class="fa fa-calendar"></i> <time datetime="<?php $post->date('c'); ?>" itemprop="datePublished"><?php $post->date(); ?></time></li>
-                <li><i class="fa fa-folder-o"></i> <?php $post->category(','); ?></li>
+                <li class="meta-author"><i class="fa fa-user"></i> <a href="<?php $post->author->permalink(); ?>" rel="author"><?php $post->author(); ?></a></li>
+                <li class="meta-date"><i class="fa fa-calendar"></i> <time datetime="<?php $post->date('c'); ?>" itemprop="datePublished"><?php $post->date(); ?></time></li>
+                <li class="meta-category"><i class="fa fa-folder-o"></i> <?php $post->category(','); ?></li>
             </ul>
         </header>
         <div class="post-excerpt" itemprop="articleBody">

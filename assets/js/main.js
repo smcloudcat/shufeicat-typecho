@@ -2198,6 +2198,28 @@ window.initAiSummary = function() {
         }
     }
 
+    // ===== 全局AI助手：无缓存文章自动生成（服务端 data-ai-auto="1" 标记，仅触发一次）=====
+    // 失败时显示错误，可点击卡片下方「重新生成」重试；成功后弹球/顶部栏内容同步
+    if (box && box.getAttribute('data-ai-auto') === '1' && !box.getAttribute('data-ai-auto-bound')) {
+        box.setAttribute('data-ai-auto-bound', '1');
+        if (contentEl) {
+            generate(function(err, summary) {
+                if (err) {
+                    if (contentEl) contentEl.innerHTML = errorHtml(err);
+                } else {
+                    cachedText = summary;
+                    if (contentEl) {
+                        contentEl.innerHTML = summaryHtml(summary);
+                        var autoSource = box.querySelector('.ai-summary-source');
+                        if (autoSource) autoSource.textContent = '';
+                    }
+                }
+            }, function(partial) {
+                if (contentEl) contentEl.innerHTML = summaryHtml(partial);
+            });
+        }
+    }
+
     // ===== 悬浮弹球 + 弹窗 =====
     var popup = null;
     var popupContent = null;
@@ -2315,6 +2337,236 @@ window.initAiSummary = function() {
             window.__aiSummaryTocObserver.observe(tocBtn, { attributes: true, attributeFilter: ['class'] });
         }
     }
+
+    // AI 摘要连续对话
+    window.initAiChat();
+};
+
+/**
+ * AI 摘要连续对话
+ * 摘要卡片下方的「询问 AI」对话区（需后台开启 aiChatMode=on 且文章已开摘要）。
+ *  - 多轮上下文由前端携带（仅保留最近若干条，服务端再校验）
+ *  - AI 可调用站内工具（搜索公开文章/评论、站点信息），隐私由服务端锁死
+ */
+window.initAiChat = function() {
+    var box = document.getElementById('ai-summary-box');
+    if (!box || box.getAttribute('data-ai-chat') !== '1') return;
+    var area = document.getElementById('ai-chat-area');
+    var toggleBtn = document.getElementById('ai-chat-toggle');
+    var messagesEl = document.getElementById('ai-chat-messages');
+    var input = document.getElementById('ai-chat-input');
+    var sendBtn = document.getElementById('ai-chat-send');
+    var resetBtn = document.getElementById('ai-chat-reset');
+    if (!area || !toggleBtn || !messagesEl || !input || !sendBtn) return;
+    if (box.getAttribute('data-ai-chat-bound')) return;
+    box.setAttribute('data-ai-chat-bound', '1');
+
+    var cid = box.getAttribute('data-cid');
+    var maxRounds = parseInt(box.getAttribute('data-ai-chat-max'), 10) || 10;
+    // 会话范围：global = 全站共享一份对话（跨文章/首页），post = 单篇文章独立会话
+    var scope = box.getAttribute('data-ai-scope') === 'global' ? 'global' : 'post';
+    var storeKey = scope === 'global'
+        ? 'shufei_ai_chat_global'
+        : 'shufei_ai_chat_post_' + (parseInt(cid, 10) || 0);
+    // 请求 cid：全局会话首页传 0（后端走站点级提示词），文章页传当前文章（保留本文上下文）
+    var reqCid = parseInt(cid, 10) || 0;
+    var busy = false;
+
+    var WELCOME_GLOBAL = '你好呀～我是本站 AI 助手，这是一个全站共享的连续会话。可以让我帮你找文章、查评论，或聊聊站内内容～';
+    var WELCOME_POST = '你好呀～我是本站 AI 助手。可以问我这篇文章的内容，也可以让我帮你搜全站的文章和评论。';
+
+    // ===== 对话记录持久化（localStorage，失败静默降级为内存会话）=====
+    function storageGet() {
+        try { return window.localStorage.getItem(storeKey); } catch (e) { return null; }
+    }
+    function storageSet(val) {
+        try { window.localStorage.setItem(storeKey, val); } catch (e) {}
+    }
+    function storageDel() {
+        try { window.localStorage.removeItem(storeKey); } catch (e) {}
+    }
+    function loadHistory() {
+        var raw = storageGet();
+        if (!raw) return [];
+        try {
+            var arr = JSON.parse(raw);
+            if (!Array.isArray(arr)) return [];
+            var clean = [];
+            for (var i = 0; i < arr.length && i < 12; i++) {
+                var h = arr[i];
+                if (h && (h.role === 'user' || h.role === 'assistant')
+                    && typeof h.content === 'string' && h.content) {
+                    clean.push({ role: h.role, content: h.content.slice(0, 1500) });
+                }
+            }
+            return clean;
+        } catch (e) { return []; }
+    }
+    function saveHistory() {
+        storageSet(JSON.stringify(history.slice(-12)));
+    }
+
+    var history = loadHistory(); // {role:'user'|'assistant', content}
+
+    // 恢复历史对话（刷新/跨页面后仍显示同一份记录）
+    if (history.length) {
+        for (var hi = 0; hi < history.length; hi++) {
+            appendBubble(history[hi].role, history[hi].content);
+        }
+    } else if (!area.hidden) {
+        appendBubble('assistant', scope === 'global' ? WELCOME_GLOBAL : WELCOME_POST);
+    }
+
+    function escapeHtml(str) {
+        if (str === null || str === undefined) return '';
+        return String(str).replace(/[&<>"']/g, function(m) {
+            return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];
+        });
+    }
+
+    function bubbleHtml(role, text) {
+        var cls = role === 'user' ? 'ai-chat-bubble user' : 'ai-chat-bubble assistant';
+        return '<div class="' + cls + '"><div class="ai-chat-bubble-inner">' + escapeHtml(text).replace(/\n/g, '<br>') + '</div></div>';
+    }
+
+    function appendBubble(role, text) {
+        messagesEl.insertAdjacentHTML('beforeend', bubbleHtml(role, text));
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function loadingNode() {
+        var div = document.createElement('div');
+        div.className = 'ai-chat-bubble assistant ai-chat-loading';
+        div.innerHTML = '<div class="ai-chat-bubble-inner"><i class="fa fa-spinner fa-spin"></i> ' +
+            '<span>' + (Math.random() < 0.5 ? '正在思考…' : '查阅站内资料中…') + '</span></div>';
+        messagesEl.appendChild(div);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+        return div;
+    }
+
+    function tipNode(text) {
+        var div = document.createElement('div');
+        div.className = 'ai-chat-tip';
+        div.textContent = text;
+        messagesEl.appendChild(div);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+        return div;
+    }
+
+    function setBusy(b) {
+        busy = b;
+        sendBtn.disabled = b;
+        sendBtn.classList.toggle('disabled', b);
+    }
+
+    function roundsUsed() {
+        // 一轮 = user + assistant 各一条
+        return history.filter(function(h) { return h.role === 'assistant'; }).length;
+    }
+
+    function send() {
+        if (busy) return;
+        var text = input.value.replace(/\s+$/g, '').trim();
+        if (!text) return;
+
+        if (roundsUsed() >= maxRounds) {
+            tipNode('本篇对话已达上限（' + maxRounds + ' 轮），刷新页面可开启新对话');
+            return;
+        }
+
+        busy = true;
+        sendBtn.disabled = true;
+        appendBubble('user', text);
+        history.push({ role: 'user', content: text });
+        input.value = '';
+
+        var loading = loadingNode();
+        var payloadHistory = history.slice(-12);
+
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', (window.themeUrl || '') + 'core/ajax-handler.php?action=ai_chat', true);
+        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+        xhr.timeout = 90000;
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState !== 4) return;
+            if (loading && loading.parentNode) {
+                loading.parentNode.removeChild(loading);
+                loading = null;
+            }
+            var data = null;
+            try { data = JSON.parse(xhr.responseText); } catch (e) { data = null; }
+            if (xhr.status === 200 && data && data.success && data.reply) {
+                history.push({ role: 'assistant', content: data.reply });
+                appendBubble('assistant', data.reply);
+                saveHistory();
+            } else {
+                // 失败：撤回刚加入的 user 消息，允许重试
+                history.pop();
+                saveHistory();
+                appendBubble('assistant', (data && data.message) ? data.message : '请求失败，请稍后重试');
+            }
+            setBusy(false);
+            if (!area.hidden) input.focus();
+        };
+        xhr.ontimeout = function() {
+            if (loading && loading.parentNode) {
+                loading.parentNode.removeChild(loading);
+                loading = null;
+            }
+            history.pop();
+            saveHistory();
+            appendBubble('assistant', '请求超时，请稍后重试');
+            setBusy(false);
+        };
+        xhr.send(
+            'cid=' + encodeURIComponent(reqCid) +
+            '&message=' + encodeURIComponent(text) +
+            '&history=' + encodeURIComponent(JSON.stringify(payloadHistory)) +
+            '&_=' + encodeURIComponent(window.csrfToken || '')
+        );
+    }
+
+    function syncToggleLabel() {
+        var collapsed = area.hidden;
+        toggleBtn.innerHTML = '<i class="fa ' + (collapsed ? 'fa-comments-o' : 'fa-chevron-down') + '"></i> ' +
+            (collapsed ? (toggleBtn.getAttribute('data-label') || '询问 AI') : '收起对话');
+        toggleBtn.classList.toggle('open', !collapsed);
+    }
+    syncToggleLabel();
+
+    toggleBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        area.hidden = !area.hidden;
+        syncToggleLabel();
+        if (!area.hidden && !messagesEl.hasChildNodes()) {
+            appendBubble('assistant', scope === 'global' ? WELCOME_GLOBAL : WELCOME_POST);
+        }
+        if (!area.hidden) input.focus();
+    });
+
+    // 新对话：清空持久化记录，重新开始（不影响限速与 AI 侧状态）
+    if (resetBtn) {
+        resetBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (busy) return;
+            history = [];
+            storageDel();
+            messagesEl.innerHTML = '';
+            appendBubble('assistant', scope === 'global' ? WELCOME_GLOBAL : WELCOME_POST);
+            input.focus();
+        });
+    }
+
+    sendBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        send();
+    });
+    input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            send();
+        }
+    });
 };
 
 /**
