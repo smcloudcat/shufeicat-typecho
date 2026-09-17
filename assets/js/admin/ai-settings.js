@@ -17,6 +17,9 @@
         var modTypeRadios=document.querySelectorAll("input[name=aiModerationApiType]");
         var modEnabledRadios=document.querySelectorAll("input[name=aiModerationEnabled]");
         var summaryEnabledRadios=document.querySelectorAll("input[name=aiSummaryEnabled]");
+        // 后台 AI 设置助手（悬浮窗）
+        var adminAssistantRadios=document.querySelectorAll("input[name=adminAiAssistant]");
+        var adminApiSourceRadios=document.querySelectorAll("input[name=adminAiApiSource]");
         var unifiedFields=document.querySelectorAll(".ai-unified-field");
         var writerFields=document.querySelectorAll(".ai-separate-writer-field");
         var modFields=document.querySelectorAll(".ai-separate-moderation-field");
@@ -46,6 +49,8 @@
         function getModType(){return getRadio("aiModerationApiType","custom");}
         function getModEnabled(){return getRadio("aiModerationEnabled","off");}
         function getSummaryEnabled(){return getRadio("aiSummaryEnabled","off");}
+        function getAdminAssistant(){return getRadio("adminAiAssistant","off");}
+        function getAdminApiSource(){return getRadio("adminAiApiSource","follow");}
 
         // 提供商对应的自定义字段显示判断
         function providerNeedsUrl(provider){
@@ -115,6 +120,16 @@
                 document.querySelectorAll(".ai-custom-moderation-field").forEach(function(el){el.style.display="none";});
             }
 
+            // 后台 AI 设置助手：接口配置仅在助手开启时显示；来源选「自定义接口」时才显示地址/密钥/模型
+            var adminAssistantOn=getAdminAssistant()==="on";
+            var adminCustom=getAdminApiSource()==="custom";
+            document.querySelectorAll(".aias-field").forEach(function(el){
+                el.style.display=adminAssistantOn?"":"none";
+            });
+            document.querySelectorAll(".aias-custom-field").forEach(function(el){
+                el.style.display=(adminAssistantOn&&adminCustom)?"":"none";
+            });
+
             // AI 审核高级设置：仅在 AI 评论审核开启时显示
             var modOn=getModEnabled()==="on";
             modAdvancedFields.forEach(function(el){el.style.display=modOn?"":"none";});
@@ -137,7 +152,8 @@
             if(btnModelsMod)btnModelsMod.style.display=mode==="off"?"inline-block":"none";
         }
         [modeRadios,unifiedTypeRadios,writerTypeRadios,modTypeRadios,modEnabledRadios,summaryEnabledRadios,
-         unifiedProviderRadios,writerProviderRadios,modProviderRadios].forEach(function(group){
+         unifiedProviderRadios,writerProviderRadios,modProviderRadios,
+         adminAssistantRadios,adminApiSourceRadios].forEach(function(group){
             if(group&&group.length)group.forEach(function(r){r.addEventListener("change",updateFields);});
         });
         updateFields();

@@ -151,10 +151,34 @@ try {
                 break;
             }
             $settings = array();
+            $multiFields = shufei_style_preset_multi_fields();
             foreach (shufei_style_preset_fields() as $key) {
-                if (isset($_POST[$key])) {
-                    $settings[$key] = trim((string) $_POST[$key]);
+                if (!isset($_POST[$key])) {
+                    continue;
                 }
+                // 多值字段（Checkbox，提交为 name[]）→ 收集为去重后的字符串数组
+                if (in_array($key, $multiFields, true)) {
+                    $raw = $_POST[$key];
+                    if (!is_array($raw)) {
+                        $raw = explode(',', (string) $raw);
+                    }
+                    $values = array();
+                    foreach ($raw as $one) {
+                        if (!is_scalar($one)) {
+                            continue;
+                        }
+                        $one = trim((string) $one);
+                        if ($one !== '') {
+                            $values[] = $one;
+                        }
+                    }
+                    $settings[$key] = array_values(array_unique($values));
+                    continue;
+                }
+                if (is_array($_POST[$key])) {
+                    continue;
+                }
+                $settings[$key] = trim((string) $_POST[$key]);
             }
             $preset = shufei_style_presets_save($name, $settings);
             echo json_encode(array(

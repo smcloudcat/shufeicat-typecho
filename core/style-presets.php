@@ -11,13 +11,15 @@ if (!defined('__TYPECHO_ROOT_DIR__')) exit;
 
 /**
  * 样式预设允许保存的字段白名单
- * 仅收录「外观设置」(cat-group-appearance) 分组的相关字段
+ * 仅收录「外观设置」(cat-group-appearance) 分组的字段，
+ * 含基础外观项与「列表美化 & 侧边栏」的全部选项。
  *
  * @return array
  */
 function shufei_style_preset_fields()
 {
     return array(
+        // ---- 基础外观 ----
         'themeColor',
         'bgColor',
         'bgImage',
@@ -27,7 +29,36 @@ function shufei_style_preset_fields()
         'bgGradientAttachment',
         'cardOpacity',
         'postListStyle',
+        // ---- 列表美化 & 侧边栏 ----
+        'listRadius',
+        'listGap',
+        'listShadow',
+        'listHover',
+        'listAccent',
+        'listThumbWidth',
+        'listMeta',
+        'listExcerpt',
+        'listExcerptLines',
+        'sidebarWidth',
+        'sidebarRadius',
+        'sidebarTitleStyle',
+        'sidebarListHover',
+        'sidebarSticky',
+        'customCss',
     );
+}
+
+/**
+ * 样式预设中的多值字段（Checkbox，存数组而非字符串）
+ *
+ * 保存端需按数组收集（表单提交为 name[]），应用端直接写回数组，
+ * 否则后台多选框无法回显勾选状态。
+ *
+ * @return array
+ */
+function shufei_style_preset_multi_fields()
+{
+    return array('listMeta');
 }
 
 /**

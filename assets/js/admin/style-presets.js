@@ -8,20 +8,54 @@
         el.innerHTML = '<i class="fa fa-' + (type === "success" ? "check-circle" : type === "error" ? "exclamation-circle" : "info-circle") + '"></i> ' + msg;
     }
 
+    // 样式预设字段（与 core/style-presets.php 的 shufei_style_preset_fields() 保持一致）
+    var PRESET_TEXT_FIELDS = ["themeColor", "bgColor", "bgImage", "bgGradient", "bgGradientDark", "bgGradientAttachment", "cardOpacity", "listRadius", "listGap", "listShadow", "listThumbWidth", "listExcerptLines", "sidebarWidth", "sidebarRadius", "customCss"];
+    var PRESET_RADIO_FIELDS = ["bgGradientEnabled", "postListStyle", "listHover", "listAccent", "listExcerpt", "sidebarTitleStyle", "sidebarListHover", "sidebarSticky"];
+    var PRESET_CHECKBOX_FIELDS = ["listMeta"];
+
     function collectSettings() {
-        var fields = ["themeColor", "bgColor", "bgImage", "bgGradientEnabled", "bgGradient", "bgGradientDark", "bgGradientAttachment", "cardOpacity", "postListStyle"];
         var data = {};
-        fields.forEach(function (name) {
+        PRESET_TEXT_FIELDS.forEach(function (name) {
+            var list = document.querySelectorAll('[name="' + name + '"]');
+            if (list && list.length) data[name] = list[0].value;
+        });
+        PRESET_RADIO_FIELDS.forEach(function (name) {
             var list = document.querySelectorAll('[name="' + name + '"]');
             if (!list || !list.length) return;
-            var el = list[0];
-            if (el.type === "radio" || el.type === "checkbox") {
-                list.forEach(function (r) { if (r.checked) data[name] = r.value; });
-            } else {
-                data[name] = el.value;
+            list.forEach(function (r) { if (r.checked) data[name] = r.value; });
+        });
+        PRESET_CHECKBOX_FIELDS.forEach(function (name) {
+            var checked = [];
+            document.querySelectorAll('[name="' + name + '[]"]').forEach(function (c) {
+                if (c.checked) checked.push(c.value);
+            });
+            if (!checked.length && !document.querySelector('[name="' + name + '[]"]')) {
+                document.querySelectorAll('[name="' + name + '"]').forEach(function (c) {
+                    if (c.checked) checked.push(c.value);
+                });
             }
+            data[name] = checked;
         });
         return data;
+    }
+
+    // 组装提交用键值对（数组字段展开为 name[] 形式，空数组显式发一个空值占位）
+    function buildPairs(extra, settings) {
+        var pairs = [];
+        Object.keys(extra).forEach(function (k) { pairs.push({ k: k, v: extra[k] }); });
+        Object.keys(settings || {}).forEach(function (k) {
+            var val = settings[k];
+            if (Object.prototype.toString.call(val) === "[object Array]") {
+                if (!val.length) {
+                    pairs.push({ k: k + "[]", v: "" });
+                } else {
+                    val.forEach(function (one) { pairs.push({ k: k + "[]", v: one }); });
+                }
+            } else {
+                pairs.push({ k: k, v: val });
+            }
+        });
+        return pairs;
     }
 
     function currentId() {
@@ -156,7 +190,11 @@
 
         function post(data) {
             var fd = new FormData();
-            Object.keys(data).forEach(function (k) { fd.append(k, data[k]); });
+            if (Object.prototype.toString.call(data) === "[object Array]") {
+                data.forEach(function (p) { fd.append(p.k, p.v == null ? "" : p.v); });
+            } else {
+                Object.keys(data).forEach(function (k) { fd.append(k, data[k]); });
+            }
             return fetch(ajax, { method: "POST", body: fd, credentials: "same-origin" }).then(function (r) { return r.json(); });
         }
 
@@ -187,9 +225,7 @@
                 return;
             }
             saveBtn.disabled = true;
-            var data = { action: "save", name: name };
-            Object.keys(settings).forEach(function (k) { data[k] = settings[k]; });
-            post(data).then(function (res) {
+            post(buildPairs({ action: "save", name: name }, settings)).then(function (res) {
                 saveBtn.disabled = false;
                 if (res && res.success) {
                     nameInput.value = "";

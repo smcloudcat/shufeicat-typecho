@@ -9,7 +9,7 @@
         var pWrap = c.querySelector("#cat-panes");
         if (!pWrap) return;
         f.insertBefore(c, f.firstChild);
-        var ids = ["cat-basic", "cat-avatar", "cat-appearance", "cat-list", "cat-pjax", "cat-resource", "cat-article", "cat-sidebar", "cat-seo", "cat-mail", "cat-ai", "cat-storage", "cat-verify", "cat-enhance", "cat-data", "cat-update"];
+        var ids = ["cat-basic", "cat-avatar", "cat-appearance", "cat-pjax", "cat-resource", "cat-article", "cat-sidebar", "cat-seo", "cat-mail", "cat-ai", "cat-storage", "cat-verify", "cat-enhance", "cat-data", "cat-update"];
         ids.forEach(function(id) {
             var p = document.createElement("div");
             p.id = id; p.className = "cat-pane" + (id === "cat-basic" ? " active" : "");
@@ -62,6 +62,42 @@
             r.addEventListener("change", applyVerifyType);
         });
         applyVerifyType();
+        // ===== 「选择 + 填写」混合输入框：预设标签点击填入 + 纯数字自动补单位 =====
+        (function initPresetInputs() {
+            function fill(input, value) {
+                input.value = value;
+                input.dispatchEvent(new Event("change", { bubbles: true }));
+            }
+            document.querySelectorAll("input[data-preset-input]").forEach(function(input) {
+                var name = input.getAttribute("data-preset-input");
+                var unit = input.getAttribute("data-preset-unit") || "";
+                var chips = document.querySelectorAll('.shufei-preset-chip[data-preset-target="' + name + '"]');
+                function sync() {
+                    var val = String(input.value == null ? "" : input.value).trim();
+                    chips.forEach(function(c) {
+                        c.classList.toggle("on", !!val && c.getAttribute("data-preset-value") === val);
+                    });
+                }
+                chips.forEach(function(c) {
+                    c.addEventListener("click", function(ev) {
+                        ev.preventDefault();
+                        fill(input, c.getAttribute("data-preset-value") || "");
+                        sync();
+                    });
+                });
+                input.addEventListener("input", sync);
+                input.addEventListener("change", sync);
+                input.addEventListener("blur", function() {
+                    var raw = String(input.value == null ? "" : input.value).trim();
+                    // 纯数字自动补单位（如 14 → 14px），带单位/关键字的原样保留
+                    if (unit && /^-?\d+(\.\d+)?$/.test(raw)) {
+                        input.value = raw + unit;
+                        sync();
+                    }
+                });
+                sync();
+            });
+        })();
         // ===== AJAX 表单提交：走主题 JSON 端点，返回可读的逐字段校验结果 =====
         // （核心 Edit::config 的 validate() 失败会静默 goBack 且 AJAX 无法区分，故由后端接管保存）
         var saveUrl = "";

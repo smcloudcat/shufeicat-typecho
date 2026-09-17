@@ -609,25 +609,22 @@
     // ===== 列表美化 & 侧边栏自定义（后台「列表美化」Tab） =====
     // 所有变量均带默认值，未配置时与主题原有外观完全一致
     $lbOpt = function_exists('shufei_get_list_beautify_options') ? shufei_get_list_beautify_options() : array();
-    $lbShadowMap = array(
-        'none'   => array('none', 'none'),
-        'soft'   => array('0 2px 12px rgba(0, 0, 0, 0.04)', '0 8px 30px rgba(0, 0, 0, 0.08)'),
-        'medium' => array('0 4px 18px rgba(0, 0, 0, 0.07)', '0 14px 40px rgba(0, 0, 0, 0.13)'),
-        'strong' => array('0 6px 24px rgba(0, 0, 0, 0.10)', '0 20px 52px rgba(0, 0, 0, 0.20)'),
-    );
-    $lbShadowKey = isset($lbOpt['shadow']) && isset($lbShadowMap[$lbOpt['shadow']]) ? $lbOpt['shadow'] : 'soft';
-    $lbShadow = $lbShadowMap[$lbShadowKey];
+    // 尺寸类字段在 helper 中已归一化为 CSS 值字符串（12px / 1.2rem / calc(...)），此处只做输出转义
+    $lbVal = function ($key, $default) use ($lbOpt) {
+        $v = isset($lbOpt[$key]) ? (string) $lbOpt[$key] : '';
+        return htmlspecialchars($v !== '' ? $v : $default, ENT_QUOTES, 'UTF-8');
+    };
     ?>
     <style>
     :root {
-        --lb-radius: <?php echo intval(isset($lbOpt['radius']) ? $lbOpt['radius'] : 12); ?>px;
-        --lb-gap: <?php echo intval(isset($lbOpt['gap']) ? $lbOpt['gap'] : 18); ?>px;
-        --lb-thumb-width: <?php echo intval(isset($lbOpt['thumbWidth']) ? $lbOpt['thumbWidth'] : 200); ?>px;
+        --lb-radius: <?php echo $lbVal('radius', '12px'); ?>;
+        --lb-gap: <?php echo $lbVal('gap', '18px'); ?>;
+        --lb-thumb-width: <?php echo $lbVal('thumbWidth', '200px'); ?>;
         --lb-excerpt-lines: <?php echo intval(isset($lbOpt['excerptLines']) ? $lbOpt['excerptLines'] : 2); ?>;
-        --lb-shadow: <?php echo $lbShadow[0]; ?>;
-        --lb-shadow-hover: <?php echo $lbShadow[1]; ?>;
-        --lb-side-width: <?php echo intval(isset($lbOpt['sidebarWidth']) ? $lbOpt['sidebarWidth'] : 200); ?>px;
-        --lb-side-radius: <?php echo intval(isset($lbOpt['sidebarRadius']) ? $lbOpt['sidebarRadius'] : 12); ?>px;
+        --lb-shadow: <?php echo $lbVal('shadowCss', '0 2px 12px rgba(0, 0, 0, 0.04)'); ?>;
+        --lb-shadow-hover: <?php echo $lbVal('shadowHover', '0 8px 30px rgba(0, 0, 0, 0.08)'); ?>;
+        --lb-side-width: <?php echo $lbVal('sidebarWidth', '200px'); ?>;
+        --lb-side-radius: <?php echo $lbVal('sidebarRadius', '12px'); ?>;
     }
     </style>
     <?php if (!empty($lbOpt['customCss'])): ?>

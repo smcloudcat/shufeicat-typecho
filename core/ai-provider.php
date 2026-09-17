@@ -172,12 +172,62 @@ class AiProvider
     }
 
     /**
+     * 从主题配置构造「后台 AI 设置助手」实例
+     *
+     * - adminAiApiSource=follow（默认）：与前台一致，跟随站点统一/写作/审核接口
+     * - adminAiApiSource=custom：使用助手专属接口（adminAiApiUrl/Key/Model），
+     *   地址以 /responses 结尾时按 OpenAI Responses API 调用，否则按 Chat Completions
+     *
+     * @return AiProvider|null 未配置或不可用时返回 null
+     */
+    public static function fromAdminAssistantOptions()
+    {
+        $options = \Typecho\Widget::widget('Widget_Options');
+
+        $source = isset($options->adminAiApiSource) ? trim((string) $options->adminAiApiSource) : 'follow';
+
+        if ($source === 'custom') {
+            $url = isset($options->adminAiApiUrl) ? trim((string) $options->adminAiApiUrl) : '';
+            $key = isset($options->adminAiApiKey) ? trim((string) $options->adminAiApiKey) : '';
+            $model = isset($options->adminAiModel) ? trim((string) $options->adminAiModel) : '';
+            if ($url === '' || $key === '') {
+                return null;
+            }
+            $type = (stripos($url, '/responses') !== false) ? 'custom_responses' : 'custom_chat';
+            $instance = new self($type, $url, $key, $model !== '' ? $model : 'gpt-4o-mini', 60);
+            return $instance->isConfigured() ? $instance : null;
+        }
+
+        // 跟随站点接口：与前台/摘要/对话完全一致的选择逻辑
+        $unified = isset($options->aiUnifiedApi) ? $options->aiUnifiedApi : 'on';
+        $writerEnabled = isset($options->aiWriterEnabled) ? $options->aiWriterEnabled : 'off';
+        $moderationEnabled = isset($options->aiModerationEnabled) ? $options->aiModerationEnabled : 'off';
+
+        if ($unified === 'on') {
+            return self::fromUnifiedOptions();
+        }
+        if ($writerEnabled === 'on') {
+            return self::fromOptions();
+        }
+        if ($moderationEnabled === 'on') {
+            return self::fromModerationOptions();
+        }
+        return self::fromUnifiedOptions();
+    }
+
+    /**
      * 是否已配置（预设提供商只需密钥；自定义需地址+密钥）
+     *
+     * 注意：custom_responses 的地址保存在 responsesUrl（chatUrl 为空），
+     * 必须单独判断，否则会误报「未配置」。
      */
     public function isConfigured()
     {
         if ($this->provider === 'deepseek' || $this->provider === 'openai') {
             return !empty($this->apiKey);
+        }
+        if ($this->provider === 'custom_responses') {
+            return !empty($this->responsesUrl) && !empty($this->apiKey);
         }
         if ($this->provider === 'free') {
             return !empty($this->chatUrl) && !empty($this->apiKey);
@@ -303,7 +353,7 @@ class AiProvider
      * 带 Function Calling 的 Chat Completions 调用
      *
      * @param array $messages   [{role, content}, ...]
-     * @param array $tools      OpenAI tools 定义
+     * @param array $tools      OpenAI tools 定义（传空数组则按普通对话调用，不发送 tools 参数）
      * @param float $temperature
      * @param int   $maxTokens
      * @return array [
@@ -328,9 +378,12 @@ class AiProvider
             'model'       => $this->model,
             'messages'    => $messages,
             'temperature' => floatval($temperature),
-            'tools'       => $tools,
-            'tool_choice' => 'auto',
         );
+        // tools 留空时按普通对话发送（调用方降级为「文本协议」模式时使用）
+        if (!empty($tools)) {
+            $postData['tools'] = $tools;
+            $postData['tool_choice'] = 'auto';
+        }
         if ($maxTokens > 0) {
             $postData['max_tokens'] = intval($maxTokens);
         }
@@ -488,19 +541,26 @@ class AiProvider
     /**
      * 流式调用 Chat Completions（SSE）
      *
+     * 兼容两种结果：正文增量（delta.content）与工具调用增量（delta.tool_calls 分片累积）。
+     * 若接口忽略 stream 参数返回了普通 JSON，会自动兜底解析为完整回复/工具调用。
+     *
      * @param array   $messages   [{role, content}, ...]
      * @param float   $temperature
      * @param int     $maxTokens
      * @param callable $onChunk   收到增量文本时回调 function(string $delta)
-     * @return array ['success'=>bool, 'content'=>string, 'message'=>string, 'http_code'=>int]
+     * @return array [
+     *   'success'=>bool, 'content'=>string, 'message'=>string, 'http_code'=>int,
+     *   'tool_calls'=>array,            // [{id, name, arguments}]（流式工具调用）
+     *   'stream_unsupported'=>bool,     // 接口不支持流式时为 true（调用方可回退非流式）
+     * ]
      */
     public function chatStream($messages, $temperature = 0.7, $maxTokens = 2000, $onChunk = null)
     {
         if (empty($this->chatUrl)) {
-            return array('success' => false, 'message' => 'AI接口未配置，请填写 API 地址和密钥');
+            return array('success' => false, 'message' => 'AI接口未配置，请填写 API 地址和密钥', 'stream_unsupported' => true);
         }
         if (empty($this->apiKey)) {
-            return array('success' => false, 'message' => 'AI接口未配置，请填写 API 密钥');
+            return array('success' => false, 'message' => 'AI接口未配置，请填写 API 密钥', 'stream_unsupported' => false);
         }
 
         $postData = array(
@@ -515,6 +575,8 @@ class AiProvider
 
         $content = '';
         $buffer = '';
+        $raw = '';
+        $toolAcc = array(); // index => ['id' => '', 'name' => '', 'arguments' => '']
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $this->chatUrl);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -528,24 +590,59 @@ class AiProvider
         ));
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
-        curl_setopt($ch, CURLOPT_WRITEFUNCTION, function ($curl, $data) use (&$content, &$buffer, $onChunk) {
+        curl_setopt($ch, CURLOPT_WRITEFUNCTION, function ($curl, $data) use (&$content, &$buffer, &$raw, &$toolAcc, $onChunk) {
+            $raw .= $data;
             $buffer .= $data;
             while (($pos = strpos($buffer, "\n")) !== false) {
                 $line = rtrim(substr($buffer, 0, $pos), "\r");
                 $buffer = substr($buffer, $pos + 1);
                 $line = trim($line);
-                if ($line === '') continue;
-                if (strpos($line, 'data:') === 0) {
-                    $payload = trim(substr($line, 5));
-                    if ($payload === '[DONE]') continue;
-                    $json = @json_decode($payload, true);
-                    if (is_array($json) && isset($json['choices'][0]['delta']['content'])) {
-                        $delta = (string)$json['choices'][0]['delta']['content'];
-                        if ($delta !== '') {
-                            $content .= $delta;
-                            if (is_callable($onChunk)) {
-                                $onChunk($delta);
-                            }
+                if ($line === '') {
+                    continue;
+                }
+                if (strpos($line, 'data:') !== 0) {
+                    continue;
+                }
+                $payload = trim(substr($line, 5));
+                if ($payload === '[DONE]') {
+                    continue;
+                }
+                $json = @json_decode($payload, true);
+                if (!is_array($json) || !isset($json['choices'][0])) {
+                    continue;
+                }
+                $delta = (isset($json['choices'][0]['delta']) && is_array($json['choices'][0]['delta']))
+                    ? $json['choices'][0]['delta'] : array();
+
+                // 1) 正文增量
+                if (isset($delta['content'])) {
+                    $text = (string)$delta['content'];
+                    if ($text !== '') {
+                        $content .= $text;
+                        if (is_callable($onChunk)) {
+                            $onChunk($text);
+                        }
+                    }
+                }
+
+                // 2) 工具调用增量：OpenAI 会按 index 分片下发，arguments 需逐片拼接
+                if (isset($delta['tool_calls']) && is_array($delta['tool_calls'])) {
+                    foreach ($delta['tool_calls'] as $tc) {
+                        if (!is_array($tc)) {
+                            continue;
+                        }
+                        $idx = isset($tc['index']) ? (int)$tc['index'] : 0;
+                        if (!isset($toolAcc[$idx])) {
+                            $toolAcc[$idx] = array('id' => '', 'name' => '', 'arguments' => '');
+                        }
+                        if (isset($tc['id']) && $tc['id'] !== '') {
+                            $toolAcc[$idx]['id'] = (string)$tc['id'];
+                        }
+                        if (isset($tc['function']['name']) && $tc['function']['name'] !== '') {
+                            $toolAcc[$idx]['name'] = (string)$tc['function']['name'];
+                        }
+                        if (isset($tc['function']['arguments'])) {
+                            $toolAcc[$idx]['arguments'] .= (string)$tc['function']['arguments'];
                         }
                     }
                 }
@@ -560,10 +657,10 @@ class AiProvider
         if ($error) {
             $hint = (stripos($error, 'SSL certificate') !== false)
                 ? '（SSL证书问题，建议联系主机商修复CA证书）' : '';
-            return array('success' => false, 'content' => $content, 'message' => '连接失败: ' . $error . $hint, 'http_code' => 0);
+            return array('success' => false, 'content' => $content, 'message' => '连接失败: ' . $error . $hint, 'http_code' => 0, 'stream_unsupported' => false);
         }
         if ($httpCode !== 200) {
-            $apiError = self::extractApiError($content);
+            $apiError = self::extractApiError($raw);
             $detail = $apiError ? '：' . $apiError : '';
             $hint = '';
             if ($httpCode === 401) {
@@ -576,13 +673,68 @@ class AiProvider
                 'content' => $content,
                 'message' => 'API返回错误 (HTTP ' . $httpCode . $detail . ')' . $hint,
                 'http_code' => $httpCode,
+                // 400/404/422 常见于接口不认 stream 参数
+                'stream_unsupported' => in_array($httpCode, array(400, 404, 422), true),
             );
         }
-        if ($content === '') {
-            return array('success' => false, 'content' => '', 'message' => 'AI未返回有效内容', 'http_code' => $httpCode);
+
+        // 兜底：接口忽略 stream 参数、直接返回了完整 JSON（非 SSE）
+        if ($content === '' && empty($toolAcc) && $raw !== '') {
+            $plain = @json_decode(trim($raw), true);
+            if (is_array($plain) && isset($plain['choices'][0]['message']) && is_array($plain['choices'][0]['message'])) {
+                $msg = $plain['choices'][0]['message'];
+                if (isset($msg['content'])) {
+                    $content = (string)$msg['content'];
+                    if ($content !== '' && is_callable($onChunk)) {
+                        $onChunk($content); // 一次性推送
+                    }
+                }
+                if (!empty($msg['tool_calls']) && is_array($msg['tool_calls'])) {
+                    foreach ($msg['tool_calls'] as $i => $tc) {
+                        if (!is_array($tc) || !isset($tc['function'])) {
+                            continue;
+                        }
+                        $toolAcc[$i] = array(
+                            'id'        => isset($tc['id']) ? (string)$tc['id'] : ('call_' . $i),
+                            'name'      => isset($tc['function']['name']) ? (string)$tc['function']['name'] : '',
+                            'arguments' => isset($tc['function']['arguments']) ? (string)$tc['function']['arguments'] : '{}',
+                        );
+                    }
+                }
+            }
         }
 
-        return array('success' => true, 'content' => $content, 'http_code' => $httpCode);
+        // 整理工具调用（arguments 分片拼接后可能仍是空串）
+        $toolCalls = array();
+        ksort($toolAcc);
+        foreach ($toolAcc as $i => $item) {
+            if ($item['name'] === '') {
+                continue;
+            }
+            $toolCalls[] = array(
+                'id'        => $item['id'] !== '' ? $item['id'] : ('call_' . $i),
+                'name'      => $item['name'],
+                'arguments' => $item['arguments'] !== '' ? $item['arguments'] : '{}',
+            );
+        }
+
+        if ($content === '' && empty($toolCalls)) {
+            return array(
+                'success' => false,
+                'content' => '',
+                'message' => 'AI未返回有效内容',
+                'http_code' => $httpCode,
+                'stream_unsupported' => true, // 无法识别的响应 → 调用方可回退非流式
+            );
+        }
+
+        return array(
+            'success' => true,
+            'content' => $content,
+            'tool_calls' => $toolCalls,
+            'http_code' => $httpCode,
+            'stream_unsupported' => false,
+        );
     }
 
     /**

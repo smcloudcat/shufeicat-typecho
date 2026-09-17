@@ -583,26 +583,212 @@ function shufei_render_password_protection($widget, $title = '文章已加密~',
 }
 
 /**
+ * 清洗 CSS 长度值（圆角 / 间距 / 宽度等）
+ *
+ * 规则：
+ *  - 纯数字（可含小数与负号）→ 自动补 px，如 14 → 14px
+ *  - 数值 + 常用单位（px/rem/em/vw/vh/vmin/vmax/%/pt…）→ 原样保留
+ *  - CSS 函数 calc() / min() / max() / clamp() → 原样保留
+ *  - 含 { } ; : < > 引号 反斜杠 或 CSS 注释符号 → 视为非法，回退默认值
+ *
+ * @param mixed  $raw
+ * @param string $default
+ * @return string
+ */
+function shufei_sanitize_css_length($raw, $default)
+{
+    $value = is_scalar($raw) ? trim((string) $raw) : '';
+
+    if ($value === '' || strlen($value) > 60) {
+        return $default;
+    }
+    if (preg_match('/[{};:<>"\'\\\\]/', $value) || strpos($value, '/*') !== false || strpos($value, '*/') !== false) {
+        return $default;
+    }
+    if (preg_match('/^-?\d+(?:\.\d+)?$/', $value)) {
+        return $value . 'px';
+    }
+    if (preg_match('/^-?\d+(?:\.\d+)?(?:px|rem|em|vw|vh|vmin|vmax|%|pt|pc|in|cm|mm|ch|ex)$/i', $value)) {
+        return $value;
+    }
+    if (preg_match('/^(?:calc|min|max|clamp)\([0-9a-z\s.,%*\/+\-()]+\)$/i', $value)) {
+        return $value;
+    }
+
+    return $default;
+}
+
+/**
+ * 清洗通用 CSS 值（如站长自定义的 box-shadow）
+ *
+ * @param mixed  $raw
+ * @param string $default
+ * @return string
+ */
+function shufei_sanitize_css_value($raw, $default = '')
+{
+    $value = is_scalar($raw) ? trim((string) $raw) : '';
+
+    if ($value === '' || strlen($value) > 160) {
+        return $default;
+    }
+    if (preg_match('/[{};:<>"\'\\\\]/', $value) || strpos($value, '/*') !== false || strpos($value, '*/') !== false) {
+        return $default;
+    }
+    if (!preg_match('/^[0-9a-zA-Z\s.,%#()\-+\/]+$/', $value)) {
+        return $default;
+    }
+
+    return $value;
+}
+
+/**
+ * 清洗整数选项（带范围钳制）
+ *
+ * @param mixed $raw
+ * @param int   $default
+ * @param int   $min
+ * @param int   $max
+ * @return int
+ */
+function shufei_sanitize_int_option($raw, $default, $min, $max)
+{
+    $value = is_scalar($raw) ? trim((string) $raw) : '';
+
+    if (!preg_match('/^-?\d+$/', $value)) {
+        return $default;
+    }
+
+    $number = intval($value);
+    if ($number < $min) {
+        $number = $min;
+    }
+    if ($number > $max) {
+        $number = $max;
+    }
+
+    return $number;
+}
+
+/**
+ * 「列表美化」旧版枚举值 → 新版 CSS 值映射表（前后台共用，避免两处规则分叉）
+ *
+ * @param string|null $field 指定字段则只返回该字段的映射，null 返回整表
+ * @return array
+ */
+function shufei_list_setting_legacy_map($field = null)
+{
+    $map = array(
+        'listRadius'       => array('small' => '8px', 'normal' => '12px', 'large' => '16px', 'xlarge' => '20px'),
+        'listGap'          => array('compact' => '10px', 'normal' => '18px', 'loose' => '26px'),
+        'listThumbWidth'   => array('small' => '160px', 'normal' => '200px', 'large' => '240px', 'xlarge' => '280px'),
+        'sidebarWidth'     => array('narrow' => '200px', 'normal' => '230px', 'wide' => '260px'),
+        'sidebarRadius'    => array('inherit' => 'inherit', 'small' => '8px', 'large' => '16px'),
+        'listExcerptLines' => array('one' => '1', 'two' => '2', 'three' => '3'),
+    );
+
+    if ($field !== null) {
+        return isset($map[$field]) ? $map[$field] : array();
+    }
+
+    return $map;
+}
+
+/**
+ * 归一化「列表美化」单个设置项的后台表单回显值
+ *
+ * 背景：Typecho 渲染主题设置表单时，会用数据库中的原始值覆盖元素默认值
+ * （见 Widget\Themes\Config::config()），因此老站点留存的旧枚举值
+ * （normal / one / narrow …）会原样显示在输入框里，站长看到的不是真实生效的值。
+ * 本函数把原始值转换为前台实际生效的写法后再回显，保存一次即完成数据迁移。
+ *
+ * 与 shufei_get_list_beautify_options() 共用同一套旧枚举映射与清洗规则，
+ * 确保「后台输入框里显示的值 == 前台最终生效的值」。
+ *
+ * @param string $name  字段名
+ * @param mixed  $value 数据库中的原始值
+ * @return string 归一化后的回显值（空值回退该字段的默认值）
+ */
+function shufei_normalize_list_setting_value($name, $value)
+{
+    $value = is_scalar($value) ? trim((string) $value) : '';
+
+    // 字段默认值（与表单元素的默认值保持一致）
+    $defaults = array(
+        'listRadius'       => '12px',
+        'listGap'          => '18px',
+        'listShadow'       => 'soft',
+        'listThumbWidth'   => '200px',
+        'listExcerptLines' => '2',
+        'sidebarWidth'     => '200px',
+        'sidebarRadius'    => 'inherit',
+    );
+    $default = isset($defaults[$name]) ? $defaults[$name] : '';
+
+    if ($value === '') {
+        return $default;
+    }
+
+    // 旧版枚举值 → 新版 CSS 值（与前台 helper 共用同一张表）
+    $legacyMap = shufei_list_setting_legacy_map($name);
+    if (isset($legacyMap[$value])) {
+        return $legacyMap[$value];
+    }
+
+    switch ($name) {
+        case 'listRadius':
+        case 'listGap':
+        case 'listThumbWidth':
+        case 'sidebarWidth':
+            return shufei_sanitize_css_length($value, $default);
+
+        case 'sidebarRadius':
+            return $value === 'inherit' ? 'inherit' : shufei_sanitize_css_length($value, 'inherit');
+
+        case 'listExcerptLines':
+            return (string) shufei_sanitize_int_option($value, 2, 1, 10);
+
+        case 'listShadow':
+            if (in_array($value, array('none', 'soft', 'medium', 'strong'), true)) {
+                return $value;
+            }
+            // 站长填写的自定义阴影原样回显；'custom' 为历史脏数据，回退「轻柔」
+            if ($value === 'custom') {
+                return $default;
+            }
+            return shufei_sanitize_css_value($value, $default);
+    }
+
+    return $value;
+}
+
+/**
  * 读取「列表美化」分组设置并归一化为前端可直接使用的值
+ *
+ * 兼容两种配置来源：
+ *  - 旧版：下拉/单选枚举值（small / normal / large / xlarge / one / two …）
+ *  - 新版「选择 + 填写」：直接填写的 CSS 值（14、14px、1.2rem、calc(...)、自定义阴影…）
  *
  * 所有字段均提供与旧版一致的默认值，未配置时等同于主题原有外观。
  *
  * @return array
- *   radius        卡片圆角像素值（int）
- *   gap           列表项间距像素值（int）
- *   shadow        阴影档位：none|soft|medium|strong
- *   hover         悬停动效：lift|zoom|glow|none
- *   accent        悬停强调线：off|left|top
- *   thumbWidth    卡片模式缩略图宽度像素值（int）
- *   meta          元信息显示项数组（author/date/category/comments）
- *   excerpt       摘要显示：on|off
- *   excerptLines  摘要行数（int 1-3）
- *   sidebarWidth      右侧栏宽度像素值（int）
- *   sidebarRadius     侧边栏圆角像素值（int）
- *   sidebarTitle      侧边栏标题样式：bar|gradient|fill|minimal
- *   sidebarHover      侧边栏列表悬停：bg|slide|glow|none
- *   sidebarSticky     侧边栏粘性跟随：on|off
- *   customCss         自定义 CSS 文本（已去首尾空白）
+ *   radius           卡片圆角（CSS 长度字符串，如 12px / 1.2rem）
+ *   gap              列表项间距（CSS 长度字符串）
+ *   shadow           阴影档位：none|soft|medium|strong|custom
+ *   shadowCss        实际使用的阴影 CSS 值
+ *   shadowHover      悬停阴影 CSS 值（自定义阴影时与 shadowCss 相同）
+ *   hover            悬停动效：lift|zoom|glow|none
+ *   accent           悬停强调线：off|left|top
+ *   thumbWidth       卡片模式缩略图宽度（CSS 长度字符串）
+ *   meta             元信息显示项数组（author/date/category/comments）
+ *   excerpt          摘要显示：on|off
+ *   excerptLines     摘要行数（int 1-10）
+ *   sidebarWidth     右侧栏宽度（CSS 长度字符串）
+ *   sidebarRadius    侧边栏圆角（CSS 长度字符串）
+ *   sidebarTitle     侧边栏标题样式：bar|gradient|fill|minimal
+ *   sidebarHover     侧边栏列表悬停：bg|slide|glow|none
+ *   sidebarSticky    侧边栏粘性跟随：on|off
+ *   customCss        自定义 CSS 文本（已去首尾空白）
  */
 function shufei_get_list_beautify_options()
 {
@@ -621,36 +807,64 @@ function shufei_get_list_beautify_options()
         return ($v === '' || $v === null) ? $default : $v;
     };
 
-    $radiusMap = array('small' => 8, 'normal' => 12, 'large' => 16, 'xlarge' => 20);
-    $gapMap = array('compact' => 10, 'normal' => 18, 'loose' => 26);
-    $thumbMap = array('small' => 160, 'normal' => 200, 'large' => 240, 'xlarge' => 280);
-    $linesMap = array('one' => 1, 'two' => 2, 'three' => 3);
-    $sideWidthMap = array('narrow' => 200, 'normal' => 230, 'wide' => 260);
+    // 旧版枚举值 → 新版 CSS 值的兼容映射（老站点升级后设置不丢；与后台回显共用同一张表）
+    $legacyMap = shufei_list_setting_legacy_map();
 
-    $radiusKey = $pick('listRadius', 'normal');
-    $radius = isset($radiusMap[$radiusKey]) ? $radiusMap[$radiusKey] : 12;
+    // 读取字段原始值（空值回退默认）
+    $readRaw = function ($name, $default) use ($pick) {
+        $v = $pick($name, $default);
+        if (!is_scalar($v)) {
+            return $default;
+        }
+        $v = trim((string) $v);
+        return $v === '' ? $default : $v;
+    };
 
-    $gapKey = $pick('listGap', 'normal');
-    $gap = isset($gapMap[$gapKey]) ? $gapMap[$gapKey] : 18;
+    // 读取并做旧枚举兼容
+    $readCompat = function ($name, $default) use ($readRaw, $legacyMap) {
+        $v = $readRaw($name, $default);
+        if (isset($legacyMap[$name]) && isset($legacyMap[$name][$v])) {
+            return $legacyMap[$name][$v];
+        }
+        return $v;
+    };
 
-    $thumbKey = $pick('listThumbWidth', 'normal');
-    $thumbWidth = isset($thumbMap[$thumbKey]) ? $thumbMap[$thumbKey] : 200;
+    // ---- 尺寸类：预设与自定义填写共用同一套清洗 ----
+    $radius = shufei_sanitize_css_length($readCompat('listRadius', '12px'), '12px');
+    $gap = shufei_sanitize_css_length($readCompat('listGap', '18px'), '18px');
+    $thumbWidth = shufei_sanitize_css_length($readCompat('listThumbWidth', '200px'), '200px');
+    $sidebarWidth = shufei_sanitize_css_length($readCompat('sidebarWidth', '200px'), '200px');
+    $excerptLines = shufei_sanitize_int_option($readCompat('listExcerptLines', '2'), 2, 1, 10);
 
-    $linesKey = $pick('listExcerptLines', 'two');
-    $excerptLines = isset($linesMap[$linesKey]) ? $linesMap[$linesKey] : 2;
+    $sidebarRadiusRaw = $readCompat('sidebarRadius', 'inherit');
+    $sidebarRadius = ($sidebarRadiusRaw === 'inherit')
+        ? $radius
+        : shufei_sanitize_css_length($sidebarRadiusRaw, $radius);
 
-    $sideWidthKey = $pick('sidebarWidth', 'narrow');
-    $sideWidth = isset($sideWidthMap[$sideWidthKey]) ? $sideWidthMap[$sideWidthKey] : 200;
-
-    $sideRadiusKey = $pick('sidebarRadius', 'inherit');
-    if ($sideRadiusKey === 'inherit') {
-        $sideRadius = $radius;
-    } elseif ($sideRadiusKey === 'small') {
-        $sideRadius = 8;
-    } elseif ($sideRadiusKey === 'large') {
-        $sideRadius = 16;
+    // ---- 阴影：预设关键字 或 站长自定义的 CSS box-shadow ----
+    $shadowMap = array(
+        'none'   => array('none', 'none'),
+        'soft'   => array('0 2px 12px rgba(0, 0, 0, 0.04)', '0 8px 30px rgba(0, 0, 0, 0.08)'),
+        'medium' => array('0 4px 18px rgba(0, 0, 0, 0.07)', '0 14px 40px rgba(0, 0, 0, 0.13)'),
+        'strong' => array('0 6px 24px rgba(0, 0, 0, 0.10)', '0 20px 52px rgba(0, 0, 0, 0.20)'),
+    );
+    $shadowRaw = $readRaw('listShadow', 'soft');
+    if (isset($shadowMap[$shadowRaw])) {
+        $shadow = $shadowRaw;
+        $shadowCss = $shadowMap[$shadowRaw][0];
+        $shadowHover = $shadowMap[$shadowRaw][1];
     } else {
-        $sideRadius = $radius;
+        // 非预设关键字 → 按自定义 CSS 阴影处理；仍不合法则回退「轻柔」
+        $customShadow = shufei_sanitize_css_value($shadowRaw, '');
+        if ($customShadow !== '') {
+            $shadow = 'custom';
+            $shadowCss = $customShadow;
+            $shadowHover = $customShadow;
+        } else {
+            $shadow = 'soft';
+            $shadowCss = $shadowMap['soft'][0];
+            $shadowHover = $shadowMap['soft'][1];
+        }
     }
 
     // 元信息（Checkbox 存数组；兼容逗号分隔字符串/序列化残留）
@@ -680,10 +894,9 @@ function shufei_get_list_beautify_options()
         }
     }
 
-    // 白名单校验（值不在名单内时回退默认，防止脏数据注入 CSS）
+    // 枚举白名单校验（值不在名单内时回退默认，防止脏数据注入 CSS）
     // 结构：字段名 => array(合法值列表, 默认值)
     $allowed = array(
-        'listShadow' => array(array('none', 'soft', 'medium', 'strong'), 'soft'),
         'listHover' => array(array('lift', 'zoom', 'glow', 'none'), 'lift'),
         'listAccent' => array(array('off', 'left', 'top'), 'off'),
         'listExcerpt' => array(array('on', 'off'), 'on'),
@@ -703,21 +916,23 @@ function shufei_get_list_beautify_options()
     $customCss = is_string($customCss) ? trim($customCss) : '';
 
     $cache = array(
-        'radius' => $radius,
-        'gap' => $gap,
-        'shadow' => $safe['listShadow'],
-        'hover' => $safe['listHover'],
-        'accent' => $safe['listAccent'],
-        'thumbWidth' => $thumbWidth,
-        'meta' => $meta,
-        'excerpt' => $safe['listExcerpt'],
-        'excerptLines' => $excerptLines,
-        'sidebarWidth' => $sideWidth,
-        'sidebarRadius' => $sideRadius,
-        'sidebarTitle' => $safe['sidebarTitleStyle'],
-        'sidebarHover' => $safe['sidebarListHover'],
+        'radius'        => $radius,
+        'gap'           => $gap,
+        'shadow'        => $shadow,
+        'shadowCss'     => $shadowCss,
+        'shadowHover'   => $shadowHover,
+        'hover'         => $safe['listHover'],
+        'accent'        => $safe['listAccent'],
+        'thumbWidth'    => $thumbWidth,
+        'meta'          => $meta,
+        'excerpt'       => $safe['listExcerpt'],
+        'excerptLines'  => $excerptLines,
+        'sidebarWidth'  => $sidebarWidth,
+        'sidebarRadius' => $sidebarRadius,
+        'sidebarTitle'  => $safe['sidebarTitleStyle'],
+        'sidebarHover'  => $safe['sidebarListHover'],
         'sidebarSticky' => $safe['sidebarSticky'],
-        'customCss' => $customCss,
+        'customCss'     => $customCss,
     );
 
     return $cache;
