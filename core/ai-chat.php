@@ -41,6 +41,9 @@ class AiChat
     /** 用户输入最大字符数 */
     const MAX_MESSAGE_CHARS = 1000;
 
+    /** 路由表是否已装载（AJAX 端点下懒加载，避免重复 setRoutes） */
+    private static $routesReady = false;
+
     /**
      * 获取对话模式（off / summary_only / on）
      */
@@ -179,23 +182,32 @@ class AiChat
                 return '';
             }
             $options = \Typecho\Widget::widget('Widget_Options');
+            // ⚠️ AJAX 端点不经过 Router::dispatch()，路由表是空的 → Router::url() 恒返回 '#'。
+            // 必须显式把 options 里的路由表装载进去，否则工具结果里的文章链接全部为空。
+            if (empty(self::$routesReady) && !empty($options->routingTable)) {
+                \Typecho\Router::setRoutes($options->routingTable);
+                self::$routesReady = true;
+            }
             $created = intval($row['created']);
+            // 参数名与核心 Base\Contents::getRouterParam() 保持一致
             $params = array(
                 'cid'       => $row['cid'],
-                'slug'      => (isset($row['slug']) && $row['slug'] !== '') ? $row['slug'] : $row['cid'],
+                'slug'      => (isset($row['slug']) && $row['slug'] !== '') ? urlencode($row['slug']) : $row['cid'],
                 'year'      => date('Y', $created),
                 'month'     => date('m', $created),
                 'day'       => date('d', $created),
                 'category'  => '',
                 'directory' => '',
-                'author'    => '',
             );
-            $url = \Typecho\Router::url('archive', $params, rtrim($options->rootUrl, '/'));
+            // ⚠️ 路由名必须是内容类型本身（文章 = 'post'）。写成 'archive' 会命中归档页路由，
+            // 生成的是列表页链接（实测表现为所有文章都返回同一个 /blog/ 地址）。
+            $path = \Typecho\Router::url('post', $params);
             // 路由表缺失时返回 '#'；含未填充占位符时放弃（避免输出半吊子链接）
-            if ($url === '' || $url === '#' || strpos($url, '{') !== false) {
+            if ($path === '' || $path === '#' || strpos($path, '{') !== false) {
                 return '';
             }
-            return $url;
+            // 与核心一致：用 options->index 作为前缀（自动适配 rewrite / index.php / 子目录）
+            return \Typecho\Common::url($path, $options->index);
         } catch (\Throwable $e) {
             return '';
         }
@@ -218,6 +230,19 @@ class AiChat
     /* ================================================================
      * 工具定义与执行
      * ================================================================ */
+
+    /**
+     * 生成「无参数工具」的 JSON Schema
+     *
+     * ⚠️ 坑：PHP 空数组 json_encode 后是 `[]`，而 JSON Schema 要求 properties 必须是**对象** `{}`。
+     * 严格校验的接口（如 chatapi.weixin.qq.com）会直接返回
+     * 「Tool N function has invalid 'parameters' schema: [] is not of type 'object'」并 400 拒绝**整个请求**，
+     * 导致该请求里所有工具全部失效、静默降级成闲聊。必须用 stdClass 序列化成 `{}`。
+     */
+    private static function noParamsSchema()
+    {
+        return array('type' => 'object', 'properties' => new \stdClass());
+    }
 
     /**
      * OpenAI Function Calling 工具定义
@@ -274,10 +299,7 @@ class AiChat
                 'function' => array(
                     'name' => 'get_site_info',
                     'description' => '获取站点公开统计信息：站点标题、简介、公开文章总数、评论总数、分类列表、最近更新文章等。',
-                    'parameters' => array(
-                        'type' => 'object',
-                        'properties' => array(),
-                    ),
+                    'parameters' => self::noParamsSchema(),
                 ),
             ),
         );
@@ -597,7 +619,12 @@ class AiChat
             if ($result !== null) {
                 return $result;
             }
-            // runToolLoop 返回 null 表示接口不支持 tools，降级为普通对话
+            // runToolLoop 返回 null 表示接口这次没能用上 tools（不支持 / schema 被拒），降级为普通对话。
+            // 必须明确告知模型「本轮没有工具」，否则它常会先答「好的，我来帮你查…请稍等」再没有下文，
+            // 这是访客最容易误解为「查不到 / 卡住了」的坏体验。
+            $messages[0]['content'] .= "\n\n【系统提示】本次对话无法调用工具检索站内数据，请不要输出「请稍等」「我这就去查」"
+                . "这类承诺后续动作的话；若用户询问站内内容，请如实说明当前暂时无法检索站内文章，"
+                . "并建议稍后重试或使用站内搜索。";
         }
 
         // 普通对话（无工具）

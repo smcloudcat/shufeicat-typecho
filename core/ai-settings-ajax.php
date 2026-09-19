@@ -315,7 +315,9 @@ function shufei_ai_set_tool_definitions()
             'function' => array(
                 'name' => 'list_theme_settings',
                 'description' => '读取主题当前全部可修改的设置项与值（密钥/密码类敏感字段不会出现）。修改设置前务必先调用此工具确认字段名。',
-                'parameters' => array('type' => 'object', 'properties' => array()),
+                // ⚠️ properties 必须序列化为对象 {}：PHP 空数组 json_encode 得到 []，
+                // 会被严格校验的接口以「invalid 'parameters' schema」400 拒绝整个请求。
+                'parameters' => array('type' => 'object', 'properties' => new \stdClass()),
             ),
         ),
         array(
