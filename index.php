@@ -188,40 +188,9 @@ $this->need('header.php');
     <?php endif; ?>
 
     <?php
-    // 全局AI助手：首页站点级 AI 入口（全站共享会话，与文章页同一份对话记录）
-    $aiHomeChat = false;
-    if ($this->is('index') && intval($this->_currentPage) <= 1
-        && class_exists('AiSummary') && class_exists('AiChat')
-        && AiSummary::isEnabled() && AiSummary::isGlobalMode() && AiChat::isEnabled()) {
-        $aiHomeChat = true;
-    }
+    // 全局AI助手：站点级入口已改为全站悬浮球 + 悬浮窗（见 footer.php 的 #ai-site-ball / #ai-site-box）
+    // 首页不再输出内嵌卡片，避免与悬浮窗重复
     ?>
-    <?php if ($aiHomeChat): ?>
-    <div class="ai-summary-box ai-site-assistant" id="ai-summary-box" data-cid="0" data-ai-chat="1" data-ai-scope="global" data-ai-chat-max="<?php echo AiChat::getMaxRounds(); ?>">
-        <div class="ai-summary-header">
-            <i class="fa fa-robot"></i> <span><?php _e('AI 站点助手'); ?></span>
-        </div>
-        <div class="ai-chat-area" id="ai-chat-area">
-            <div class="ai-chat-messages" id="ai-chat-messages"></div>
-            <div class="ai-chat-inputbar">
-                <input type="text" class="ai-chat-input" id="ai-chat-input" maxlength="1000"
-                    placeholder="<?php _e('向 AI 提问本站内容…'); ?>" autocomplete="off">
-                <button type="button" class="ai-chat-send" id="ai-chat-send" title="<?php _e('发送'); ?>">
-                    <i class="fa fa-paper-plane"></i>
-                </button>
-            </div>
-            <div class="ai-chat-footnote"><?php _e('全站共享对话 · 内容由 AI 生成，仅供参考'); ?></div>
-        </div>
-        <div class="ai-summary-footer">
-            <button type="button" class="ai-chat-toggle" id="ai-chat-toggle" data-label="<?php _e('展开对话'); ?>">
-                <i class="fa fa-chevron-down"></i> <?php _e('收起对话'); ?>
-            </button>
-            <button type="button" class="ai-chat-reset" id="ai-chat-reset" title="<?php _e('清空对话记录，开启新对话'); ?>">
-                <i class="fa fa-eraser"></i> <?php _e('新对话'); ?>
-            </button>
-        </div>
-    </div>
-    <?php endif; ?>
 </div><!-- end #main-->
 
 <?php $this->need('sidebar-right.php'); ?>

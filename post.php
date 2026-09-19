@@ -77,7 +77,7 @@
         </header>
 
         <?php if ($aiSummaryEnabled && ($aiSummaryCached !== null || $aiGlobalMode)): ?>
-        <div class="ai-summary-box" id="ai-summary-box" data-cid="<?php echo $this->cid; ?>" data-ai-chat="<?php echo $aiChatOn ? '1' : '0'; ?>" data-ai-scope="<?php echo $aiGlobalMode ? 'global' : 'post'; ?>"<?php if ($aiChatOn): ?> data-ai-chat-max="<?php echo (class_exists('AiChat') ? AiChat::getMaxRounds() : 10); ?>"<?php endif; ?><?php if (!$aiSummaryCached && $aiGlobalMode): ?> data-ai-auto="1"<?php endif; ?>>
+        <div class="ai-summary-box" id="ai-summary-box" data-cid="<?php echo $this->cid; ?>"<?php if (!$aiSummaryCached && $aiGlobalMode): ?> data-ai-auto="1"<?php endif; ?>>
             <div class="ai-summary-header">
                 <i class="fa fa-magic"></i> <span><?php _e('AI 文章摘要'); ?></span>
                 <?php if ($aiSummaryCached !== null): ?>
@@ -91,26 +91,10 @@
                 <div class="ai-summary-loading"><i class="fa fa-spinner fa-spin"></i> <?php _e('正在生成 AI 摘要...'); ?></div>
                 <?php endif; ?>
             </div>
-            <?php if ($aiChatOn): ?>
-            <div class="ai-chat-area" id="ai-chat-area" hidden>
-                <div class="ai-chat-messages" id="ai-chat-messages"></div>
-                <div class="ai-chat-inputbar">
-                    <input type="text" class="ai-chat-input" id="ai-chat-input" maxlength="1000"
-                        placeholder="<?php _e('向 AI 提问本文或站内内容…'); ?>" autocomplete="off">
-                    <button type="button" class="ai-chat-send" id="ai-chat-send" title="<?php _e('发送'); ?>">
-                        <i class="fa fa-paper-plane"></i>
-                    </button>
-                </div>
-                <div class="ai-chat-footnote"><?php _e('内容由 AI 生成，仅供参考'); ?></div>
-            </div>
-            <?php endif; ?>
             <div class="ai-summary-footer">
                 <?php if ($aiChatOn): ?>
-                <button type="button" class="ai-chat-toggle" id="ai-chat-toggle">
-                    <i class="fa fa-comments-o"></i> <?php _e('询问 AI'); ?>
-                </button>
-                <button type="button" class="ai-chat-reset" id="ai-chat-reset" title="<?php _e('清空对话记录，开启新对话'); ?>">
-                    <i class="fa fa-eraser"></i> <?php _e('新对话'); ?>
+                <button type="button" class="ai-chat-toggle ai-post-ask" id="ai-post-ask" title="<?php _e('打开 AI 站点助手，基于本文提问'); ?>">
+                    <i class="fa fa-comments-o"></i> <?php _e('问 AI 助手'); ?>
                 </button>
                 <?php endif; ?>
                 <button type="button" class="ai-summary-regenerate" id="ai-summary-regenerate" title="<?php _e('重新生成'); ?>">

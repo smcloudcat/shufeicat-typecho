@@ -8541,6 +8541,203 @@ article.post {
     100% { transform: scale(1.9); opacity: 0; }
 }
 
+/* ===== AI 站点助手：全站悬浮球 + 悬浮窗 ===== */
+/* 悬浮球：与右下角 .float-actions 组并排（right: 30px 是那组），避免展开时被遮挡 */
+.ai-site-ball {
+    position: fixed;
+    right: 96px;
+    bottom: 30px;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary-color, #467B96), var(--primary-hover, #e05555));
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 1001;
+    box-shadow: 0 6px 20px color-mix(in srgb, var(--primary-color, #467B96) 40%, transparent);
+    transition: transform 0.25s, box-shadow 0.25s;
+    animation: aiBallFloat 3s ease-in-out infinite;
+    -webkit-tap-highlight-color: transparent;
+    outline: none;
+    user-select: none;
+}
+.ai-site-ball:hover,
+.ai-site-ball:focus-visible {
+    transform: translateY(-3px) scale(1.06);
+    box-shadow: 0 10px 26px color-mix(in srgb, var(--primary-color, #467B96) 52%, transparent);
+}
+.ai-site-ball i {
+    font-size: 22px;
+    position: relative;
+    z-index: 2;
+}
+/* 展开时图标变 ×（关闭），并停止浮动 */
+.ai-site-ball.active {
+    animation: none;
+}
+.ai-site-ball.active i::before {
+    content: "\f00d";
+}
+/* 键盘可达性焦点环 */
+.ai-site-ball:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--primary-color, #467B96) 60%, #fff);
+    outline-offset: 3px;
+}
+
+/* 悬浮窗：面板从右下角弹出 */
+.ai-summary-box.ai-site-assistant {
+    position: fixed;
+    right: 30px;
+    bottom: 96px;
+    width: 384px;
+    max-width: calc(100vw - 32px);
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    max-height: min(70vh, 600px);
+    z-index: 1003;
+    border-radius: 14px;
+    background: var(--card-bg, #ffffff);
+    border: 1px solid color-mix(in srgb, var(--primary-color, #467B96) 22%, transparent);
+    box-shadow: 0 14px 44px rgba(0, 0, 0, 0.16);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(14px) scale(0.97);
+    transform-origin: right bottom;
+    pointer-events: none;
+    animation: none; /* 覆盖 .ai-summary-box 的 alertSlideIn，避免与开合过渡打架 */
+    transition: opacity 0.24s ease, transform 0.24s ease, visibility 0.24s ease;
+    overflow: hidden;
+}
+.ai-summary-box.ai-site-assistant.show {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+    pointer-events: auto;
+}
+
+/* 头部：标题 + 上下文标记（全站/本文）+ 关闭按钮 */
+.ai-site-header {
+    margin: 0;
+    padding: 11px 14px;
+    flex-shrink: 0;
+    background: linear-gradient(135deg,
+        color-mix(in srgb, var(--primary-color, #467B96) 12%, transparent) 0%,
+        transparent 100%);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+.ai-site-title {
+    flex: 1 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.ai-site-scope {
+    flex-shrink: 0;
+    font-size: 11px;
+    font-weight: 400;
+    padding: 1px 8px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--primary-color, #467B96) 14%, transparent);
+    color: var(--primary-color, #467B96);
+}
+.ai-site-close {
+    flex-shrink: 0;
+    border: none;
+    background: transparent;
+    color: inherit;
+    font-size: 14px;
+    line-height: 1;
+    padding: 5px 7px;
+    border-radius: 6px;
+    cursor: pointer;
+    opacity: 0.65;
+    transition: opacity 0.2s, background 0.2s;
+}
+.ai-site-close:hover {
+    opacity: 1;
+    background: rgba(0, 0, 0, 0.06);
+}
+
+/* 对话区：在悬浮窗里弹性填充剩余高度 */
+.ai-site-assistant .ai-chat-area {
+    margin: 0;
+    padding: 12px 14px 0;
+    border-top: none;
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+}
+.ai-site-assistant .ai-chat-messages {
+    max-height: none;
+    flex: 1 1 auto;
+    min-height: 140px;
+    overflow-y: auto;
+}
+.ai-site-assistant .ai-chat-footnote {
+    flex-shrink: 0;
+    padding-bottom: 2px;
+}
+.ai-site-assistant .ai-summary-footer {
+    margin: 0;
+    padding: 10px 14px;
+    border-top: 1px solid rgba(0, 0, 0, 0.06);
+    justify-content: space-between;
+    flex-shrink: 0;
+}
+.ai-site-max {
+    font-size: 11px;
+    color: #aaa;
+    margin-left: auto;
+}
+
+/* 夜间模式 */
+[data-theme="dark"] .ai-summary-box.ai-site-assistant {
+    background: var(--bg-card-dark, #2a2a2a);
+    border-color: var(--border-color-dark, #3a3a3a);
+    box-shadow: 0 14px 44px rgba(0, 0, 0, 0.45);
+}
+[data-theme="dark"] .ai-site-header {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.06) 0%, transparent 100%);
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+[data-theme="dark"] .ai-site-assistant .ai-summary-footer {
+    border-top-color: rgba(255, 255, 255, 0.08);
+}
+[data-theme="dark"] .ai-site-close:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+[data-theme="dark"] .ai-site-max {
+    color: #777;
+}
+
+/* 移动端：球靠右并排，窗口铺满可用宽度 */
+@media (max-width: 640px) {
+    .ai-site-ball {
+        right: 84px;
+        bottom: 24px;
+        width: 48px;
+        height: 48px;
+    }
+    .ai-site-ball i {
+        font-size: 20px;
+    }
+    .ai-summary-box.ai-site-assistant {
+        right: 12px;
+        left: 12px;
+        bottom: 84px;
+        width: auto;
+        max-width: none;
+        max-height: min(68vh, 520px);
+    }
+}
+
 /* ===== AI 总结悬浮弹窗 ===== */
 .ai-summary-popup {
     position: fixed;

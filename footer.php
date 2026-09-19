@@ -85,6 +85,64 @@
     </div>
 </footer><!-- end #footer -->
 
+<?php
+// ===== AI 站点助手：全站悬浮球 + 悬浮窗 =====
+// 条件：摘要总开关开 + 全局模式 + 对话模式 on（与首页入口一致）
+$siteAiOn = false;
+if (class_exists('AiSummary') && class_exists('AiChat')
+    && AiSummary::isEnabled() && AiSummary::isGlobalMode() && AiChat::isEnabled()) {
+    $siteAiOn = true;
+}
+// 文章页带本文上下文（cid），其余页面为站点级（0）；JS 会在 pjax 切换后二次校正
+$siteAiCid = 0;
+if ($siteAiOn && isset($this->cid) && $this->cid && $this->is('post')) {
+    $siteAiCid = intval($this->cid);
+}
+?>
+<?php if ($siteAiOn): ?>
+<!-- AI 站点助手：悬浮球（全站常显） -->
+<div class="ai-site-ball" id="ai-site-ball" role="button" tabindex="0"
+     title="<?php _e('AI 站点助手'); ?>" aria-label="<?php _e('AI 站点助手'); ?>">
+    <span class="ai-ball-pulse"></span>
+    <i class="fa fa-comments"></i>
+</div>
+
+<!-- AI 站点助手：悬浮窗（对话区 ID 全站唯一，由 initAiChat 绑定） -->
+<div class="ai-summary-box ai-site-assistant" id="ai-site-box"
+     data-cid="<?php echo $siteAiCid; ?>"
+     data-ai-chat="1"
+     data-ai-scope="global"
+     data-ai-chat-max="<?php echo AiChat::getMaxRounds(); ?>"
+     role="dialog" aria-label="<?php _e('AI 站点助手'); ?>">
+    <div class="ai-summary-header ai-site-header">
+        <i class="fa fa-comments"></i>
+        <span class="ai-site-title"><?php _e('AI 站点助手'); ?></span>
+        <span class="ai-site-scope" id="ai-site-scope"><?php echo $siteAiCid ? _t('本文') : _t('全站'); ?></span>
+        <button type="button" class="ai-site-close" id="ai-chat-toggle"
+                title="<?php _e('收起'); ?>" aria-label="<?php _e('收起'); ?>">
+            <i class="fa fa-chevron-down"></i>
+        </button>
+    </div>
+    <div class="ai-chat-area" id="ai-chat-area">
+        <div class="ai-chat-messages" id="ai-chat-messages"></div>
+        <div class="ai-chat-inputbar">
+            <input type="text" class="ai-chat-input" id="ai-chat-input" maxlength="1000"
+                placeholder="<?php _e('向 AI 提问本站内容…'); ?>" autocomplete="off">
+            <button type="button" class="ai-chat-send" id="ai-chat-send" title="<?php _e('发送'); ?>">
+                <i class="fa fa-paper-plane"></i>
+            </button>
+        </div>
+        <div class="ai-chat-footnote"><?php _e('全站共享对话 · 内容由 AI 生成，仅供参考'); ?></div>
+    </div>
+    <div class="ai-summary-footer">
+        <button type="button" class="ai-chat-reset" id="ai-chat-reset" title="<?php _e('清空对话记录，开启新对话'); ?>">
+            <i class="fa fa-eraser"></i> <?php _e('新对话'); ?>
+        </button>
+        <span class="ai-site-max"><?php printf(_t('最多 %d 轮'), AiChat::getMaxRounds()); ?></span>
+    </div>
+</div>
+<?php endif; ?>
+
 <!-- 悬浮操作组：多个悬浮球折叠为展开按钮，点击展开显示全部悬浮球 -->
 <div id="float-actions" class="float-actions">
     <div class="float-actions-list" id="float-actions-list">

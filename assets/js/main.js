@@ -2006,7 +2006,12 @@ window.initAiSummary = function() {
     } else if (ball && aiEnabled) {
         cid = ball.getAttribute('data-cid');
     }
-    if (!cid) return;
+    if (!cid) {
+        // 当前页没有文章摘要上下文（首页 / 列表页等）：
+        // 仍要初始化全站 AI 站点助手（悬浮球 + 悬浮窗），它不依赖文章摘要
+        window.initAiChat();
+        return;
+    }
 
     var cachedText = '';
     if (contentEl) {
@@ -2338,8 +2343,10 @@ window.initAiSummary = function() {
         }
     }
 
-    // AI 摘要连续对话
+    // AI 站点助手（全站唯一对话容器，含悬浮球开合）
     window.initAiChat();
+    // pjax 切换页面后同步悬浮窗上下文（文章页带本文 cid / 列表页站点级）
+    if (typeof window.updateAiSiteScope === 'function') window.updateAiSiteScope();
 };
 
 /**
@@ -2349,7 +2356,8 @@ window.initAiSummary = function() {
  *  - AI 可调用站内工具（搜索公开文章/评论、站点信息），隐私由服务端锁死
  */
 window.initAiChat = function() {
-    var box = document.getElementById('ai-summary-box');
+    // 全站唯一的对话容器：footer.php 内的 AI 站点助手悬浮窗（#ai-site-box）
+    var box = document.getElementById('ai-site-box');
     if (!box || box.getAttribute('data-ai-chat') !== '1') return;
     var area = document.getElementById('ai-chat-area');
     var toggleBtn = document.getElementById('ai-chat-toggle');
@@ -2357,9 +2365,12 @@ window.initAiChat = function() {
     var input = document.getElementById('ai-chat-input');
     var sendBtn = document.getElementById('ai-chat-send');
     var resetBtn = document.getElementById('ai-chat-reset');
-    if (!area || !toggleBtn || !messagesEl || !input || !sendBtn) return;
+    if (!area || !messagesEl || !input || !sendBtn) return;
     if (box.getAttribute('data-ai-chat-bound')) return;
     box.setAttribute('data-ai-chat-bound', '1');
+
+    // 站点助手常驻外层元素（悬浮球），可能不存在（降级为纯窗口）
+    var ballEl = document.getElementById('ai-site-ball');
 
     var cid = box.getAttribute('data-cid');
     var maxRounds = parseInt(box.getAttribute('data-ai-chat-max'), 10) || 10;
@@ -2368,8 +2379,10 @@ window.initAiChat = function() {
     var storeKey = scope === 'global'
         ? 'shufei_ai_chat_global'
         : 'shufei_ai_chat_post_' + (parseInt(cid, 10) || 0);
-    // 请求 cid：全局会话首页传 0（后端走站点级提示词），文章页传当前文章（保留本文上下文）
-    var reqCid = parseInt(cid, 10) || 0;
+    // 请求 cid 动态读取：文章页带本文上下文，其余页面为 0（后端走站点级提示词）
+    function currentCid() {
+        return parseInt(box.getAttribute('data-cid'), 10) || 0;
+    }
     var busy = false;
 
     var WELCOME_GLOBAL = '你好呀～我是本站 AI 助手，这是一个全站共享的连续会话。可以让我帮你找文章、查评论，或聊聊站内内容～';
@@ -2519,30 +2532,99 @@ window.initAiChat = function() {
             setBusy(false);
         };
         xhr.send(
-            'cid=' + encodeURIComponent(reqCid) +
+            'cid=' + encodeURIComponent(currentCid()) +
             '&message=' + encodeURIComponent(text) +
             '&history=' + encodeURIComponent(JSON.stringify(payloadHistory)) +
             '&_=' + encodeURIComponent(window.csrfToken || '')
         );
     }
 
-    function syncToggleLabel() {
-        var collapsed = area.hidden;
-        toggleBtn.innerHTML = '<i class="fa ' + (collapsed ? 'fa-comments-o' : 'fa-chevron-down') + '"></i> ' +
-            (collapsed ? (toggleBtn.getAttribute('data-label') || '询问 AI') : '收起对话');
-        toggleBtn.classList.toggle('open', !collapsed);
-    }
-    syncToggleLabel();
-
-    toggleBtn.addEventListener('click', function(e) {
-        e.preventDefault();
-        area.hidden = !area.hidden;
-        syncToggleLabel();
-        if (!area.hidden && !messagesEl.hasChildNodes()) {
+    // ===== 悬浮窗开合（悬浮球 / 关闭按钮 / Esc）=====
+    function openBox() {
+        box.classList.add('show');
+        if (ballEl) ballEl.classList.add('active');
+        // 打开时刷新上下文（pjax 切换页面后仍准确）
+        if (typeof window.updateAiSiteScope === 'function') window.updateAiSiteScope();
+        if (!messagesEl.hasChildNodes()) {
             appendBubble('assistant', scope === 'global' ? WELCOME_GLOBAL : WELCOME_POST);
         }
-        if (!area.hidden) input.focus();
-    });
+        setTimeout(function() {
+            try { input.focus(); } catch (e) {}
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }, 80);
+    }
+    function closeBox() {
+        box.classList.remove('show');
+        if (ballEl) ballEl.classList.remove('active');
+    }
+    function toggleBox() {
+        if (box.classList.contains('show')) { closeBox(); } else { openBox(); }
+    }
+    window.openAiSiteAssistant = openBox;
+    window.closeAiSiteAssistant = closeBox;
+
+    // 上下文随页面变化：文章页带本文 cid（AI 可引用本文），其余页面为站点级
+    window.updateAiSiteScope = function() {
+        var art = document.querySelector('article.post-single[data-cid]');
+        var newCid = art ? (parseInt(art.getAttribute('data-cid'), 10) || 0) : 0;
+        box.setAttribute('data-cid', newCid);
+        var scopeEl = document.getElementById('ai-site-scope');
+        if (scopeEl) scopeEl.textContent = newCid ? '本文' : '全站';
+    };
+    window.updateAiSiteScope();
+
+    if (ballEl) {
+        if (ballEl._aiSiteHandler) ballEl.removeEventListener('click', ballEl._aiSiteHandler);
+        var ballHandler = function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleBox();
+        };
+        ballEl._aiSiteHandler = ballHandler;
+        ballEl.addEventListener('click', ballHandler);
+        // 键盘可达（Enter / 空格）
+        if (ballEl._aiSiteKeyHandler) ballEl.removeEventListener('keydown', ballEl._aiSiteKeyHandler);
+        var ballKeyHandler = function(e) {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleBox(); }
+        };
+        ballEl._aiSiteKeyHandler = ballKeyHandler;
+        ballEl.addEventListener('keydown', ballKeyHandler);
+    }
+
+    if (toggleBtn) {
+        if (toggleBtn._aiSiteCloseHandler) toggleBtn.removeEventListener('click', toggleBtn._aiSiteCloseHandler);
+        var closeHandler = function(e) {
+            e.preventDefault();
+            closeBox();
+        };
+        toggleBtn._aiSiteCloseHandler = closeHandler;
+        toggleBtn.addEventListener('click', closeHandler);
+    }
+
+    // Esc 关闭（document 监听只绑一次，避免 pjax 累积）
+    if (!window.__aiSiteEscBound) {
+        window.__aiSiteEscBound = true;
+        document.addEventListener('keydown', function(e) {
+            if (e.key !== 'Escape') return;
+            var cur = document.getElementById('ai-site-box');
+            if (cur && cur.classList.contains('show')) cur.classList.remove('show');
+            var curBall = document.getElementById('ai-site-ball');
+            if (curBall) curBall.classList.remove('active');
+        });
+    }
+
+    // 文章页「问 AI 助手」按钮 → 打开悬浮窗（事件委托，只绑一次）
+    if (!window.__aiSiteAskBound) {
+        window.__aiSiteAskBound = true;
+        document.addEventListener('click', function(e) {
+            var t = e.target;
+            if (!t || !t.closest) return;
+            var ask = t.closest('#ai-post-ask');
+            if (!ask) return;
+            e.preventDefault();
+            if (typeof window.openAiSiteAssistant === 'function') window.openAiSiteAssistant();
+        });
+    }
 
     // 新对话：清空持久化记录，重新开始（不影响限速与 AI 侧状态）
     if (resetBtn) {
