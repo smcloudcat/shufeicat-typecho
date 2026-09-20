@@ -188,7 +188,7 @@ $this->need('header.php');
     <?php endif; ?>
 
     <?php
-    // 全局AI助手：站点级入口已改为全站悬浮球 + 悬浮窗（见 footer.php 的 #ai-site-ball / #ai-site-box）
+    // 全局AI助手：站点级入口已合并进右下角悬浮操作组（见 footer.php 的 #float-ai-btn / #ai-site-box）
     // 首页不再输出内嵌卡片，避免与悬浮窗重复
     ?>
 </div><!-- end #main-->

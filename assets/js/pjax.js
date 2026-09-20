@@ -791,11 +791,10 @@
         if (window.reinitTimer) clearTimeout(window.reinitTimer);
 
         window.reinitTimer = setTimeout(function() {
-            // 收起悬浮操作组（避免 pjax 切换后仍处于展开状态）
+            // 收起悬浮操作组（避免 pjax 切换后仍处于展开状态；该组已改为常显）
             var floatActions = document.getElementById('float-actions');
             if (floatActions) {
                 floatActions.classList.remove('expanded');
-                floatActions.classList.remove('show');
             }
 
             // 清理浮动收藏按钮（在 #footer 外，pjax 不会替换，需手动重置）

@@ -2374,8 +2374,8 @@ window.initAiChat = function() {
     if (box.getAttribute('data-ai-chat-bound')) return;
     box.setAttribute('data-ai-chat-bound', '1');
 
-    // 站点助手常驻外层元素（悬浮球），可能不存在（降级为纯窗口）
-    var ballEl = document.getElementById('ai-site-ball');
+    // 站点助手入口（悬浮操作组内的 AI 项），可能不存在（降级为纯窗口）
+    var ballEl = document.getElementById('float-ai-btn');
 
     var cid = box.getAttribute('data-cid');
     var maxRounds = parseInt(box.getAttribute('data-ai-chat-max'), 10) || 10;
@@ -2552,7 +2552,6 @@ window.initAiChat = function() {
     // ===== 悬浮窗开合（悬浮球 / 关闭按钮 / Esc）=====
     function openBox() {
         box.classList.add('show');
-        if (ballEl) ballEl.classList.add('active');
         // 打开时刷新上下文（pjax 切换页面后仍准确）
         if (typeof window.updateAiSiteScope === 'function') window.updateAiSiteScope();
         if (!messagesEl.hasChildNodes()) {
@@ -2565,10 +2564,6 @@ window.initAiChat = function() {
     }
     function closeBox() {
         box.classList.remove('show');
-        if (ballEl) ballEl.classList.remove('active');
-    }
-    function toggleBox() {
-        if (box.classList.contains('show')) { closeBox(); } else { openBox(); }
     }
     window.openAiSiteAssistant = openBox;
     window.closeAiSiteAssistant = closeBox;
@@ -2584,18 +2579,18 @@ window.initAiChat = function() {
     window.updateAiSiteScope();
 
     if (ballEl) {
+        // 列表入口项：点击即开窗（不拦冒泡，交由列表的「点选后收起」逻辑收尾）
         if (ballEl._aiSiteHandler) ballEl.removeEventListener('click', ballEl._aiSiteHandler);
         var ballHandler = function(e) {
             e.preventDefault();
-            e.stopPropagation();
-            toggleBox();
+            openBox();
         };
         ballEl._aiSiteHandler = ballHandler;
         ballEl.addEventListener('click', ballHandler);
         // 键盘可达（Enter / 空格）
         if (ballEl._aiSiteKeyHandler) ballEl.removeEventListener('keydown', ballEl._aiSiteKeyHandler);
         var ballKeyHandler = function(e) {
-            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleBox(); }
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openBox(); }
         };
         ballEl._aiSiteKeyHandler = ballKeyHandler;
         ballEl.addEventListener('keydown', ballKeyHandler);
@@ -2618,8 +2613,6 @@ window.initAiChat = function() {
             if (e.key !== 'Escape') return;
             var cur = document.getElementById('ai-site-box');
             if (cur && cur.classList.contains('show')) cur.classList.remove('show');
-            var curBall = document.getElementById('ai-site-ball');
-            if (curBall) curBall.classList.remove('active');
         });
     }
 
@@ -4477,15 +4470,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
 
-        // 滚动显示/隐藏悬浮操作组（节流）
-        window.addEventListener('scroll', throttle(function() {
-            if (window.scrollY > 300) {
-                if (floatActions) floatActions.classList.add('show');
-            } else {
-                if (floatActions) floatActions.classList.remove('show');
-                if (floatActions) floatActions.classList.remove('expanded');
-            }
-        }, 150));
+        // 悬浮操作组现为常显（AI 助手入口合并进该组），不再随滚动显隐
     }
 
     // 悬浮操作组：点击展开按钮展开/收起悬浮球
@@ -4493,6 +4478,11 @@ document.addEventListener('DOMContentLoaded', function() {
         floatActionsToggle.addEventListener('click', function(e) {
             e.stopPropagation();
             floatActions.classList.toggle('expanded');
+            // 展开列表时收起 AI 悬浮窗，避免窗口遮挡列表
+            if (floatActions.classList.contains('expanded')
+                && typeof window.closeAiSiteAssistant === 'function') {
+                window.closeAiSiteAssistant();
+            }
         });
         // 点击悬浮球后收起列表（排除切换按钮自身）
         if (floatActionsList) {

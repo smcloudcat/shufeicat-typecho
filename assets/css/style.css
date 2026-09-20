@@ -5394,18 +5394,7 @@ pre[class*="language-"].line-numbers > code {
     display: flex;
     flex-direction: column;
     align-items: center;
-    opacity: 0;
-    visibility: hidden;
-    transform: translateY(20px);
-    pointer-events: none;
-    transition: opacity 0.25s ease, transform 0.25s ease, visibility 0.25s ease;
-}
-
-.float-actions.show {
-    opacity: 1;
-    visibility: visible;
-    transform: translateY(0);
-    pointer-events: auto;
+    /* AI 助手入口合并进来后常显（原为滚动 300px 后出现） */
 }
 
 .float-actions-list {
@@ -5459,6 +5448,86 @@ pre[class*="language-"].line-numbers > code {
 
 .float-actions-toggle i {
     font-size: 20px;
+}
+
+/* AI 助手合并态：展开按钮以 AI 悬浮球外观呈现（渐变 + 浮动 + 脉冲光环） */
+.float-actions-toggle.is-ai {
+    position: relative;
+    width: 52px;
+    height: 52px;
+    font-size: 22px;
+    background: linear-gradient(135deg, var(--primary-color, #467B96), var(--primary-hover, #e05555));
+    box-shadow: 0 6px 20px color-mix(in srgb, var(--primary-color, #467B96) 40%, transparent);
+    animation: aiBallFloat 3s ease-in-out infinite;
+}
+
+.float-actions-toggle.is-ai:hover,
+.float-actions-toggle.is-ai:focus-visible {
+    background: linear-gradient(135deg, var(--primary-hover, #e05555), var(--primary-color, #467B96));
+    transform: none;
+    box-shadow: 0 10px 26px color-mix(in srgb, var(--primary-color, #467B96) 52%, transparent);
+}
+
+.float-actions-toggle.is-ai:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--primary-color, #467B96) 60%, #fff);
+    outline-offset: 3px;
+}
+
+.float-actions-toggle.is-ai i {
+    position: relative;
+    z-index: 2;
+    font-size: 22px;
+}
+
+/* 展开后停止浮动、轻微收缩，图标由评论气泡换成 × */
+.float-actions.expanded .float-actions-toggle.is-ai {
+    background: var(--primary-hover);
+    animation: none;
+    transform: scale(0.94);
+}
+
+.float-actions.expanded .float-actions-toggle.is-ai i::before {
+    content: "\f00d";
+}
+
+/* ============================================
+ * AI 站点助手入口（合并进悬浮操作组）
+ * ============================================ */
+.float-ai-btn {
+    position: relative;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary-color, #467B96), var(--primary-hover, #e05555));
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 4px 16px color-mix(in srgb, var(--primary-color, #467B96) 35%, transparent);
+    transition: transform 0.25s, box-shadow 0.25s;
+    animation: aiBallFloat 3s ease-in-out infinite;
+    -webkit-tap-highlight-color: transparent;
+    outline: none;
+    user-select: none;
+}
+
+.float-ai-btn:hover,
+.float-ai-btn:focus-visible {
+    animation: none;
+    transform: scale(1.1);
+    box-shadow: 0 6px 22px color-mix(in srgb, var(--primary-color, #467B96) 45%, transparent);
+}
+
+.float-ai-btn:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--primary-color, #467B96) 60%, #fff);
+    outline-offset: 3px;
+}
+
+.float-ai-btn i {
+    font-size: 20px;
+    position: relative;
+    z-index: 2;
 }
 
 #back-to-top {
@@ -8747,53 +8816,8 @@ article.post {
     100% { transform: scale(1.9); opacity: 0; }
 }
 
-/* ===== AI 站点助手：全站悬浮球 + 悬浮窗 ===== */
-/* 悬浮球：与右下角 .float-actions 组并排（right: 30px 是那组），避免展开时被遮挡 */
-.ai-site-ball {
-    position: fixed;
-    right: 96px;
-    bottom: 30px;
-    width: 52px;
-    height: 52px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, var(--primary-color, #467B96), var(--primary-hover, #e05555));
-    color: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    z-index: 1001;
-    box-shadow: 0 6px 20px color-mix(in srgb, var(--primary-color, #467B96) 40%, transparent);
-    transition: transform 0.25s, box-shadow 0.25s;
-    animation: aiBallFloat 3s ease-in-out infinite;
-    -webkit-tap-highlight-color: transparent;
-    outline: none;
-    user-select: none;
-}
-.ai-site-ball:hover,
-.ai-site-ball:focus-visible {
-    transform: translateY(-3px) scale(1.06);
-    box-shadow: 0 10px 26px color-mix(in srgb, var(--primary-color, #467B96) 52%, transparent);
-}
-.ai-site-ball i {
-    font-size: 22px;
-    position: relative;
-    z-index: 2;
-}
-/* 展开时图标变 ×（关闭），并停止浮动 */
-.ai-site-ball.active {
-    animation: none;
-}
-.ai-site-ball.active i::before {
-    content: "\f00d";
-}
-/* 键盘可达性焦点环 */
-.ai-site-ball:focus-visible {
-    outline: 2px solid color-mix(in srgb, var(--primary-color, #467B96) 60%, #fff);
-    outline-offset: 3px;
-}
-
-/* 悬浮窗：面板从右下角弹出 */
+/* ===== AI 站点助手：悬浮窗 ===== */
+/* 悬浮球已与展开按钮合并（.float-actions-toggle.is-ai / 列表项 .float-ai-btn），此处不保留独立球样式 */
 .ai-summary-box.ai-site-assistant {
     position: fixed;
     right: 30px;
@@ -8923,15 +8947,13 @@ article.post {
     color: #777;
 }
 
-/* 移动端：球靠右并排，窗口铺满可用宽度 */
+/* 移动端：合并球缩小、窗口铺满可用宽度 */
 @media (max-width: 640px) {
-    .ai-site-ball {
-        right: 84px;
-        bottom: 24px;
+    .float-actions-toggle.is-ai {
         width: 48px;
         height: 48px;
     }
-    .ai-site-ball i {
+    .float-actions-toggle.is-ai i {
         font-size: 20px;
     }
     .ai-summary-box.ai-site-assistant {

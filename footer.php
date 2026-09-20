@@ -100,14 +100,8 @@ if ($siteAiOn && isset($this->cid) && $this->cid && $this->is('post')) {
 }
 ?>
 <?php if ($siteAiOn): ?>
-<!-- AI 站点助手：悬浮球（全站常显） -->
-<div class="ai-site-ball" id="ai-site-ball" role="button" tabindex="0"
-     title="<?php _e('AI 站点助手'); ?>" aria-label="<?php _e('AI 站点助手'); ?>">
-    <span class="ai-ball-pulse"></span>
-    <i class="fa fa-comments"></i>
-</div>
-
-<!-- AI 站点助手：悬浮窗（对话区 ID 全站唯一，由 initAiChat 绑定） -->
+<!-- AI 站点助手：悬浮窗（对话区 ID 全站唯一，由 initAiChat 绑定）
+     入口（悬浮球）已合并进右下角悬浮操作组：点 #float-actions-toggle 展开后点 #float-ai-btn -->
 <div class="ai-summary-box ai-site-assistant" id="ai-site-box"
      data-cid="<?php echo $siteAiCid; ?>"
      data-ai-chat="1"
@@ -166,11 +160,20 @@ if ($siteAiOn && isset($this->cid) && $this->cid && $this->is('post')) {
         <div id="mobile-toc-btn" title="<?php _e('文章目录'); ?>">
             <i class="fa fa-list-ul"></i>
         </div>
+
+        <?php if ($siteAiOn): ?>
+        <!-- AI 站点助手入口（原独立悬浮球，已与展开按钮合并：展开列表后点它开对话窗） -->
+        <div class="float-ai-btn" id="float-ai-btn" role="button" tabindex="0" title="<?php _e('AI 站点助手'); ?>" aria-label="<?php _e('AI 站点助手'); ?>">
+            <span class="ai-ball-pulse"></span>
+            <i class="fa fa-comments"></i>
+        </div>
+        <?php endif; ?>
     </div>
 
-    <!-- 折叠展开按钮：默认收起，点击展开悬浮球 -->
-    <button type="button" id="float-actions-toggle" class="float-actions-toggle" title="<?php _e('展开/收起悬浮按钮'); ?>" aria-label="<?php _e('展开/收起悬浮按钮'); ?>">
-        <i class="fa fa-plus"></i>
+    <!-- 折叠展开按钮：默认收起，点击展开悬浮球；AI 开启时以 AI 助手外观呈现 -->
+    <button type="button" id="float-actions-toggle" class="float-actions-toggle<?php echo $siteAiOn ? ' is-ai' : ''; ?>" title="<?php echo $siteAiOn ? _t('AI 助手与快捷工具') : _t('展开/收起悬浮按钮'); ?>" aria-label="<?php echo $siteAiOn ? _t('AI 助手与快捷工具') : _t('展开/收起悬浮按钮'); ?>">
+        <?php if ($siteAiOn): ?><span class="ai-ball-pulse"></span><?php endif; ?>
+        <i class="fa <?php echo $siteAiOn ? 'fa-comments' : 'fa-plus'; ?>"></i>
     </button>
 </div>
 
