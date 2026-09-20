@@ -5245,6 +5245,11 @@ pre[class*="language-"].line-numbers > code {
         padding: 0 10px;
     }
 
+    /* 负 margin 须与 .container 内边距同步（15px→10px）：不同步会让 .row 左右各超出 5px，窄屏横向溢出 */
+    .row {
+        margin: 0 -10px;
+    }
+
     .post {
         padding: 16px 14px;
         margin-bottom: 14px;
