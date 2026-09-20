@@ -8264,6 +8264,84 @@ article.post {
 .ai-summary-content p:last-child {
     margin-bottom: 0;
 }
+/* AI 摘要里的 Markdown 元素（渲染器输出，样式与聊天气泡保持一致的观感） */
+.ai-summary-content > *:first-child { margin-top: 0; }
+.ai-summary-content > *:last-child { margin-bottom: 0; }
+.ai-summary-content h1,
+.ai-summary-content h2,
+.ai-summary-content h3,
+.ai-summary-content h4,
+.ai-summary-content h5,
+.ai-summary-content h6 {
+    margin: 0.7em 0 0.35em;
+    font-weight: 600;
+    line-height: 1.45;
+}
+.ai-summary-content h1 { font-size: 1.2em; }
+.ai-summary-content h2 { font-size: 1.12em; }
+.ai-summary-content h3 { font-size: 1.05em; }
+.ai-summary-content h4,
+.ai-summary-content h5,
+.ai-summary-content h6 { font-size: 1em; }
+.ai-summary-content ul,
+.ai-summary-content ol { margin: 0 0 8px; padding-left: 1.4em; }
+.ai-summary-content li { margin: 0.15em 0; }
+.ai-summary-content strong { font-weight: 600; }
+.ai-summary-content del { opacity: 0.62; }
+.ai-summary-content code {
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.06);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.92em;
+    word-break: break-all;
+}
+.ai-summary-content .md-pre {
+    margin: 0 0 8px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.05);
+    overflow-x: auto;
+    white-space: pre;
+}
+.ai-summary-content .md-pre code {
+    padding: 0;
+    background: none;
+    font-size: 12.5px;
+    line-height: 1.6;
+    word-break: normal;
+}
+.ai-summary-content blockquote {
+    margin: 0 0 8px;
+    padding: 2px 0 2px 10px;
+    border-left: 3px solid var(--primary-color, #467B96);
+    opacity: 0.88;
+}
+.ai-summary-content hr {
+    margin: 0.7em 0;
+    border: none;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+.ai-summary-content a {
+    color: var(--primary-color, #467B96);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    word-break: break-all;
+}
+.ai-summary-content .md-table-wrap {
+    margin: 0 0 8px;
+    overflow-x: auto;
+}
+.ai-summary-content table {
+    border-collapse: collapse;
+    font-size: 13px;
+}
+.ai-summary-content th,
+.ai-summary-content td {
+    padding: 4px 8px;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    text-align: left;
+}
 .ai-summary-loading {
     color: #999;
     font-size: 13px;
@@ -8318,6 +8396,23 @@ article.post {
 [data-theme="dark"] .ai-summary-content {
     color: #d0d0d8;
 }
+[data-theme="dark"] .ai-summary-content code {
+    background: rgba(255, 255, 255, 0.1);
+    color: #e4e4ea;
+}
+[data-theme="dark"] .ai-summary-content .md-pre {
+    background: rgba(0, 0, 0, 0.3);
+}
+[data-theme="dark"] .ai-summary-content hr {
+    border-top-color: rgba(255, 255, 255, 0.14);
+}
+[data-theme="dark"] .ai-summary-content th,
+[data-theme="dark"] .ai-summary-content td {
+    border-color: rgba(255, 255, 255, 0.16);
+}
+[data-theme="dark"] .ai-summary-content th {
+    background: rgba(255, 255, 255, 0.07);
+}
 [data-theme="dark"] .ai-summary-header .ai-summary-source {
     background: rgba(255, 255, 255, 0.08);
     color: #999;
@@ -8369,6 +8464,96 @@ article.post {
 .ai-chat-loading .ai-chat-bubble-inner {
     color: #999;
     font-style: normal;
+}
+/* ===== AI 回复的 Markdown 渲染（由 ai-markdown.js 生成） ===== */
+/* 渲染后是块级结构，需关掉 pre-wrap，否则段落之间会多出空行 */
+.ai-chat-bubble.assistant .ai-chat-bubble-inner { white-space: normal; }
+.ai-chat-bubble-inner > *:first-child { margin-top: 0; }
+.ai-chat-bubble-inner > *:last-child { margin-bottom: 0; }
+.ai-chat-bubble-inner p { margin: 0.4em 0; }
+.ai-chat-bubble-inner h1,
+.ai-chat-bubble-inner h2,
+.ai-chat-bubble-inner h3,
+.ai-chat-bubble-inner h4,
+.ai-chat-bubble-inner h5,
+.ai-chat-bubble-inner h6 {
+    margin: 0.7em 0 0.35em;
+    font-weight: 600;
+    line-height: 1.45;
+}
+.ai-chat-bubble-inner h1 { font-size: 1.24em; }
+.ai-chat-bubble-inner h2 { font-size: 1.14em; }
+.ai-chat-bubble-inner h3 { font-size: 1.06em; }
+.ai-chat-bubble-inner h4,
+.ai-chat-bubble-inner h5,
+.ai-chat-bubble-inner h6 { font-size: 1em; }
+.ai-chat-bubble-inner ul,
+.ai-chat-bubble-inner ol { margin: 0.4em 0; padding-left: 1.4em; }
+.ai-chat-bubble-inner li { margin: 0.15em 0; }
+.ai-chat-bubble-inner li > ul,
+.ai-chat-bubble-inner li > ol { margin: 0.15em 0; }
+.ai-chat-bubble-inner strong { font-weight: 600; }
+.ai-chat-bubble-inner del { opacity: 0.62; }
+.ai-chat-bubble-inner code {
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.06);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.92em;
+    word-break: break-all;
+}
+.ai-chat-bubble-inner .md-pre {
+    margin: 0.5em 0;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.05);
+    overflow-x: auto;
+    white-space: pre;
+}
+.ai-chat-bubble-inner .md-pre code {
+    padding: 0;
+    background: none;
+    font-size: 12.5px;
+    line-height: 1.6;
+    word-break: normal;
+}
+.ai-chat-bubble-inner blockquote {
+    margin: 0.5em 0;
+    padding: 2px 0 2px 10px;
+    border-left: 3px solid var(--primary-color, #467B96);
+    opacity: 0.88;
+}
+.ai-chat-bubble-inner hr {
+    margin: 0.7em 0;
+    border: none;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+.ai-chat-bubble-inner a {
+    color: var(--primary-color, #467B96);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    word-break: break-all;
+}
+.ai-chat-bubble-inner a:hover { opacity: 0.85; }
+.ai-chat-bubble-inner .md-table-wrap {
+    margin: 0.5em 0;
+    overflow-x: auto;
+}
+.ai-chat-bubble-inner table {
+    border-collapse: collapse;
+    font-size: 12.5px;
+    min-width: 60%;
+}
+.ai-chat-bubble-inner th,
+.ai-chat-bubble-inner td {
+    padding: 4px 8px;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    text-align: left;
+    white-space: nowrap;
+}
+.ai-chat-bubble-inner th {
+    background: rgba(0, 0, 0, 0.04);
+    font-weight: 600;
 }
 .ai-chat-tip {
     text-align: center;
@@ -8477,6 +8662,27 @@ article.post {
     background: rgba(255, 255, 255, 0.06);
     border-color: rgba(255, 255, 255, 0.1);
     color: #d0d0d8;
+}
+/* Markdown 内容在暗色气泡内的配色 */
+[data-theme="dark"] .ai-chat-bubble-inner code {
+    background: rgba(255, 255, 255, 0.1);
+    color: #e4e4ea;
+}
+[data-theme="dark"] .ai-chat-bubble-inner .md-pre {
+    background: rgba(0, 0, 0, 0.3);
+}
+[data-theme="dark"] .ai-chat-bubble-inner hr {
+    border-top-color: rgba(255, 255, 255, 0.14);
+}
+[data-theme="dark"] .ai-chat-bubble-inner th,
+[data-theme="dark"] .ai-chat-bubble-inner td {
+    border-color: rgba(255, 255, 255, 0.16);
+}
+[data-theme="dark"] .ai-chat-bubble-inner th {
+    background: rgba(255, 255, 255, 0.07);
+}
+[data-theme="dark"] .ai-chat-bubble-inner blockquote {
+    opacity: 0.92;
 }
 [data-theme="dark"] .ai-chat-input {
     background: rgba(255, 255, 255, 0.06);

@@ -23,6 +23,20 @@ function themeConfig($form)
         echo '<link rel="stylesheet" href="' . htmlspecialchars($faUrl, ENT_QUOTES, 'UTF-8') . '" />' . "\n";
     }
 
+    // AI 消息 Markdown 渲染器（与前台悬浮窗共用同一实现，供后台 AI 设置助手的气泡渲染使用）
+    // 仅当后台 AI 助手开启时加载；开关状态变更需刷新设置页（与浮窗 HTML 的输出条件一致）
+    if (isset($options->adminAiAssistant) && $options->adminAiAssistant === 'on'
+        && !defined('SHUFEI_ADMIN_AIMD_PRINTED')) {
+        define('SHUFEI_ADMIN_AIMD_PRINTED', true);
+        $aimdUseMin = !isset($options->minifyAssets) || $options->minifyAssets === 'on';
+        $aimdFile = ($aimdUseMin && file_exists(dirname(__FILE__) . '/assets/js/ai-markdown.min.js'))
+            ? 'ai-markdown.min.js' : 'ai-markdown.js';
+        $aimdMtime = @filemtime(dirname(__FILE__) . '/assets/js/' . $aimdFile);
+        $aimdUrl = rtrim((string) $options->themeUrl, '/') . '/assets/js/' . $aimdFile
+            . '?v=' . ($aimdMtime ?: shufei_get_theme_version());
+        echo '<script src="' . htmlspecialchars($aimdUrl, ENT_QUOTES, 'UTF-8') . '" defer></script>' . "\n";
+    }
+
     // 自定义表单元素（「选择 + 填写」混合输入框）
     // 注意：themeConfig() 在 themes-edit 动作下走前台路由（无 __TYPECHO_ADMIN__），
     // 故在此按需引入，不能依赖后台专用库加载块
@@ -2579,7 +2593,31 @@ function shufei_render_ai_settings_assistant($form = null)
     .aias-messages{flex:1;min-height:0;overflow-y:auto;padding:12px 14px;background:#fff;}
     .aias-msg{max-width:86%;margin-bottom:10px;padding:8px 12px;border-radius:10px;font-size:13px;line-height:1.65;word-break:break-word;white-space:pre-wrap;}
     .aias-msg.user{margin-left:auto;background:#467B96;color:#fff;border-bottom-right-radius:3px;}
-    .aias-msg.assistant{background:#f2f5f7;color:#333;border-bottom-left-radius:3px;}
+    .aias-msg.assistant{background:#f2f5f7;color:#333;border-bottom-left-radius:3px;white-space:normal;}
+    /* AI 回复的 Markdown 渲染（由 ai-markdown.js 生成） */
+    .aias-msg.assistant > *:first-child{margin-top:0;}
+    .aias-msg.assistant > *:last-child{margin-bottom:0;}
+    .aias-msg.assistant p{margin:.35em 0;}
+    .aias-msg.assistant h1,.aias-msg.assistant h2,.aias-msg.assistant h3,
+    .aias-msg.assistant h4,.aias-msg.assistant h5,.aias-msg.assistant h6{margin:.7em 0 .35em;font-weight:600;line-height:1.45;}
+    .aias-msg.assistant h1{font-size:1.22em;}
+    .aias-msg.assistant h2{font-size:1.13em;}
+    .aias-msg.assistant h3{font-size:1.05em;}
+    .aias-msg.assistant h4,.aias-msg.assistant h5,.aias-msg.assistant h6{font-size:1em;}
+    .aias-msg.assistant ul,.aias-msg.assistant ol{margin:.4em 0;padding-left:1.4em;}
+    .aias-msg.assistant li{margin:.15em 0;}
+    .aias-msg.assistant strong{font-weight:600;}
+    .aias-msg.assistant del{opacity:.62;}
+    .aias-msg.assistant code{padding:1px 5px;border-radius:4px;background:rgba(0,0,0,.07);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.92em;word-break:break-all;}
+    .aias-msg.assistant .md-pre{margin:.5em 0;padding:8px 10px;border-radius:8px;background:rgba(0,0,0,.05);overflow-x:auto;white-space:pre;}
+    .aias-msg.assistant .md-pre code{padding:0;background:none;font-size:12px;line-height:1.6;word-break:normal;}
+    .aias-msg.assistant blockquote{margin:.5em 0;padding:2px 0 2px 10px;border-left:3px solid #467B96;opacity:.88;}
+    .aias-msg.assistant hr{margin:.7em 0;border:none;border-top:1px solid rgba(0,0,0,.12);}
+    .aias-msg.assistant a{color:#467B96;text-decoration:underline;text-underline-offset:2px;word-break:break-all;}
+    .aias-msg.assistant .md-table-wrap{margin:.5em 0;overflow-x:auto;}
+    .aias-msg.assistant table{border-collapse:collapse;font-size:12px;min-width:60%;}
+    .aias-msg.assistant th,.aias-msg.assistant td{padding:4px 8px;border:1px solid rgba(0,0,0,.12);text-align:left;white-space:nowrap;}
+    .aias-msg.assistant th{background:rgba(0,0,0,.05);font-weight:600;}
     .aias-msg.action{background:#fff8e6;border:1px solid #ffe1a1;color:#8a6116;font-size:12px;padding:6px 10px;}
     .aias-msg.error{background:#fdf0f0;border:1px solid #f3c1c1;color:#a03030;font-size:12px;padding:6px 10px;}
     /* 流式回复：气泡内「思考中/正在执行」提示 + 末尾闪烁光标 */
@@ -2693,10 +2731,21 @@ function shufei_render_ai_settings_assistant($form = null)
             if (e.key === 'Escape' && !win.hidden) { setOpen(false); }
         });
 
+        // 写入气泡正文：AI 回复按 Markdown 渲染（ShufeiMD 自带整体转义 + 标签白名单，
+        // 可安全 innerHTML）；user / action / error 等保持纯文本。
+        // 注意：innerHTML 会清掉气泡内的 typing 提示，调用方需先 clearTyping（现有分支均已保证顺序）。
+        function setMsgBody(el, text, isAi){
+            if (!el) return;
+            if (isAi && window.ShufeiMD) {
+                el.innerHTML = window.ShufeiMD.render(text);
+            } else {
+                el.textContent = text;
+            }
+        }
         function addMsg(cls, text){
             var div = document.createElement('div');
             div.className = 'aias-msg ' + cls;
-            div.textContent = text;
+            setMsgBody(div, text, cls === 'assistant');
             messagesEl.appendChild(div);
             messagesEl.scrollTop = messagesEl.scrollHeight;
             return div;
@@ -2754,7 +2803,7 @@ function shufei_render_ai_settings_assistant($form = null)
                 }
                 if (ev.text) { ctx.text += ev.text; }
                 clearTyping(ctx.bubble);
-                ctx.bubble.textContent = ctx.text;
+                setMsgBody(ctx.bubble, ctx.text, true);
                 scrollBottom();
             } else if (ev.type === 'action') {
                 clearTyping(ctx.bubble);
@@ -2766,7 +2815,7 @@ function shufei_render_ai_settings_assistant($form = null)
                 endStreaming(ctx);
                 if (ctx.bubble) {
                     ctx.reply = ev.reply || ctx.text;
-                    ctx.bubble.textContent = ctx.reply;
+                    setMsgBody(ctx.bubble, ctx.reply, true);
                 } else if (ev.reply) {
                     addMsg('assistant', ev.reply);
                     ctx.reply = ev.reply;

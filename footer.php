@@ -206,12 +206,16 @@ $useMin = empty($this->options->minifyAssets) || $this->options->minifyAssets ==
 $mainJsFile = $useMin && file_exists($themeDir . '/assets/js/main.min.js') ? 'main.min.js' : 'main.js';
 $pjaxJsFile = $useMin && file_exists($themeDir . '/assets/js/pjax.min.js') ? 'pjax.min.js' : 'pjax.js';
 $loadMoreJsFile = $useMin && file_exists($themeDir . '/assets/js/load-more.min.js') ? 'load-more.min.js' : 'load-more.js';
+// AI 消息 Markdown 渲染器（前后台共用，仅 AI 站点助手开启时加载）
+$aiMdJsFile = $useMin && file_exists($themeDir . '/assets/js/ai-markdown.min.js') ? 'ai-markdown.min.js' : 'ai-markdown.js';
 $mainJsMtime = filemtime($themeDir . '/assets/js/' . $mainJsFile);
 $pjaxJsMtime = filemtime($themeDir . '/assets/js/' . $pjaxJsFile);
 $loadMoreJsMtime = filemtime($themeDir . '/assets/js/' . $loadMoreJsFile);
+$aiMdJsMtime = @filemtime($themeDir . '/assets/js/' . $aiMdJsFile);
 $jsUrls = [
     'jquery' => $themeUrl . 'assets/vendor/jquery/jquery.min.js',
     'main' => $themeUrl . 'assets/js/' . $mainJsFile . '?v=' . ($mainJsMtime ?: shufei_get_theme_version()),
+    'aimd' => $themeUrl . 'assets/js/' . $aiMdJsFile . '?v=' . ($aiMdJsMtime ?: shufei_get_theme_version()),
     'pjax' => $themeUrl . 'assets/js/' . $pjaxJsFile . '?v=' . ($pjaxJsMtime ?: shufei_get_theme_version()),
     'loadmore' => $themeUrl . 'assets/js/' . $loadMoreJsFile . '?v=' . ($loadMoreJsMtime ?: shufei_get_theme_version()),
     'pjax_lib' => $themeUrl . 'assets/vendor/pjax/pjax.min.js',
@@ -242,6 +246,7 @@ if ($resourceMode === 'cdn') {
     // 使用自建CDN
     $jsUrls['jquery'] = $customCdn . '/assets/vendor/jquery/jquery.min.js';
     $jsUrls['main'] = $customCdn . '/assets/js/' . $mainJsFile . '?v=' . ($mainJsMtime ?: shufei_get_theme_version());
+    $jsUrls['aimd'] = $customCdn . '/assets/js/' . $aiMdJsFile . '?v=' . ($aiMdJsMtime ?: shufei_get_theme_version());
     $jsUrls['pjax'] = $customCdn . '/assets/js/' . $pjaxJsFile . '?v=' . ($pjaxJsMtime ?: shufei_get_theme_version());
     $jsUrls['loadmore'] = $customCdn . '/assets/js/' . $loadMoreJsFile . '?v=' . ($loadMoreJsMtime ?: shufei_get_theme_version());
     $jsUrls['pjax_lib'] = $customCdn . '/assets/vendor/pjax/pjax.min.js';
@@ -295,6 +300,11 @@ window.vendorScripts = {
     katexAutoRender: '<?php echo (!empty($this->options->katexEnabled) && $this->options->katexEnabled === 'on') ? $jsUrls['katexAutoRender'] : ''; ?>'
 };
 </script>
+
+<?php if (!empty($siteAiOn)): ?>
+<!-- AI 消息 Markdown 渲染器（仅 AI 站点助手开启时加载；须在主脚本之前，defer 保序） -->
+<script src="<?php echo $jsUrls['aimd']; ?>" defer></script>
+<?php endif; ?>
 
 <!-- 主题主脚本 -->
 <script src="<?php echo $jsUrls['main']; ?>" defer></script>

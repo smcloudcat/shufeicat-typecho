@@ -2026,6 +2026,11 @@ window.initAiSummary = function() {
     }
 
     function summaryHtml(summary) {
+        // AI 摘要同样按 Markdown 渲染（模型常输出 **关键词**、列表等）；
+        // 渲染器对纯文本的输出就是 `<p>纯文本</p>`，与旧逻辑等价，样式不受影响
+        if (window.ShufeiMD) {
+            return window.ShufeiMD.render(summary);
+        }
         return '<p>' + escapeHtml(summary).replace(/\n/g, '<br>') + '</p>';
     }
 
@@ -2439,7 +2444,12 @@ window.initAiChat = function() {
 
     function bubbleHtml(role, text) {
         var cls = role === 'user' ? 'ai-chat-bubble user' : 'ai-chat-bubble assistant';
-        return '<div class="' + cls + '"><div class="ai-chat-bubble-inner">' + escapeHtml(text).replace(/\n/g, '<br>') + '</div></div>';
+        // AI 回复按 Markdown 渲染（ShufeiMD 自带转义 + 标签白名单，可安全 innerHTML）；
+        // 用户自己的输入保持纯文本，避免误渲染与视觉混淆。
+        var body = (role === 'user' || !window.ShufeiMD)
+            ? escapeHtml(text).replace(/\n/g, '<br>')
+            : window.ShufeiMD.render(text);
+        return '<div class="' + cls + '"><div class="ai-chat-bubble-inner">' + body + '</div></div>';
     }
 
     function appendBubble(role, text) {
