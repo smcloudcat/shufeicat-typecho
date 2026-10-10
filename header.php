@@ -324,8 +324,8 @@
 
     <?php if (shufei_is_catcaptcha_enabled() && !empty(shufei_get_catcaptcha_site_key())): ?>
     <!-- Cat-Captcha 人机验证 -->
-    <link rel="stylesheet" href="<?php echo rtrim(shufei_get_catcaptcha_api_base(), '/'); ?>/public/captcha.css?v=1.0.6">
-    <script src="<?php echo rtrim(shufei_get_catcaptcha_api_base(), '/'); ?>/public/captcha.js?v=1.0.6" async defer></script>
+    <link rel="stylesheet" href="<?php echo rtrim(shufei_get_catcaptcha_api_base(), '/'); ?>/public/captcha.css?v=2.0.0">
+    <script src="<?php echo rtrim(shufei_get_catcaptcha_api_base(), '/'); ?>/public/captcha.js?v=2.0.0" async defer></script>
     <?php endif; ?>
     
     <script>

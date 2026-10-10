@@ -2077,7 +2077,7 @@ function themeConfig($form)
     // Cat-Captcha API 地址已内嵌为官方服务 https://captcha.lwcat.cn，无需配置
     echo '<div class="typecho-option cat-group-verify" data-verify-type="catcaptcha">'
         . '<label class="typecho-label">Cat-Captcha 服务对接</label>'
-        . '<div class="description">介绍：Cat-Captcha API 接口已内嵌为官方服务 <a href="https://captcha.lwcat.cn" target="_blank" rel="noopener">https://captcha.lwcat.cn</a>，'
+        . '<div class="description">介绍：Cat-Captcha API 接口已内嵌为官方服务 <a href="https://captcha.lwcat.cn" target="_blank" rel="noopener">https://captcha.lwcat.cn</a>（前端 SDK 2.0.0，人机验证算法 v2，需站点在开发者中心启用算法 v2），'
         . '请前往 <a href="https://captcha.lwcat.cn" target="_blank" rel="noopener">https://captcha.lwcat.cn</a> 注册账号并创建站点，获取上方所需的 site_id / site_key / secret_key 对接信息</div>'
         . '</div>';
 

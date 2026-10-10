@@ -4027,7 +4027,7 @@ window.initCaptchaWidgets = function() {
                     window.catCaptchaBox = window.LwCaptcha.trigger({
                         el: '#catcaptcha-box',
                         type: 'auto',
-                        algVersion: 1,
+                        algVersion: 2,
                         apiBase: catApiBase,
                         siteKey: catSiteKey,
                         action: catAction,
