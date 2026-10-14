@@ -227,7 +227,7 @@ function shufei_recommended_presets()
             'id'         => 'rec-fc-4',
             'name'       => '青碧远山（渐变经典）',
             'desc'       => '青碧绿主题色 × 森系流光渐变 · 经典文章列表，清爽自然',
-            'image'      => '',
+            'image'      => 'https://img-cf.czzu.cn/shufeicat-rec-fc-4.png',
             'preview_bg' => '',
             'settings'   => array(
                 'themeColor'           => '#0E9488',
@@ -245,7 +245,7 @@ function shufei_recommended_presets()
             'id'         => 'rec-fc-5',
             'name'       => '深海蓝调（渐变卡片）',
             'desc'       => '宝蓝主题色 × 深海到浅青渐变 · 卡片文章列表，沉稳大气',
-            'image'      => '',
+            'image'      => 'https://img-cf.czzu.cn/shufeicat-rec-fc-5.png',
             'preview_bg' => '',
             'settings'   => array(
                 'themeColor'           => '#2563EB',
@@ -263,7 +263,7 @@ function shufei_recommended_presets()
             'id'         => 'rec-fc-6',
             'name'       => '樱雪初晴（渐变卡片）',
             'desc'       => '樱花粉主题色 × 粉紫到淡蓝渐变 · 卡片文章列表，温柔清新',
-            'image'      => '',
+            'image'      => 'https://img-cf.czzu.cn/shufeicat-rec-fc-6.png',
             'preview_bg' => '',
             'settings'   => array(
                 'themeColor'           => '#D9569B',
@@ -281,7 +281,7 @@ function shufei_recommended_presets()
             'id'         => 'rec-fc-7',
             'name'       => '墨玉书香（极简）',
             'desc'       => '墨青主题色 × 宣纸米白背景 · 极简文字列表，专注阅读',
-            'image'      => '',
+            'image'      => 'https://img-cf.czzu.cn/shufeicat-rec-fc-7.png',
             'preview_bg' => 'radial-gradient(circle at 20% 25%, rgba(61,75,92,.42), rgba(61,75,92,0) 62%), linear-gradient(135deg, #eef1f4 0%, #f7f6f2 100%)',
             'settings'   => array(
                 'themeColor'        => '#3D4B5C',
@@ -298,7 +298,7 @@ function shufei_recommended_presets()
             'id'         => 'rec-fc-8',
             'name'       => '夜幕星河（渐变经典）',
             'desc'       => '星紫主题色 × 暮蓝到暗紫渐变 · 经典文章列表，静谧深邃',
-            'image'      => '',
+            'image'      => 'https://img-cf.czzu.cn/shufeicat-rec-fc-8.png',
             'preview_bg' => '',
             'settings'   => array(
                 'themeColor'           => '#7C6CF0',
