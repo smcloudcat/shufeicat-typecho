@@ -1585,7 +1585,63 @@ function themeConfig($form)
     $commentMailCustomTemplate->setAttribute('class', 'typecho-option cat-group-mail');
     $form->addInput($commentMailCustomTemplate);
 
-    // ===== AI 助手配置 =====
+    // ===== AI 助手配置（2026-10-14 整理：功能开关 → 接口配置 → 功能参数；字段名零改动，数据零迁移）=====
+
+    // ---------- 一、功能开关 ----------
+    echo '<div class="typecho-option cat-group-ai" style="padding:12px 0 2px;">'
+        . '<div class="cat-data-title" style="margin:0;">一、功能开关</div>'
+        . '<div class="description" style="margin:2px 0 0;">先决定启用哪些 AI 能力，再往下填写「二、接口配置」，各功能的详细参数在对应分区</div>'
+        . '</div>';
+
+    // 文章 AI 总结（总开关，同时控制摘要参数区显示）
+    $aiSummaryEnabled = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'aiSummaryEnabled',
+        array('off' => _t('关闭'), 'on' => _t('开启')),
+        'off',
+        _t('文章AI总结'),
+        _t('介绍：开启后，前台文章页可展示由 AI 生成的摘要。默认需在单篇文章中单独开启「AI摘要」字段；若开启下方「全局AI助手」，则所有公开文章自动启用。详细参数见下方「三、摘要参数」')
+    );
+    $aiSummaryEnabled->setAttribute('class', 'typecho-option cat-group-ai');
+    $form->addInput($aiSummaryEnabled);
+
+    // 全局 AI 助手（所有公开文章自动启用摘要与对话）
+    $aiAssistantGlobal = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'aiAssistantGlobal',
+        array('off' => _t('关闭'), 'on' => _t('开启')),
+        'off',
+        _t('全局AI助手'),
+        _t('介绍：开启后所有公开文章自动启用 AI 摘要与对话（无需逐篇设置 aiSummary 字段），访客首次浏览未缓存文章时将自动生成摘要。密码文章仅在输入正确密码解锁后才会生成摘要，隐藏/草稿/待审文章不受影响。注意：访客对话还需下方「AI 对话助手」处于开启或仅摘要状态')
+    );
+    $aiAssistantGlobal->setAttribute('class', 'typecho-option cat-group-ai ai-summary-field');
+    $form->addInput($aiAssistantGlobal);
+
+    // AI 对话助手（原「AI摘要连续对话」，2026-10-14 更名：同时控制前台悬浮助手与文章页对话区）
+    $aiChatMode = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'aiChatMode',
+        array(
+            'off'          => _t('关闭'),
+            'summary_only' => _t('仅摘要，不开放对话'),
+            'on'           => _t('开启（前台显示 AI 助手入口）'),
+        ),
+        'off',
+        _t('AI 对话助手'),
+        _t('介绍：控制前台访客与 AI 的对话能力。开启后：前台右下角出现「AI 站点助手」悬浮入口（流式输出 / 推荐问题 / 停止生成 / 对话记录本地保存），文章页摘要下方出现「问 AI」按钮；访客可就本文或全站内容连续提问，AI 可调用站内工具（搜索公开文章、搜索公开评论、获取站点信息）辅助回答。密码文章、隐藏文章、草稿及评论者隐私信息（邮箱/IP 等）已从代码层面锁死，任何情况下都不会提供给 AI')
+    );
+    $aiChatMode->setAttribute('class', 'typecho-option cat-group-ai ai-summary-field');
+    $form->addInput($aiChatMode);
+
+    // AI 评论审核（同时控制审核高级参数区显示）
+    $aiModerationEnabled = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'aiModerationEnabled',
+        array('off' => _t('关闭'), 'on' => _t('开启')),
+        'off',
+        _t('AI评论审核'),
+        _t('介绍：开启后将通过AI进行内容安全审核，该设置会影响评论速度。详细参数见下方「五、审核高级参数」')
+    );
+    $aiModerationEnabled->setAttribute('class', 'typecho-option cat-group-ai');
+    $form->addInput($aiModerationEnabled);
+
+    // AI 写作助手（后台文章编辑器）
     $aiWriterEnabled = new \Typecho\Widget\Helper\Form\Element\Radio(
         'aiWriterEnabled',
         array('off' => _t('关闭'), 'on' => _t('开启')),
@@ -1596,109 +1652,19 @@ function themeConfig($form)
     $aiWriterEnabled->setAttribute('class', 'typecho-option cat-group-ai');
     $form->addInput($aiWriterEnabled);
 
-    $aiModerationEnabled = new \Typecho\Widget\Helper\Form\Element\Radio(
-        'aiModerationEnabled',
-        array('off' => _t('关闭'), 'on' => _t('开启')),
-        'off',
-        _t('AI评论审核'),
-        _t('介绍：开启后将通过AI进行内容安全审核，该设置会影响评论速度')
-    );
-    $aiModerationEnabled->setAttribute('class', 'typecho-option cat-group-ai');
-    $form->addInput($aiModerationEnabled);
-
-    // ===== 文章 AI 总结 =====
-    $aiSummaryEnabled = new \Typecho\Widget\Helper\Form\Element\Radio(
-        'aiSummaryEnabled',
-        array('off' => _t('关闭'), 'on' => _t('开启')),
-        'off',
-        _t('文章AI总结'),
-        _t('介绍：开启后，前台文章页可展示由 AI 生成的摘要。默认需在单篇文章中单独开启「AI摘要」字段；若开启下方「全局AI助手」，则所有公开文章自动启用')
-    );
-    $aiSummaryEnabled->setAttribute('class', 'typecho-option cat-group-ai ai-summary-field');
-    $form->addInput($aiSummaryEnabled);
-
-    $aiAssistantGlobal = new \Typecho\Widget\Helper\Form\Element\Radio(
-        'aiAssistantGlobal',
-        array('off' => _t('关闭'), 'on' => _t('开启')),
-        'off',
-        _t('全局AI助手'),
-        _t('介绍：开启后所有公开文章自动启用 AI 摘要与对话（无需逐篇设置 aiSummary 字段），访客首次浏览未缓存文章时将自动生成摘要。密码文章仅在输入正确密码解锁后才会生成摘要，隐藏/草稿/待审文章不受影响')
-    );
-    $aiAssistantGlobal->setAttribute('class', 'typecho-option cat-group-ai ai-summary-field');
-    $form->addInput($aiAssistantGlobal);
-
-    $aiSummaryCacheTime = new \Typecho\Widget\Helper\Form\Element\Text(
-        'aiSummaryCacheTime',
-        null,
-        '86400',
-        _t('AI总结缓存时间（秒）'),
-        _t('介绍：AI 生成的总结会缓存到本地，在缓存有效期内再次访问直接读取缓存，避免重复调用接口。默认 86400 秒（1天）。修改文章内容后建议等待缓存过期或手动清空缓存')
-    );
-    $aiSummaryCacheTime->setAttribute('class', 'typecho-option cat-group-ai ai-summary-field');
-    $form->addInput($aiSummaryCacheTime);
-
-    $aiSummaryPrompt = new \Typecho\Widget\Helper\Form\Element\Textarea(
-        'aiSummaryPrompt',
-        null,
-        null,
-        _t('AI总结提示词（可选）'),
-        _t('介绍：留空则使用内置默认提示词。填写后将作为系统提示词用于生成摘要，可用 {content} 占位符表示文章内容')
-    );
-    $aiSummaryPrompt->setAttribute('class', 'typecho-option cat-group-ai ai-summary-field');
-    $form->addInput($aiSummaryPrompt);
-
-    $aiSummaryStream = new \Typecho\Widget\Helper\Form\Element\Radio(
-        'aiSummaryStream',
-        array('off' => _t('关闭'), 'on' => _t('开启')),
-        'off',
-        _t('AI总结流式输出'),
-        _t('介绍：开启后，生成摘要时以流式（打字机）效果逐步显示文字。需 AI 接口支持流式输出，且部分服务器环境（如禁用输出缓冲）可能无法生效')
-    );
-    $aiSummaryStream->setAttribute('class', 'typecho-option cat-group-ai ai-summary-field');
-    $form->addInput($aiSummaryStream);
-
-    // ===== AI 摘要连续对话 =====
-    $aiChatMode = new \Typecho\Widget\Helper\Form\Element\Radio(
-        'aiChatMode',
-        array(
-            'off'          => _t('关闭（仅显示摘要）'),
-            'summary_only' => _t('仅生成摘要（不开放对话）'),
-            'on'           => _t('摘要 + AI 对话（访客可提问）'),
-        ),
-        'off',
-        _t('AI摘要连续对话'),
-        _t('介绍：开启后，前台文章摘要卡片下方会出现「询问 AI」对话区，访客可就本文或站内内容与 AI 连续提问。AI 可调用站内工具（搜索公开文章、搜索公开评论、获取站点信息等）辅助回答；密码文章、隐藏文章、草稿及评论者隐私信息（邮箱/IP 等）已从代码层面锁死，任何情况下都不会提供给 AI')
-    );
-    $aiChatMode->setAttribute('class', 'typecho-option cat-group-ai ai-summary-field');
-    $form->addInput($aiChatMode);
-
-    $aiChatMaxRounds = new \Typecho\Widget\Helper\Form\Element\Text(
-        'aiChatMaxRounds',
-        null,
-        '10',
-        _t('AI对话最大轮数'),
-        _t('介绍：单个访客在同一篇文章中与 AI 对话的最大轮数（1-30），防止滥用接口。默认 10 轮，刷新页面可开启新对话')
-    );
-    $aiChatMaxRounds->setAttribute('class', 'typecho-option cat-group-ai ai-summary-field');
-    $form->addInput($aiChatMaxRounds);
-
-    $aiChatSystemPrompt = new \Typecho\Widget\Helper\Form\Element\Textarea(
-        'aiChatSystemPrompt',
-        null,
-        null,
-        _t('AI对话补充提示词（可选）'),
-        _t('介绍：留空则使用内置默认规则。填写后将追加到对话系统提示词末尾，可用来定制 AI 的说话风格等')
-    );
-    $aiChatSystemPrompt->setAttribute('class', 'typecho-option cat-group-ai ai-summary-field');
-    $form->addInput($aiChatSystemPrompt);
+    // ---------- 二、AI 接口配置 ----------
+    echo '<div class="typecho-option cat-group-ai" style="padding:12px 0 2px;">'
+        . '<div class="cat-data-title" style="margin:0;">二、AI 接口配置</div>'
+        . '<div class="description" style="margin:2px 0 0;">摘要、对话助手、评论审核、写作助手共用这里的接口。「分别设置」模式下，摘要与对话会按「写作接口 → 审核接口 → 统一接口」的优先级选用已配置的接口</div>'
+        . '</div>';
 
     // 接口模式：统一接口 or 分别设置
     $aiUnifiedApi = new \Typecho\Widget\Helper\Form\Element\Radio(
         'aiUnifiedApi',
-        array('on' => _t('统一接口（写作和审核共用）'), 'off' => _t('分别设置（写作和审核使用不同接口）')),
+        array('on' => _t('统一接口（所有功能共用一套）'), 'off' => _t('分别设置（写作和审核使用不同接口）')),
         'on',
         _t('接口模式'),
-        _t('介绍：选择「统一接口」时，下方配置同时用于 AI 写作和评论审核；选择「分别设置」时可分别为写作和审核配置不同的接口')
+        _t('介绍：选择「统一接口」时，下方同一套接口配置同时用于 AI 摘要、对话助手、评论审核与写作助手；选择「分别设置」时可分别为写作和审核配置不同的接口（摘要与对话助手按「写作 → 审核 → 统一」优先级选用）')
     );
     $aiUnifiedApi->setAttribute('class', 'typecho-option cat-group-ai');
     $form->addInput($aiUnifiedApi);
@@ -1731,7 +1697,7 @@ function themeConfig($form)
     $aiUnifiedApiType->setAttribute('class', 'typecho-option cat-group-ai ai-unified-field ai-old-field');
     $form->addInput($aiUnifiedApiType);
 
-    // 统一接口配置（aiModerationApiUrl 同时作为统一接口地址，向后兼容）
+    // 统一接口配置（aiModerationApiUrl 等字段同时作为统一接口地址，向后兼容，字段名不可改）
     $aiModerationApiUrl = new \Typecho\Widget\Helper\Form\Element\Text(
         'aiModerationApiUrl',
         null,
@@ -1849,7 +1815,7 @@ function themeConfig($form)
     $aiModerationApiType->setAttribute('class', 'typecho-option cat-group-ai ai-separate-moderation-field ai-api-type-moderation ai-old-field');
     $form->addInput($aiModerationApiType);
 
-    // 分别设置模式：审核专用接口（使用 aiModerationApiUrl 等字段，标签动态切换）
+    // 分别设置模式：审核专用接口（使用独立字段）
     $aiModerationSepApiUrl = new \Typecho\Widget\Helper\Form\Element\Text(
         'aiModerationSepApiUrl',
         null,
@@ -1880,7 +1846,97 @@ function themeConfig($form)
     $aiModerationSepModel->setAttribute('class', 'typecho-option cat-group-ai ai-separate-moderation-field ai-custom-moderation-field');
     $form->addInput($aiModerationSepModel);
 
-    // ===== AI 审核高级设置 =====
+    // 接口测试按钮与状态显示
+    echo '<div class="typecho-option cat-group-ai">'
+        . '<div style="margin-bottom:12px;font-weight:bold;color:#333;">接口连通性测试</div>'
+        . '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;">'
+        . '<button type="button" class="cat-data-btn cat-data-btn-primary" id="cat-test-unified-api" style="display:none;">测试统一接口</button>'
+        . '<button type="button" class="cat-data-btn cat-data-btn-primary" id="cat-test-writer-api" style="display:none;">测试写作接口</button>'
+        . '<button type="button" class="cat-data-btn cat-data-btn-primary" id="cat-test-moderation-api" style="display:none;">测试审核接口</button>'
+        . '</div>'
+        . '<div class="cat-data-status" id="cat-api-test-status" style="display:block;max-width:100%;"></div>'
+        . '</div>';
+
+    // 获取模型列表按钮
+    echo '<div class="typecho-option cat-group-ai">'
+        . '<div style="margin-bottom:12px;font-weight:bold;color:#333;">获取模型列表</div>'
+        . '<p style="color:#999;font-size:12px;margin:0 0 12px">介绍：从当前配置的提供商接口拉取可用模型列表，并填入对应模型输入框</p>'
+        . '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;">'
+        . '<button type="button" class="cat-data-btn cat-data-btn-primary" id="cat-models-unified" style="display:none;">获取统一接口模型</button>'
+        . '<button type="button" class="cat-data-btn cat-data-btn-primary" id="cat-models-writer" style="display:none;">获取写作接口模型</button>'
+        . '<button type="button" class="cat-data-btn cat-data-btn-primary" id="cat-models-moderation" style="display:none;">获取审核接口模型</button>'
+        . '</div>'
+        . '<div class="cat-data-status" id="cat-models-status" style="display:block;max-width:100%;"></div>'
+        . '</div>';
+
+    // ---------- 三、摘要参数（文章AI总结开启时显示） ----------
+    echo '<div class="typecho-option cat-group-ai ai-summary-field" style="padding:12px 0 2px;">'
+        . '<div class="cat-data-title" style="margin:0;">三、摘要参数</div>'
+        . '<div class="description" style="margin:2px 0 0;">仅「文章AI总结」开启时显示</div>'
+        . '</div>';
+
+    $aiSummaryCacheTime = new \Typecho\Widget\Helper\Form\Element\Text(
+        'aiSummaryCacheTime',
+        null,
+        '86400',
+        _t('AI总结缓存时间（秒）'),
+        _t('介绍：AI 生成的总结会缓存到本地，在缓存有效期内再次访问直接读取缓存，避免重复调用接口。默认 86400 秒（1天）。修改文章内容后建议等待缓存过期或手动清空缓存')
+    );
+    $aiSummaryCacheTime->setAttribute('class', 'typecho-option cat-group-ai ai-summary-field');
+    $form->addInput($aiSummaryCacheTime);
+
+    $aiSummaryPrompt = new \Typecho\Widget\Helper\Form\Element\Textarea(
+        'aiSummaryPrompt',
+        null,
+        null,
+        _t('AI总结提示词（可选）'),
+        _t('介绍：留空则使用内置默认提示词。填写后将作为系统提示词用于生成摘要，可用 {content} 占位符表示文章内容')
+    );
+    $aiSummaryPrompt->setAttribute('class', 'typecho-option cat-group-ai ai-summary-field');
+    $form->addInput($aiSummaryPrompt);
+
+    $aiSummaryStream = new \Typecho\Widget\Helper\Form\Element\Radio(
+        'aiSummaryStream',
+        array('off' => _t('关闭'), 'on' => _t('开启')),
+        'off',
+        _t('AI总结流式输出'),
+        _t('介绍：开启后，生成摘要时以流式（打字机）效果逐步显示文字。需 AI 接口支持流式输出，且部分服务器环境（如禁用输出缓冲）可能无法生效')
+    );
+    $aiSummaryStream->setAttribute('class', 'typecho-option cat-group-ai ai-summary-field');
+    $form->addInput($aiSummaryStream);
+
+    // ---------- 四、对话助手参数（AI 对话助手开启时显示） ----------
+    echo '<div class="typecho-option cat-group-ai ai-summary-field ai-chat-field" style="padding:12px 0 2px;">'
+        . '<div class="cat-data-title" style="margin:0;">四、对话助手参数</div>'
+        . '<div class="description" style="margin:2px 0 0;">仅「AI 对话助手」选择开启时显示</div>'
+        . '</div>';
+
+    $aiChatMaxRounds = new \Typecho\Widget\Helper\Form\Element\Text(
+        'aiChatMaxRounds',
+        null,
+        '10',
+        _t('AI对话最大轮数'),
+        _t('介绍：单个访客与 AI 对话的最大轮数（1-30），防止滥用接口。默认 10 轮；达到上限后可点「开新对话」重新开始。对话记录仅保存在访客浏览器的 localStorage，服务端不落库')
+    );
+    $aiChatMaxRounds->setAttribute('class', 'typecho-option cat-group-ai ai-summary-field ai-chat-field');
+    $form->addInput($aiChatMaxRounds);
+
+    $aiChatSystemPrompt = new \Typecho\Widget\Helper\Form\Element\Textarea(
+        'aiChatSystemPrompt',
+        null,
+        null,
+        _t('AI对话补充提示词（可选）'),
+        _t('介绍：留空则使用内置默认规则。填写后将追加到对话系统提示词末尾，可用来定制 AI 的说话风格等')
+    );
+    $aiChatSystemPrompt->setAttribute('class', 'typecho-option cat-group-ai ai-summary-field ai-chat-field');
+    $form->addInput($aiChatSystemPrompt);
+
+    // ---------- 五、审核高级参数（AI评论审核开启时显示） ----------
+    echo '<div class="typecho-option cat-group-ai ai-moderation-advanced" style="padding:12px 0 2px;">'
+        . '<div class="cat-data-title" style="margin:0;">五、审核高级参数</div>'
+        . '<div class="description" style="margin:2px 0 0;">仅「AI评论审核」开启时显示</div>'
+        . '</div>';
+
     $aiModerationPromptLevel = new \Typecho\Widget\Helper\Form\Element\Radio(
         'aiModerationPromptLevel',
         array(
@@ -1941,29 +1997,6 @@ function themeConfig($form)
     );
     $aiModerationPrompt->setAttribute('class', 'typecho-option cat-group-ai ai-moderation-advanced');
     $form->addInput($aiModerationPrompt);
-
-    // 接口测试按钮与状态显示
-    echo '<div class="typecho-option cat-group-ai">'
-        . '<div style="margin-bottom:12px;font-weight:bold;color:#333;">接口连通性测试</div>'
-        . '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;">'
-        . '<button type="button" class="cat-data-btn cat-data-btn-primary" id="cat-test-unified-api" style="display:none;">测试统一接口</button>'
-        . '<button type="button" class="cat-data-btn cat-data-btn-primary" id="cat-test-writer-api" style="display:none;">测试写作接口</button>'
-        . '<button type="button" class="cat-data-btn cat-data-btn-primary" id="cat-test-moderation-api" style="display:none;">测试审核接口</button>'
-        . '</div>'
-        . '<div class="cat-data-status" id="cat-api-test-status" style="display:block;max-width:100%;"></div>'
-        . '</div>';
-
-    // 获取模型列表按钮
-    echo '<div class="typecho-option cat-group-ai">'
-        . '<div style="margin-bottom:12px;font-weight:bold;color:#333;">获取模型列表</div>'
-        . '<p style="color:#999;font-size:12px;margin:0 0 12px">介绍：从当前配置的提供商接口拉取可用模型列表，并填入对应模型输入框</p>'
-        . '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;">'
-        . '<button type="button" class="cat-data-btn cat-data-btn-primary" id="cat-models-unified" style="display:none;">获取统一接口模型</button>'
-        . '<button type="button" class="cat-data-btn cat-data-btn-primary" id="cat-models-writer" style="display:none;">获取写作接口模型</button>'
-        . '<button type="button" class="cat-data-btn cat-data-btn-primary" id="cat-models-moderation" style="display:none;">获取审核接口模型</button>'
-        . '</div>'
-        . '<div class="cat-data-status" id="cat-models-status" style="display:block;max-width:100%;"></div>'
-        . '</div>';
 
     // AI 设置页面的 JS：接口模式切换 + 接口类型切换 + 测试按钮
     $aiOptions = \Typecho\Widget::widget('Widget_Options');

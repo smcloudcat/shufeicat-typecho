@@ -17,6 +17,8 @@
         var modTypeRadios=document.querySelectorAll("input[name=aiModerationApiType]");
         var modEnabledRadios=document.querySelectorAll("input[name=aiModerationEnabled]");
         var summaryEnabledRadios=document.querySelectorAll("input[name=aiSummaryEnabled]");
+        // AI 对话助手模式（控制「四、对话助手参数」显隐）
+        var aiChatModeRadios=document.querySelectorAll("input[name=aiChatMode]");
         // 后台 AI 设置助手（悬浮窗）
         var adminAssistantRadios=document.querySelectorAll("input[name=adminAiAssistant]");
         var adminApiSourceRadios=document.querySelectorAll("input[name=adminAiApiSource]");
@@ -29,6 +31,7 @@
         var modAdvancedFields=document.querySelectorAll(".ai-moderation-advanced");
         var summaryFields=document.querySelectorAll(".ai-summary-field");
         var oldFields=document.querySelectorAll(".ai-old-field");
+        var chatFields=document.querySelectorAll(".ai-chat-field");
         var btnUnified=document.getElementById("cat-test-unified-api");
         var btnWriter=document.getElementById("cat-test-writer-api");
         var btnMod=document.getElementById("cat-test-moderation-api");
@@ -142,6 +145,13 @@
                 el.style.display=sumOn?"":"none";
             });
 
+            // AI 对话助手参数：需同时满足「文章AI总结开启」且「对话助手=on」才显示
+            // （chatFields 元素同时挂 ai-summary-field，会被上面的逻辑先设一次，这里后写覆盖）
+            var chatOn=getRadio("aiChatMode","off")==="on";
+            chatFields.forEach(function(el){
+                el.style.display=(sumOn&&chatOn)?"":"none";
+            });
+
             // 测试按钮显示
             if(btnUnified)btnUnified.style.display=mode==="on"?"inline-block":"none";
             if(btnWriter)btnWriter.style.display=mode==="off"?"inline-block":"none";
@@ -153,7 +163,7 @@
         }
         [modeRadios,unifiedTypeRadios,writerTypeRadios,modTypeRadios,modEnabledRadios,summaryEnabledRadios,
          unifiedProviderRadios,writerProviderRadios,modProviderRadios,
-         adminAssistantRadios,adminApiSourceRadios].forEach(function(group){
+         adminAssistantRadios,adminApiSourceRadios,aiChatModeRadios].forEach(function(group){
             if(group&&group.length)group.forEach(function(r){r.addEventListener("change",updateFields);});
         });
         updateFields();
