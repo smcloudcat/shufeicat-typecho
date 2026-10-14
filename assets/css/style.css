@@ -10798,9 +10798,14 @@ body[data-side-hover="none"] .right-sidebar .widget-list li a:hover {
         border-radius: min(var(--lb-radius, 12px), 14px);
     }
 
-    #ajax-post-list.post-list-card .post-thumbnail-side,
-    #ajax-post-list.post-list-card .post.has-thumbnail {
+    #ajax-post-list.post-list-card .post-thumbnail-side {
         border-radius: min(var(--lb-radius, 12px), 14px) min(var(--lb-radius, 12px), 14px) 0 0;
+    }
+
+    /* 卡片本体必须保持完整圆角：移动端上下布局底部由 .post-body 收尾，
+       若跟随缩略图区只裁上方两角，卡片底部会露出直角（2026-10-14 修复） */
+    #ajax-post-list.post-list-card .post.has-thumbnail {
+        border-radius: min(var(--lb-radius, 12px), 14px);
     }
 }
 
