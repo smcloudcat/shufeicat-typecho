@@ -2376,6 +2376,14 @@ window.initAiChat = function() {
 
     // 站点助手入口（悬浮操作组内的 AI 项），可能不存在（降级为纯窗口）
     var ballEl = document.getElementById('float-ai-btn');
+    // 推荐问题容器（空会话时展示可点击问题，降低使用门槛）
+    var suggestsEl = document.getElementById('ai-chat-suggests');
+    // 流式状态：streamAbort 用于中断；streamActive 时发送按钮变为「停止」
+    var streamAbort = null;
+    var streamActive = false;
+    var streamBubble = null;   // 当前流式 assistant 气泡
+    var streamRaw = '';        // 流式累加的原始回复文本
+    var streamStatusEl = null; // 气泡内状态行
 
     var cid = box.getAttribute('data-cid');
     var maxRounds = parseInt(box.getAttribute('data-ai-chat-max'), 10) || 10;
@@ -2392,6 +2400,36 @@ window.initAiChat = function() {
 
     var WELCOME_GLOBAL = '你好呀～我是本站 AI 助手，这是一个全站共享的连续会话。可以让我帮你找文章、查评论，或聊聊站内内容～';
     var WELCOME_POST = '你好呀～我是本站 AI 助手。可以问我这篇文章的内容，也可以让我帮你搜全站的文章和评论。';
+    // 推荐问题（空会话时展示，点击即发送）：全站向 / 本文向各一套
+    var SUGGESTS_GLOBAL = ['本站有哪些文章？', '最新的文章讲了什么？', '帮我找和 Typecho 相关的文章'];
+    var SUGGESTS_POST = ['总结一下这篇文章', '这篇文章的核心观点是什么？', '文中有哪些关键结论？'];
+
+    function scrollBottom() {
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    // 空会话才显示推荐问题；有历史则隐藏
+    function renderSuggests() {
+        if (!suggestsEl) return;
+        if (history.length) {
+            suggestsEl.innerHTML = '';
+            suggestsEl.style.display = 'none';
+            return;
+        }
+        var list = scope === 'global' ? SUGGESTS_GLOBAL : SUGGESTS_POST;
+        var html = '';
+        for (var i = 0; i < list.length; i++) {
+            html += '<button type="button" class="ai-chat-suggest">' + escapeHtml(list[i]) + '</button>';
+        }
+        suggestsEl.innerHTML = html;
+        suggestsEl.style.display = '';
+    }
+    function hideSuggests() {
+        if (suggestsEl) {
+            suggestsEl.innerHTML = '';
+            suggestsEl.style.display = 'none';
+        }
+    }
 
     // ===== 对话记录持久化（localStorage，失败静默降级为内存会话）=====
     function storageGet() {
@@ -2434,12 +2472,18 @@ window.initAiChat = function() {
     } else if (!area.hidden) {
         appendBubble('assistant', scope === 'global' ? WELCOME_GLOBAL : WELCOME_POST);
     }
+    // 空会话展示推荐问题（有历史则不展示）
+    renderSuggests();
 
     function escapeHtml(str) {
         if (str === null || str === undefined) return '';
         return String(str).replace(/[&<>"']/g, function(m) {
             return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];
         });
+    }
+
+    function copyBtnHtml() {
+        return '<button type="button" class="ai-chat-copy" title="复制回复"><i class="fa fa-clone"></i></button>';
     }
 
     function bubbleHtml(role, text) {
@@ -2449,7 +2493,28 @@ window.initAiChat = function() {
         var body = (role === 'user' || !window.ShufeiMD)
             ? escapeHtml(text).replace(/\n/g, '<br>')
             : window.ShufeiMD.render(text);
-        return '<div class="' + cls + '"><div class="ai-chat-bubble-inner">' + body + '</div></div>';
+        // assistant 气泡带复制按钮（hover 显示，事件委托见下方）
+        var copy = role === 'assistant' ? copyBtnHtml() : '';
+        return '<div class="' + cls + '">' + copy + '<div class="ai-chat-bubble-inner">' + body + '</div></div>';
+    }
+
+    // 流式气泡：状态行（思考/检索提示）+ 增量正文（pre-wrap 保留换行），完成时整体换成 Markdown 渲染
+    function appendStreamBubble() {
+        var div = document.createElement('div');
+        div.className = 'ai-chat-bubble assistant streaming';
+        div.innerHTML = copyBtnHtml()
+            + '<div class="ai-chat-bubble-inner">'
+            + '<div class="ai-chat-status-row"></div>'
+            + '<div class="ai-chat-stream-text"></div></div>';
+        messagesEl.appendChild(div);
+        scrollBottom();
+        streamBubble = div;
+        streamStatusEl = div.querySelector('.ai-chat-status-row');
+        return div;
+    }
+
+    function streamTextEl() {
+        return streamBubble ? streamBubble.querySelector('.ai-chat-stream-text') : null;
     }
 
     function appendBubble(role, text) {
@@ -2480,6 +2545,16 @@ window.initAiChat = function() {
         busy = b;
         sendBtn.disabled = b;
         sendBtn.classList.toggle('disabled', b);
+        // 流式进行中：按钮变为「停止生成」；结束/降级时恢复发送图标
+        if (b && streamActive) {
+            sendBtn.classList.add('is-stop');
+            sendBtn.innerHTML = '<i class="fa fa-stop"></i>';
+            sendBtn.title = '停止生成';
+        } else {
+            sendBtn.classList.remove('is-stop');
+            sendBtn.innerHTML = '<i class="fa fa-paper-plane"></i>';
+            sendBtn.title = '发送';
+        }
     }
 
     function roundsUsed() {
@@ -2488,21 +2563,58 @@ window.initAiChat = function() {
     }
 
     function send() {
+        // 流式进行中：发送键 = 停止生成
+        if (streamActive) { stopStream(); return; }
         if (busy) return;
         var text = input.value.replace(/\s+$/g, '').trim();
         if (!text) return;
 
         if (roundsUsed() >= maxRounds) {
-            tipNode('本篇对话已达上限（' + maxRounds + ' 轮），刷新页面可开启新对话');
+            limitTip();
             return;
         }
 
+        hideSuggests();
         busy = true;
         sendBtn.disabled = true;
         appendBubble('user', text);
         history.push({ role: 'user', content: text });
         input.value = '';
 
+        // 优先流式（SSE 逐字）；环境不支持时降级 XHR 整段返回
+        var canStream = window.aiChatStream !== false
+            && typeof window.fetch === 'function'
+            && typeof window.ReadableStream === 'function'
+            && typeof window.TextDecoder === 'function'
+            && typeof window.AbortController === 'function';
+        if (canStream) {
+            sendStream(text);
+        } else {
+            sendXhr(text);
+        }
+    }
+
+    /** 轮数上限提示（带「开新对话」快捷操作） */
+    function limitTip() {
+        var div = document.createElement('div');
+        div.className = 'ai-chat-tip ai-chat-tip-action';
+        var span = document.createElement('span');
+        span.textContent = '本篇对话已达上限（' + maxRounds + ' 轮）';
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'ai-chat-tip-btn';
+        btn.textContent = '开新对话';
+        btn.addEventListener('click', function() {
+            if (resetBtn) resetBtn.click();
+        });
+        div.appendChild(span);
+        div.appendChild(btn);
+        messagesEl.appendChild(div);
+        scrollBottom();
+    }
+
+    /** 降级路径：XHR 整段返回（保持旧行为） */
+    function sendXhr(text) {
         var loading = loadingNode();
         var payloadHistory = history.slice(-12);
 
@@ -2549,6 +2661,186 @@ window.initAiChat = function() {
         );
     }
 
+    /** 流式路径：fetch SSE（start/status/delta/reset/notice/done/error） */
+    function sendStream(text) {
+        var payloadHistory = history.slice(-12);
+        streamRaw = '';
+        streamBubble = null;
+        streamStatusEl = null;
+        streamActive = true;
+        streamAbort = new AbortController();
+        setBusy(true); // is-stop 态：可中断
+        appendStreamBubble();
+
+        var body = 'cid=' + encodeURIComponent(currentCid())
+            + '&message=' + encodeURIComponent(text)
+            + '&history=' + encodeURIComponent(JSON.stringify(payloadHistory))
+            + '&_=' + encodeURIComponent(window.csrfToken || '')
+            + '&stream=1';
+
+        fetch((window.themeUrl || '') + 'core/ajax-handler.php?action=ai_chat', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: body,
+            signal: streamAbort.signal
+        }).then(function(resp) {
+            if (!resp.ok || !resp.body) {
+                throw new Error('HTTP ' + resp.status);
+            }
+            var reader = resp.body.getReader();
+            var decoder = new TextDecoder('utf-8');
+            var buffer = '';
+            var gotDone = false;
+
+            function handleEvent(ev) {
+                if (!ev || typeof ev.type !== 'string') return;
+                if (ev.type === 'start') return;
+                if (ev.type === 'status') {
+                    if (streamStatusEl) {
+                        streamStatusEl.textContent = ev.text || '';
+                        streamStatusEl.style.display = ev.text ? '' : 'none';
+                    }
+                    return;
+                }
+                if (ev.type === 'delta') {
+                    // 首个正文增量：收起状态行，进入逐字模式
+                    if (streamStatusEl && streamStatusEl.textContent) {
+                        streamStatusEl.textContent = '';
+                        streamStatusEl.style.display = 'none';
+                    }
+                    streamRaw += (ev.text || '');
+                    var el = streamTextEl();
+                    if (el) el.textContent = streamRaw;
+                    scrollBottom();
+                    return;
+                }
+                if (ev.type === 'reset') {
+                    // 工具轮切换：丢弃过程文字，准备最终回复
+                    streamRaw = '';
+                    var el2 = streamTextEl();
+                    if (el2) el2.textContent = '';
+                    if (streamStatusEl) {
+                        streamStatusEl.textContent = '';
+                        streamStatusEl.style.display = 'none';
+                    }
+                    return;
+                }
+                if (ev.type === 'notice') {
+                    if (streamStatusEl) {
+                        streamStatusEl.textContent = ev.text || '';
+                        streamStatusEl.style.display = '';
+                    }
+                    return;
+                }
+                if (ev.type === 'done') {
+                    gotDone = true;
+                    finishStream((ev.reply || '').trim(), false);
+                    return;
+                }
+                if (ev.type === 'error') {
+                    gotDone = true;
+                    failStream(ev.message || '请求失败，请稍后重试');
+                }
+            }
+
+            function pump() {
+                return reader.read().then(function(result) {
+                    if (result.done) {
+                        if (!gotDone) {
+                            // 异常断流：有部分内容则保留，否则报错
+                            if (streamRaw.trim() !== '') {
+                                finishStream(streamRaw.trim(), true);
+                            } else {
+                                failStream('连接中断，请重试');
+                            }
+                        }
+                        return;
+                    }
+                    buffer += decoder.decode(result.value, { stream: true });
+                    var idx;
+                    while ((idx = buffer.indexOf('\n\n')) !== -1) {
+                        var block = buffer.slice(0, idx);
+                        buffer = buffer.slice(idx + 2);
+                        var m = block.match(/(?:^|\n)data:\s*(.+)/);
+                        if (!m) continue;
+                        var ev = null;
+                        try { ev = JSON.parse(m[1]); } catch (e) { continue; }
+                        handleEvent(ev);
+                    }
+                    return pump();
+                });
+            }
+            return pump();
+        }).catch(function(err) {
+            if (err && err.name === 'AbortError') {
+                // 用户主动停止：有部分内容则保留为历史
+                if (streamRaw.trim() !== '') {
+                    finishStream(streamRaw.trim(), true);
+                } else {
+                    streamActive = false;
+                    streamAbort = null;
+                    history.pop();
+                    saveHistory();
+                    if (streamBubble && streamBubble.parentNode) {
+                        streamBubble.parentNode.removeChild(streamBubble);
+                    }
+                    streamBubble = null;
+                    tipNode('已停止生成');
+                    setBusy(false);
+                }
+                return;
+            }
+            failStream('请求失败，请稍后重试');
+        });
+    }
+
+    /** 停止生成（用户点击停止按钮） */
+    function stopStream() {
+        if (streamAbort) { streamAbort.abort(); }
+    }
+
+    /** 流式完成：最终回复按 Markdown 渲染，写入历史 */
+    function finishStream(reply, partial) {
+        streamActive = false;
+        streamAbort = null;
+        if (streamBubble) {
+            streamBubble.classList.remove('streaming');
+            var inner = streamBubble.querySelector('.ai-chat-bubble-inner');
+            if (inner) {
+                inner.innerHTML = (window.ShufeiMD ? window.ShufeiMD.render(reply) : escapeHtml(reply).replace(/\n/g, '<br>'));
+            }
+        }
+        streamBubble = null;
+        streamStatusEl = null;
+        if (reply !== '') {
+            history.push({ role: 'assistant', content: reply });
+            saveHistory();
+        }
+        setBusy(false);
+        if (partial) {
+            tipNode('已停止，以上为部分回复');
+        }
+        if (!area.hidden) input.focus();
+        scrollBottom();
+    }
+
+    /** 流式失败：撤回 user 消息，移除气泡，允许重试 */
+    function failStream(msg) {
+        streamActive = false;
+        streamAbort = null;
+        history.pop();
+        saveHistory();
+        if (streamBubble && streamBubble.parentNode) {
+            streamBubble.parentNode.removeChild(streamBubble);
+        }
+        streamBubble = null;
+        streamStatusEl = null;
+        appendBubble('assistant', msg || '请求失败，请稍后重试');
+        setBusy(false);
+        if (!area.hidden) input.focus();
+    }
+
     // ===== 悬浮窗开合（悬浮球 / 关闭按钮 / Esc）=====
     function openBox() {
         box.classList.add('show');
@@ -2557,6 +2849,7 @@ window.initAiChat = function() {
         if (!messagesEl.hasChildNodes()) {
             appendBubble('assistant', scope === 'global' ? WELCOME_GLOBAL : WELCOME_POST);
         }
+        renderSuggests();
         setTimeout(function() {
             try { input.focus(); } catch (e) {}
             messagesEl.scrollTop = messagesEl.scrollHeight;
@@ -2575,6 +2868,8 @@ window.initAiChat = function() {
         box.setAttribute('data-cid', newCid);
         var scopeEl = document.getElementById('ai-site-scope');
         if (scopeEl) scopeEl.textContent = newCid ? '本文' : '全站';
+        // scope 变化（pjax 切页）：空会话时刷新推荐问题
+        renderSuggests();
     };
     window.updateAiSiteScope();
 
@@ -2633,11 +2928,12 @@ window.initAiChat = function() {
     if (resetBtn) {
         resetBtn.addEventListener('click', function(e) {
             e.preventDefault();
-            if (busy) return;
+            if (busy || streamActive) return;
             history = [];
             storageDel();
             messagesEl.innerHTML = '';
             appendBubble('assistant', scope === 'global' ? WELCOME_GLOBAL : WELCOME_POST);
+            renderSuggests();
             input.focus();
         });
     }
@@ -2652,6 +2948,71 @@ window.initAiChat = function() {
             send();
         }
     });
+
+    // 推荐问题：点击即填充并发送（事件委托，chips 动态重建无需重绑）
+    if (suggestsEl) {
+        suggestsEl.addEventListener('click', function(e) {
+            var btn = e.target && e.target.closest ? e.target.closest('.ai-chat-suggest') : null;
+            if (!btn) return;
+            var text = (btn.textContent || '').trim();
+            if (!text || busy || streamActive) return;
+            input.value = text;
+            send();
+        });
+    }
+
+    // 复制按钮（事件委托）：复制气泡纯文本
+    messagesEl.addEventListener('click', function(e) {
+        var btn = e.target && e.target.closest ? e.target.closest('.ai-chat-copy') : null;
+        if (!btn) return;
+        var bubble = btn.closest('.ai-chat-bubble');
+        var inner = bubble ? bubble.querySelector('.ai-chat-bubble-inner') : null;
+        if (!inner) return;
+        copyText(inner.textContent || '', btn);
+    });
+    function copyText(text, btn) {
+        function ok() {
+            btn.classList.add('copied');
+            btn.innerHTML = '<i class="fa fa-check"></i>';
+            setTimeout(function() {
+                btn.classList.remove('copied');
+                btn.innerHTML = '<i class="fa fa-clone"></i>';
+            }, 1500);
+        }
+        function fallback() {
+            var ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            try { document.execCommand('copy'); ok(); } catch (e) {}
+            document.body.removeChild(ta);
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(ok, fallback);
+        } else {
+            fallback();
+        }
+    }
+
+    // 软键盘适配：聚焦时延迟滚动到底（等待键盘弹起）
+    input.addEventListener('focus', function() {
+        setTimeout(scrollBottom, 350);
+    });
+
+    // Ctrl/Cmd + K：唤起 AI 助手并聚焦输入框（document 级只绑一次）
+    if (!window.__aiSiteHotkeyBound) {
+        window.__aiSiteHotkeyBound = true;
+        document.addEventListener('keydown', function(e) {
+            if (!(e.ctrlKey || e.metaKey)) return;
+            if (e.key !== 'k' && e.key !== 'K') return;
+            e.preventDefault();
+            if (typeof window.openAiSiteAssistant === 'function') window.openAiSiteAssistant();
+            var inp = document.getElementById('ai-chat-input');
+            if (inp) { try { inp.focus(); } catch (err) {} }
+        });
+    }
 };
 
 /**

@@ -247,6 +247,18 @@ switch ($action) {
                 $history = $decoded;
             }
         }
+        // 流式分支：SSE 逐字输出（start/status/delta/reset/notice/done/error）
+        if (isset($_POST['stream']) && $_POST['stream'] === '1') {
+            header('Content-Type: text/event-stream; charset=utf-8');
+            header('Cache-Control: no-cache');
+            header('X-Accel-Buffering: no');
+            while (ob_get_level() > 0) { ob_end_clean(); }
+            AiChat::handleStream($cid, $message, $history, function ($event) {
+                echo 'data: ' . json_encode($event, JSON_UNESCAPED_UNICODE) . "\n\n";
+                if (function_exists('flush')) { flush(); }
+            });
+            break;
+        }
         $result = AiChat::handle($cid, $message, $history);
         echo json_encode($result, JSON_UNESCAPED_UNICODE);
         break;

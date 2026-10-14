@@ -8684,6 +8684,120 @@ article.post {
     margin-top: 6px;
     text-align: center;
 }
+
+/* ===== AI 站点助手：推荐问题 / 流式输出 / 复制 / 停止（2026-10-14）===== */
+/* 气泡定位上下文：供右上角复制按钮 absolute */
+.ai-chat-bubble {
+    position: relative;
+}
+/* 推荐问题 chips（空会话展示，点击即发送） */
+.ai-chat-suggests {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 2px 14px 10px;
+}
+.ai-chat-suggest {
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    background: var(--card-bg, #fff);
+    color: #555;
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-size: 12px;
+    line-height: 1.4;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+    font-family: inherit;
+}
+.ai-chat-suggest:hover {
+    border-color: var(--primary-color, #467B96);
+    color: var(--primary-color, #467B96);
+}
+/* 流式气泡：状态行（思考/检索提示）+ 增量正文 + 打字光标 */
+.ai-chat-status-row {
+    font-size: 12px;
+    color: #999;
+    margin-bottom: 4px;
+}
+.ai-chat-status-row:empty {
+    display: none;
+}
+.ai-chat-stream-text {
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+.ai-chat-bubble.assistant.streaming .ai-chat-stream-text::after {
+    content: '▍';
+    color: var(--primary-color, #467B96);
+    animation: aiChatCaret 0.8s steps(1) infinite;
+    margin-left: 1px;
+}
+@keyframes aiChatCaret {
+    0%, 49% { opacity: 1; }
+    50%, 100% { opacity: 0; }
+}
+/* 复制按钮：默认隐藏，气泡 hover / 已复制时显示 */
+.ai-chat-copy {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 26px;
+    height: 26px;
+    border: none;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.05);
+    color: #999;
+    font-size: 12px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s, color 0.2s;
+}
+.ai-chat-bubble:hover .ai-chat-copy,
+.ai-chat-copy.copied {
+    opacity: 1;
+}
+.ai-chat-copy:hover {
+    color: var(--primary-color, #467B96);
+}
+.ai-chat-copy.copied {
+    color: #0b7a50;
+}
+/* 流式进行中：发送按钮变为「停止」（红色） */
+.ai-chat-send.is-stop {
+    background: #e05555;
+}
+/* 轮次上限 tip（带「开新对话」快捷按钮） */
+.ai-chat-tip-action {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.ai-chat-tip-btn {
+    border: none;
+    background: var(--primary-color, #467B96);
+    color: #fff;
+    font-size: 12px;
+    border-radius: 999px;
+    padding: 3px 10px;
+    cursor: pointer;
+    font-family: inherit;
+}
+.ai-chat-tip-btn:hover {
+    filter: brightness(1.1);
+}
+/* 暗色适配 */
+[data-theme="dark"] .ai-chat-suggest {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.12);
+    color: #ccc;
+}
+[data-theme="dark"] .ai-chat-copy {
+    background: rgba(255, 255, 255, 0.08);
+    color: #aaa;
+}
+[data-theme="dark"] .ai-chat-status-row {
+    color: #888;
+}
 .ai-chat-toggle {
     background: transparent;
     border: none;

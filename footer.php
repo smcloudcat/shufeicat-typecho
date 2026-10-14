@@ -119,6 +119,7 @@ if ($siteAiOn && isset($this->cid) && $this->cid && $this->is('post')) {
     </div>
     <div class="ai-chat-area" id="ai-chat-area">
         <div class="ai-chat-messages" id="ai-chat-messages"></div>
+        <div class="ai-chat-suggests" id="ai-chat-suggests"></div>
         <div class="ai-chat-inputbar">
             <input type="text" class="ai-chat-input" id="ai-chat-input" maxlength="1000"
                 placeholder="<?php _e('向 AI 提问本站内容…'); ?>" autocomplete="off">

@@ -686,6 +686,168 @@ class AiChat
     }
 
     /**
+     * 流式处理一次对话请求（SSE，前台 AI 站点助手专用）
+     *
+     * 前置校验与 handle() 完全一致（开关 / 隐私锁 / 限速 / 历史截断）；
+     * 区别：工具轮与最终回复轮同走 chatStream（带 tools），正文逐字经 $emit 下发。
+     * 降级链：接口不支持流式 → 切 chatWithTools；不支持 tools → 无 tools 纯对话。
+     *
+     * @param callable $emit function(array $event)
+     */
+    public static function handleStream($cid, $message, $history, $emit)
+    {
+        if (!is_callable($emit)) {
+            $emit = function ($e) {};
+        }
+        if (!self::isEnabled()) {
+            $emit(array('type' => 'error', 'message' => 'AI 对话功能未开启'));
+            return;
+        }
+
+        $cid = intval($cid);
+        $post = null;
+
+        if ($cid > 0) {
+            $post = self::getAccessiblePost($cid);
+            if (!$post) {
+                $emit(array('type' => 'error', 'message' => '当前文章不可访问，无法进行 AI 对话'));
+                return;
+            }
+            if (class_exists('AiSummary') && !AiSummary::isAvailable($cid)) {
+                $emit(array('type' => 'error', 'message' => '该文章未开启 AI 摘要，无法对话'));
+                return;
+            }
+        } else {
+            if (!class_exists('AiSummary') || !AiSummary::isGlobalMode()) {
+                $emit(array('type' => 'error', 'message' => '当前页面不支持 AI 对话'));
+                return;
+            }
+        }
+
+        if (!self::rateAllowed()) {
+            $emit(array('type' => 'error', 'message' => '提问太频繁啦，请稍等一分钟再试'));
+            return;
+        }
+
+        $message = trim((string)$message);
+        if ($message === '') {
+            $emit(array('type' => 'error', 'message' => '请输入内容'));
+            return;
+        }
+        if (mb_strlen($message, 'UTF-8') > self::MAX_MESSAGE_CHARS) {
+            $message = mb_substr($message, 0, self::MAX_MESSAGE_CHARS, 'UTF-8');
+        }
+
+        $maxRounds = self::getMaxRounds();
+        $cleanHistory = self::sanitizeHistory($history, $maxRounds * 2);
+        if (count($cleanHistory) >= $maxRounds * 2) {
+            $emit(array('type' => 'error', 'message' => '对话轮数已达上限（' . $maxRounds . ' 轮），点击「新对话」可重新开始'));
+            return;
+        }
+
+        self::rateRecord();
+
+        $messages = array();
+        $messages[] = array('role' => 'system', 'content' => self::buildSystemPrompt($post));
+        foreach ($cleanHistory as $h) {
+            $messages[] = $h;
+        }
+        $messages[] = array('role' => 'user', 'content' => $message);
+
+        $provider = self::getProvider();
+        if (!$provider || !$provider->isConfigured()) {
+            $emit(array('type' => 'error', 'message' => 'AI 接口未配置'));
+            return;
+        }
+
+        $emit(array('type' => 'start'));
+
+        $tools = self::toolDefinitions();
+        $useNativeTools = true;
+        $useStream = true;
+        $streamRetries = 0;
+        $toolRetries = 0;
+        $streamedAny = false;
+
+        for ($round = 0; $round < self::MAX_TOOL_ROUNDS; $round++) {
+            // 新一轮开始：上一轮已吐过过程文字 → 让前端先清空气泡（最终回复不"缩水"）
+            if ($round > 0 && $streamedAny) {
+                $emit(array('type' => 'reset'));
+            }
+            $emit(array('type' => 'status', 'text' => $round === 0 ? '正在思考…' : '正在继续处理…'));
+
+            if ($useStream) {
+                $resp = $provider->chatStream($messages, 0.7, self::CHAT_MAX_TOKENS, function ($delta) use ($emit, &$streamedAny) {
+                    if ($delta !== '') {
+                        $streamedAny = true;
+                        $emit(array('type' => 'delta', 'text' => $delta));
+                    }
+                }, $useNativeTools ? $tools : array());
+                // 接口不支持流式且本轮尚未吐字 → 切普通模式重试本轮（不计轮次）
+                if (empty($resp['success']) && !empty($resp['stream_unsupported'])
+                    && !$streamedAny && $streamRetries < 1) {
+                    $useStream = false;
+                    $streamRetries++;
+                    $emit(array('type' => 'notice', 'text' => '当前接口不支持流式输出，已切换为普通回复'));
+                    $round--;
+                    continue;
+                }
+            } else {
+                $resp = $provider->chatWithTools($messages, $useNativeTools ? $tools : array(), 0.7, self::CHAT_MAX_TOKENS);
+            }
+
+            if (empty($resp['success'])) {
+                if (!empty($resp['tool_unsupported']) && $useNativeTools && $toolRetries < 2) {
+                    $useNativeTools = false;
+                    $toolRetries++;
+                    $round--;
+                    continue;
+                }
+                $emit(array('type' => 'error', 'message' => isset($resp['message']) ? $resp['message'] : 'AI 接口调用失败'));
+                return;
+            }
+
+            $toolCalls = isset($resp['tool_calls']) ? $resp['tool_calls'] : array();
+            if (empty($toolCalls)) {
+                // 最终回复
+                $reply = trim(isset($resp['content']) ? (string)$resp['content'] : '');
+                if ($reply === '') {
+                    $emit(array('type' => 'error', 'message' => 'AI 未返回有效内容'));
+                    return;
+                }
+                $emit(array('type' => 'done', 'reply' => $reply));
+                return;
+            }
+
+            // 工具轮：构造 assistant 消息（含 tool_calls 原始结构），执行并追加 tool 结果
+            $assistantMessage = array('role' => 'assistant');
+            if (isset($resp['content']) && (string)$resp['content'] !== '') {
+                $assistantMessage['content'] = (string)$resp['content'];
+            }
+            $native = array();
+            foreach ($toolCalls as $tc) {
+                $native[] = array(
+                    'id'       => $tc['id'],
+                    'type'     => 'function',
+                    'function' => array('name' => $tc['name'], 'arguments' => $tc['arguments']),
+                );
+            }
+            $assistantMessage['tool_calls'] = $native;
+            $messages[] = $assistantMessage;
+            foreach ($toolCalls as $call) {
+                $toolResult = self::executeTool($call['name'], $call['arguments']);
+                $messages[] = array(
+                    'role'         => 'tool',
+                    'tool_call_id' => $call['id'],
+                    'content'      => $toolResult,
+                );
+            }
+        }
+
+        $emit(array('type' => 'error', 'message' => 'AI 处理超时，请换个问法再试'));
+    }
+
+    /**
      * 清洗历史消息：角色白名单 + 长度截断 + 条数截断（保留最近的）
      * 公开方法：后台 AI 设置助手端点复用同一套历史校验
      */

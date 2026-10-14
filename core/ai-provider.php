@@ -548,13 +548,14 @@ class AiProvider
      * @param float   $temperature
      * @param int     $maxTokens
      * @param callable $onChunk   收到增量文本时回调 function(string $delta)
+     * @param array   $tools      工具定义（非空时启用原生 Function Calling，流式 tool_calls 分片累积）
      * @return array [
      *   'success'=>bool, 'content'=>string, 'message'=>string, 'http_code'=>int,
      *   'tool_calls'=>array,            // [{id, name, arguments}]（流式工具调用）
      *   'stream_unsupported'=>bool,     // 接口不支持流式时为 true（调用方可回退非流式）
      * ]
      */
-    public function chatStream($messages, $temperature = 0.7, $maxTokens = 2000, $onChunk = null)
+    public function chatStream($messages, $temperature = 0.7, $maxTokens = 2000, $onChunk = null, $tools = array())
     {
         if (empty($this->chatUrl)) {
             return array('success' => false, 'message' => 'AI接口未配置，请填写 API 地址和密钥', 'stream_unsupported' => true);
@@ -571,6 +572,11 @@ class AiProvider
         );
         if ($maxTokens > 0) {
             $postData['max_tokens'] = intval($maxTokens);
+        }
+        // 传入 tools 时启用原生 Function Calling（下方 WRITEFUNCTION 已累积 tool_calls 分片）
+        if (!empty($tools) && is_array($tools)) {
+            $postData['tools'] = $tools;
+            $postData['tool_choice'] = 'auto';
         }
 
         $content = '';
