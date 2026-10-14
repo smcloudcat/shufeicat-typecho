@@ -3461,6 +3461,231 @@ window.initMusicPlayer = function() {
 })();
 
 /**
+ * 评论文章引用功能（2026-10-14 新增）
+ * 评论表单内"引用文章"按钮 → 搜索站内公开文章 → chips 展示已选，
+ * 同步隐藏字段 comment_cites；服务端校验公开性后以 [cite:N] 标记入库，
+ * 渲染时在评论下方输出引用卡片。
+ * 注意：与 initQuoteComment（引用当前文章选中文字，[quote] 标记）是不同的功能。
+ */
+window.initCommentCite = function() {
+    var toggleBtn = document.getElementById('cite-article-toggle');
+    var picker = document.getElementById('comment-cite-picker');
+    var searchInput = document.getElementById('cite-search-input');
+    var resultsBox = document.getElementById('cite-results');
+    var chipsBox = document.getElementById('comment-cite-chips');
+    var hiddenInput = document.getElementById('comment-cites-input');
+    if (!toggleBtn || !picker || !searchInput || !resultsBox || !chipsBox || !hiddenInput) return;
+
+    // 防重复绑定（#comments innerHTML 刷新 / PJAX 切换后会重新调用本函数）
+    if (toggleBtn._citeBound) return;
+    toggleBtn._citeBound = true;
+
+    var MAX_CITES = 5;
+    var selected = [];        // [{cid, title, date}]
+    var currentArticles = []; // 最近一次搜索结果（用于刷新选中态）
+    var searchTimer = null;
+    var curRequest = null;
+    var currentCid = parseInt(toggleBtn.getAttribute('data-cid'), 10) || 0;
+
+    function findIdx(cid) {
+        for (var i = 0; i < selected.length; i++) {
+            if (selected[i].cid === cid) return i;
+        }
+        return -1;
+    }
+
+    function syncHidden() {
+        var cids = [];
+        for (var i = 0; i < selected.length; i++) cids.push(selected[i].cid);
+        hiddenInput.value = JSON.stringify(cids);
+    }
+
+    function renderChips() {
+        chipsBox.innerHTML = '';
+        if (!selected.length) {
+            chipsBox.style.display = 'none';
+            return;
+        }
+        chipsBox.style.display = '';
+        selected.forEach(function(a) {
+            var chip = document.createElement('span');
+            chip.className = 'comment-cite-chip';
+            var icon = document.createElement('i');
+            icon.className = 'fa fa-quote-right';
+            var label = document.createElement('span');
+            label.className = 'comment-cite-chip-title';
+            label.textContent = a.title;
+            var remove = document.createElement('button');
+            remove.type = 'button';
+            remove.className = 'comment-cite-chip-remove';
+            remove.title = '移除引用';
+            remove.setAttribute('aria-label', '移除引用');
+            remove.innerHTML = '<i class="fa fa-times"></i>';
+            remove.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                removeCite(a.cid);
+            });
+            chip.appendChild(icon);
+            chip.appendChild(label);
+            chip.appendChild(remove);
+            chipsBox.appendChild(chip);
+        });
+    }
+
+    function renderResults() {
+        resultsBox.innerHTML = '';
+        if (!currentArticles.length) {
+            var empty = document.createElement('div');
+            empty.className = 'cite-empty';
+            empty.textContent = searchInput.value.trim() ? '没有找到相关文章' : '暂无公开文章';
+            resultsBox.appendChild(empty);
+            return;
+        }
+        currentArticles.forEach(function(a) {
+            var item = document.createElement('div');
+            item.className = 'cite-result-item' + (findIdx(a.cid) >= 0 ? ' selected' : '');
+            item.setAttribute('role', 'option');
+            var titleEl = document.createElement('span');
+            titleEl.className = 'cite-result-title';
+            titleEl.textContent = a.title;
+            var dateEl = document.createElement('span');
+            dateEl.className = 'cite-result-date';
+            dateEl.textContent = a.date || '';
+            var check = document.createElement('i');
+            check.className = 'fa fa-check cite-result-check';
+            item.appendChild(titleEl);
+            item.appendChild(dateEl);
+            item.appendChild(check);
+            item.addEventListener('click', function() { toggleCite(a); });
+            resultsBox.appendChild(item);
+        });
+    }
+
+    function toggleCite(a) {
+        var idx = findIdx(a.cid);
+        if (idx >= 0) {
+            selected.splice(idx, 1);
+        } else {
+            if (selected.length >= MAX_CITES) {
+                if (window.showToast) window.showToast('最多只能引用 ' + MAX_CITES + ' 篇文章', 'error');
+                return;
+            }
+            selected.push({ cid: a.cid, title: a.title, date: a.date });
+        }
+        renderChips();
+        renderResults();
+        syncHidden();
+    }
+
+    function removeCite(cid) {
+        var idx = findIdx(cid);
+        if (idx >= 0) selected.splice(idx, 1);
+        renderChips();
+        renderResults();
+        syncHidden();
+    }
+
+    function showError(msg) {
+        resultsBox.innerHTML = '';
+        var el = document.createElement('div');
+        el.className = 'cite-empty';
+        el.textContent = msg;
+        resultsBox.appendChild(el);
+    }
+
+    function searchArticles(q) {
+        if (curRequest) {
+            try { curRequest.abort(); } catch (e) {}
+            curRequest = null;
+        }
+        var params = '_=' + encodeURIComponent(window.csrfToken || '') +
+            '&q=' + encodeURIComponent(q) +
+            '&exclude=' + currentCid + '&limit=10';
+        curRequest = new XMLHttpRequest();
+        curRequest.open('POST', (window.themeUrl || '') + 'core/ajax-handler.php?action=article_search', true);
+        curRequest.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+        curRequest.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+        curRequest.onreadystatechange = function() {
+            if (curRequest.readyState !== 4) return;
+            var xhr = curRequest;
+            curRequest = null;
+            if (xhr.status !== 200) return; // 中止 / 网络错误静默处理
+            try {
+                var data = JSON.parse(xhr.responseText);
+                if (data && data.success) {
+                    currentArticles = data.articles || [];
+                    renderResults();
+                } else {
+                    showError((data && data.message) ? data.message : '搜索失败');
+                }
+            } catch (err) {
+                showError('搜索结果解析失败');
+            }
+        };
+        curRequest.send(params);
+    }
+
+    function openPicker() {
+        picker.hidden = false;
+        toggleBtn.classList.add('active');
+        toggleBtn.setAttribute('aria-expanded', 'true');
+        setTimeout(function() { searchInput.focus(); }, 50);
+        if (!currentArticles.length) {
+            searchArticles(searchInput.value.trim());
+        }
+    }
+
+    function closePicker() {
+        picker.hidden = true;
+        toggleBtn.classList.remove('active');
+        toggleBtn.setAttribute('aria-expanded', 'false');
+    }
+
+    toggleBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (picker.hidden) {
+            openPicker();
+        } else {
+            closePicker();
+        }
+    });
+
+    searchInput.addEventListener('input', function() {
+        if (searchTimer) clearTimeout(searchTimer);
+        var q = searchInput.value.trim();
+        searchTimer = setTimeout(function() { searchArticles(q); }, 300);
+    });
+
+    searchInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' || e.keyCode === 27) {
+            closePicker();
+            toggleBtn.focus();
+        }
+    });
+
+    // 点击面板外部关闭
+    document.addEventListener('click', function(e) {
+        if (picker.hidden) return;
+        if (picker.contains(e.target) || toggleBtn.contains(e.target)) return;
+        closePicker();
+    });
+
+    // 评论提交成功后由 pjax.js 调用，清空已选引用
+    window.resetCommentCites = function() {
+        selected = [];
+        currentArticles = [];
+        resultsBox.innerHTML = '';
+        searchInput.value = '';
+        renderChips();
+        syncHidden();
+    };
+
+    syncHidden();
+};
+
+/**
  * 评论引用文章内容功能
  * 在文章内容区选中文字后，弹出"引用并评论"浮动按钮
  * 点击后将选中内容以 Markdown 引用语法插入到评论框
@@ -4929,6 +5154,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 初始化评论引用文章内容功能
     window.initQuoteComment();
+
+    // 初始化评论文章引用选择器（引用其他文章）
+    window.initCommentCite();
 
     // 初始化天气卡片
     window.initWeather();

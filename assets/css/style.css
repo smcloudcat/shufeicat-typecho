@@ -9906,6 +9906,392 @@ article.post {
     color: #333;
 }
 
+/* ==================== 评论文章引用（2026-10-14 新增） ==================== */
+.cite-article-panel {
+    margin-top: 8px;
+    display: inline-block;
+}
+
+.cite-article-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 12px;
+    background: #f5f5f5;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    color: #666;
+    transition: all 0.2s;
+    user-select: none;
+}
+
+.cite-article-toggle:hover {
+    background: #e8e8e8;
+    color: #333;
+}
+
+.cite-article-toggle.active {
+    background: var(--primary-color, #FF6B6B);
+    border-color: var(--primary-color, #FF6B6B);
+    color: #fff;
+}
+
+/* 引用选择器面板 */
+.comment-cite-picker {
+    margin-top: 10px;
+    border: 1px solid #e5e5e5;
+    border-radius: var(--lb-radius, 12px);
+    background: #fff;
+    overflow: hidden;
+}
+
+.comment-cite-picker[hidden] {
+    display: none;
+}
+
+.cite-search-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.cite-search-row i {
+    color: #999;
+    font-size: 13px;
+}
+
+#cite-search-input {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: 14px;
+    color: #333;
+}
+
+#cite-search-input::placeholder {
+    color: #bbb;
+}
+
+.cite-results {
+    max-height: 260px;
+    overflow-y: auto;
+    padding: 6px;
+}
+
+.cite-result-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.cite-result-item:hover {
+    background: #f7f7f7;
+}
+
+.cite-result-item.selected {
+    background: rgba(255, 107, 107, 0.08);
+}
+
+.cite-result-title {
+    flex: 1;
+    min-width: 0;
+    font-size: 13px;
+    color: #333;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cite-result-item.selected .cite-result-title {
+    color: var(--primary-color, #FF6B6B);
+    font-weight: 600;
+}
+
+.cite-result-date {
+    font-size: 12px;
+    color: #999;
+    flex-shrink: 0;
+}
+
+.cite-result-check {
+    display: none;
+    color: var(--primary-color, #FF6B6B);
+    font-size: 12px;
+    flex-shrink: 0;
+}
+
+.cite-result-item.selected .cite-result-check {
+    display: inline-block;
+}
+
+.cite-empty {
+    padding: 18px 12px;
+    text-align: center;
+    font-size: 13px;
+    color: #999;
+}
+
+.cite-picker-tip {
+    padding: 8px 12px;
+    border-top: 1px solid #f0f0f0;
+    font-size: 12px;
+    color: #999;
+}
+
+/* 已选引用 chips */
+.comment-cite-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.comment-cite-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 100%;
+    padding: 4px 6px 4px 10px;
+    background: rgba(255, 107, 107, 0.08);
+    border: 1px solid rgba(255, 107, 107, 0.25);
+    border-radius: 999px;
+    font-size: 12px;
+    color: #d9534f;
+}
+
+.comment-cite-chip > i.fa-quote-right {
+    font-size: 11px;
+    opacity: 0.8;
+}
+
+.comment-cite-chip-title {
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.comment-cite-chip-remove {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255, 107, 107, 0.15);
+    color: #d9534f;
+    cursor: pointer;
+    font-size: 10px;
+    transition: all 0.15s;
+}
+
+.comment-cite-chip-remove:hover {
+    background: #e05555;
+    color: #fff;
+}
+
+/* 评论列表内的引用卡片 */
+.comment-cites {
+    margin-top: 10px;
+    padding: 8px 10px;
+    background: #fafafa;
+    border: 1px solid #f0f0f0;
+    border-radius: var(--lb-radius, 12px);
+}
+
+.comment-cites-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-bottom: 6px;
+    font-size: 12px;
+    color: #999;
+}
+
+.comment-cites-label i {
+    color: var(--primary-color, #FF6B6B);
+}
+
+.comment-cite-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    background: #fff;
+    border: 1px solid #ececec;
+    border-radius: 8px;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.comment-cite-card + .comment-cite-card {
+    margin-top: 6px;
+}
+
+.comment-cite-card:hover {
+    border-color: var(--primary-color, #FF6B6B);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    transform: translateY(-1px);
+}
+
+.comment-cite-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    flex-shrink: 0;
+    background: rgba(255, 107, 107, 0.1);
+    border-radius: 6px;
+    color: var(--primary-color, #FF6B6B);
+    font-size: 13px;
+}
+
+.comment-cite-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.comment-cite-title {
+    font-size: 13px;
+    color: #333;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.comment-cite-card:hover .comment-cite-title {
+    color: var(--primary-color, #FF6B6B);
+}
+
+.comment-cite-date {
+    font-size: 11px;
+    color: #999;
+}
+
+.comment-cite-arrow {
+    color: #ccc;
+    font-size: 12px;
+    flex-shrink: 0;
+}
+
+.comment-cite-card:hover .comment-cite-arrow {
+    color: var(--primary-color, #FF6B6B);
+}
+
+/* 深色主题适配 */
+[data-theme="dark"] .cite-article-toggle {
+    background: #2a2a3a;
+    border-color: #3a3a4a;
+    color: #aaa;
+}
+
+[data-theme="dark"] .cite-article-toggle:hover {
+    background: #3a3a4a;
+    color: #ddd;
+}
+
+[data-theme="dark"] .cite-article-toggle.active {
+    background: var(--primary-color, #FF6B6B);
+    border-color: var(--primary-color, #FF6B6B);
+    color: #fff;
+}
+
+[data-theme="dark"] .comment-cite-picker {
+    background: #1e1e2e;
+    border-color: #3a3a4a;
+}
+
+[data-theme="dark"] .cite-search-row {
+    border-bottom-color: #2a2a36;
+}
+
+[data-theme="dark"] #cite-search-input {
+    color: #ddd;
+}
+
+[data-theme="dark"] #cite-search-input::placeholder {
+    color: #666;
+}
+
+[data-theme="dark"] .cite-result-item:hover {
+    background: #2a2a3a;
+}
+
+[data-theme="dark"] .cite-result-item.selected {
+    background: rgba(255, 107, 107, 0.15);
+}
+
+[data-theme="dark"] .cite-result-title {
+    color: #ccc;
+}
+
+[data-theme="dark"] .cite-picker-tip {
+    border-top-color: #2a2a36;
+    color: #777;
+}
+
+[data-theme="dark"] .comment-cite-chip {
+    background: rgba(255, 107, 107, 0.12);
+    border-color: rgba(255, 107, 107, 0.3);
+    color: #ff8a8a;
+}
+
+[data-theme="dark"] .comment-cite-chip-remove {
+    background: rgba(255, 107, 107, 0.2);
+    color: #ff8a8a;
+}
+
+[data-theme="dark"] .comment-cite-chip-remove:hover {
+    background: #e05555;
+    color: #fff;
+}
+
+[data-theme="dark"] .comment-cites {
+    background: #1a1a24;
+    border-color: #2a2a36;
+}
+
+[data-theme="dark"] .comment-cite-card {
+    background: #1e1e2e;
+    border-color: #2a2a36;
+}
+
+[data-theme="dark"] .comment-cite-title {
+    color: #ccc;
+}
+
+[data-theme="dark"] .comment-cite-arrow {
+    color: #555;
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+    .cite-results {
+        max-height: 220px;
+    }
+
+    .comment-cite-chip-title {
+        max-width: 150px;
+    }
+}
+
 /* 自定义表情面板 */
 .sf-emoji-container {
     position: absolute;

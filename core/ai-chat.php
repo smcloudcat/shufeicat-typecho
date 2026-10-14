@@ -174,8 +174,11 @@ class AiChat
         return $ts > 0 ? date('Y-m-d', $ts) : '';
     }
 
-    /** 尝试生成文章前台链接（失败返回空字符串，不抛异常） */
-    private static function buildPermalink($row)
+    /**
+     * 尝试生成文章前台链接（失败返回空字符串，不抛异常）
+     * public：供评论文章引用等功能复用（core/comments.php）
+     */
+    public static function buildPermalink($row)
     {
         try {
             if (!class_exists('\Typecho\Router')) {

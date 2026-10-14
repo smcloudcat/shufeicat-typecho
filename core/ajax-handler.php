@@ -191,6 +191,52 @@ switch ($action) {
         ));
         break;
 
+    case 'article_search':
+        // 评论文章引用选择器：搜索本站公开文章（隐私锁同 AI 工具标准）
+        $q = isset($_POST['q']) ? trim((string)$_POST['q']) : '';
+        if (function_exists('mb_substr')) {
+            $q = mb_substr($q, 0, 50, 'UTF-8');
+        } else {
+            $q = substr($q, 0, 150);
+        }
+        $exclude = isset($_POST['exclude']) ? intval($_POST['exclude']) : 0;
+        $limit = isset($_POST['limit']) ? intval($_POST['limit']) : 10;
+        if ($limit < 1) $limit = 10;
+        if ($limit > 20) $limit = 20;
+        try {
+            $db = \Typecho\Db::get();
+            $prefix = $db->getPrefix();
+            $select = $db->select('cid, title, created')
+                ->from($prefix . 'contents')
+                ->where('type = ?', 'post')
+                ->where('status = ?', 'publish')
+                ->where('(password IS NULL OR password = ?)', '')
+                ->order('created', \Typecho\Db::SORT_DESC)
+                ->limit($limit);
+            if ($exclude > 0) {
+                // 排除当前文章：引用"其他"文章
+                $select->where('cid <> ?', $exclude);
+            }
+            if ($q !== '') {
+                $esc = str_replace(array('\\', '%', '_'), array('\\\\', '\\%', '\\_'), $q);
+                $select->where('title LIKE ?', '%' . $esc . '%');
+            }
+            $rows = $db->fetchAll($select);
+            $articles = array();
+            foreach ($rows as $row) {
+                $articles[] = array(
+                    'cid'   => intval($row['cid']),
+                    'title' => (string)$row['title'],
+                    'date'  => date('Y-m-d', intval($row['created'])),
+                );
+            }
+            echo json_encode(array('success' => true, 'articles' => $articles));
+        } catch (\Throwable $e) {
+            error_log('[ShuFeiCat] article_search 失败: ' . $e->getMessage());
+            echo json_encode(array('success' => false, 'message' => '搜索失败，请稍后重试'));
+        }
+        break;
+
     case 'ai_summary':
         $cid = isset($_POST['cid']) ? intval($_POST['cid']) : 0;
         if ($cid <= 0) {

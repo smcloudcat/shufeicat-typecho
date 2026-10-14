@@ -420,6 +420,11 @@
     function onCommentSuccess(form, textarea) {
         showSubmitTip('评论提交成功！', 'success');
 
+        // 提交成功后重置文章引用选择器（已选 chips / 隐藏字段 / 搜索结果）
+        if (typeof window.resetCommentCites === 'function') {
+            window.resetCommentCites();
+        }
+
         // 提交成功后重置 Cat-Captcha 触发框（一次性票据已使用，需重新验证）
         resetCatCaptcha();
 
@@ -480,6 +485,10 @@
                     }
                     if (typeof window.initEmojiPanel === 'function') {
                         window.initEmojiPanel();
+                    }
+                    // 评论区整块刷新后重绑文章引用选择器
+                    if (typeof window.initCommentCite === 'function') {
+                        window.initCommentCite();
                     }
                     var targetEl = document.querySelector(commentAnchor);
                     if (targetEl) {
@@ -963,6 +972,10 @@
 
             if (typeof window.initQuoteComment === 'function') {
                 window.initQuoteComment();
+            }
+
+            if (typeof window.initCommentCite === 'function') {
+                window.initCommentCite();
             }
 
             if (typeof window.initWeather === 'function') {

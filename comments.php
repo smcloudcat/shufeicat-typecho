@@ -108,9 +108,18 @@ function threadedComments($comments, $options) {
                 }
                 // 解析评论中的文章引用标记 [quote]...[/quote] 为 <blockquote>
                 $commentHtml = shufei_parse_comment_quote($commentHtml);
+                // 剥离文章引用标记 [cite:N]（引用卡片在正文下方单独渲染）
+                $commentHtml = shufei_strip_comment_cite_markers($commentHtml);
                 echo $commentHtml;
                 ?>
             </div>
+            <?php
+            // 文章引用卡片（2026-10-14 新增）
+            $commentCiteCids = shufei_extract_comment_cites($comments->text);
+            if (!empty($commentCiteCids)) {
+                echo shufei_render_comment_cites($commentCiteCids);
+            }
+            ?>
         </div>
 
         <?php if ($comments->children): ?>
@@ -211,7 +220,24 @@ function threadedComments($comments, $options) {
                             <i class="fa fa-smile-o" aria-hidden="true"></i> <?php _e('表情'); ?>
                         </button>
                     </div>
+                    <div class="cite-article-panel" id="cite-article-panel">
+                        <button type="button" class="cite-article-toggle" id="cite-article-toggle" data-cid="<?php echo $this->cid; ?>" aria-label="<?php _e('引用文章'); ?>" aria-expanded="false">
+                            <i class="fa fa-quote-right" aria-hidden="true"></i> <?php _e('引用文章'); ?>
+                        </button>
+                    </div>
                 </div>
+
+                <?php /* 文章引用选择器（2026-10-14 新增）：搜索并选择要引用的站内文章 */ ?>
+                <div class="comment-cite-picker" id="comment-cite-picker" hidden>
+                    <div class="cite-search-row">
+                        <i class="fa fa-search" aria-hidden="true"></i>
+                        <input type="text" id="cite-search-input" placeholder="<?php _e('搜索文章标题…'); ?>" autocomplete="off" maxlength="50">
+                    </div>
+                    <div class="cite-results" id="cite-results" role="listbox"></div>
+                    <div class="cite-picker-tip"><?php _e('点击选择，最多可引用 5 篇文章'); ?></div>
+                </div>
+                <div class="comment-cite-chips" id="comment-cite-chips"></div>
+                <input type="hidden" name="comment_cites" id="comment-cites-input" value="">
 
                 <?php if (shufei_is_turnstile_enabled() && !empty(shufei_get_turnstile_site_key())): ?>
                 <div class="turnstile-container">

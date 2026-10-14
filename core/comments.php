@@ -183,7 +183,10 @@ function shufei_comment_check($comment, $post) {
         }
     }
 
-    // 2. AI评论审核（性能优化：ai-moderation.php 已移出无条件加载列表，
+    // 2. 文章引用处理：校验 comment_cites，合法则把 [cite:N] 标记追加进 text
+    $comment = shufei_process_comment_cites($comment);
+
+    // 3. AI评论审核（性能优化：ai-moderation.php 已移出无条件加载列表，
     //    仅在评论提交走到此处时才引入；文件末尾会连带引入 ai-provider.php）
     $_aiModFile = dirname(__FILE__) . '/ai-moderation.php';
     if (file_exists($_aiModFile)) {
@@ -669,5 +672,234 @@ function shufei_sanitize_style_value($style)
         }
     }
     return $style;
+}
+
+/* ================================================================
+ * 评论文章引用（2026-10-14 新增）
+ * 前端选择器提交 comment_cites（JSON 数组）→ 服务端校验公开性后
+ * 以 [cite:N] 标记追加到评论 text 末尾；渲染时提取标记查文章，
+ * 在评论下方输出引用卡片，并把标记从正文剥离。
+ * ================================================================ */
+
+/** 单条评论最多引用几篇文章（防滥用） */
+define('SHUFEI_COMMENT_MAX_CITES', 5);
+
+/**
+ * 评论提交时处理文章引用（在 shufei_comment_check 内调用）
+ *
+ * 校验 $_POST['comment_cites']：JSON 数组 → 整数化 → 去重 → 上限 5 篇
+ * → 每篇必须 type=post 且 status=publish 且无密码（隐私锁，与 AI 工具同标准）。
+ * 非法/不可见条目静默丢弃（不阻断评论本身）；全部合法则以标记追加到 text 末尾。
+ *
+ * @param array $comment 评论结构（含 text）
+ * @return array 处理后的评论结构
+ */
+function shufei_process_comment_cites($comment)
+{
+    if (!isset($_POST['comment_cites'])) {
+        return $comment;
+    }
+    $raw = trim((string)$_POST['comment_cites']);
+    if ($raw === '' || !isset($comment['text'])) {
+        return $comment;
+    }
+    $list = json_decode($raw, true);
+    if (!is_array($list)) {
+        // 兜底：兼容逗号分隔的 CID 列表
+        $list = explode(',', $raw);
+    }
+    if (empty($list)) {
+        return $comment;
+    }
+
+    // 整数化 + 去重（保留用户选择顺序）
+    $cids = array();
+    foreach ($list as $item) {
+        $cid = intval($item);
+        if ($cid > 0 && !isset($cids[$cid])) {
+            $cids[$cid] = $cid;
+        }
+    }
+    if (empty($cids)) {
+        return $comment;
+    }
+    $cids = array_slice($cids, 0, SHUFEI_COMMENT_MAX_CITES, true);
+
+    // 隐私锁：只允许引用公开、无密码的文章；否则整篇丢弃
+    try {
+        $db = \Typecho\Db::get();
+        $prefix = $db->getPrefix();
+        // CID 已 intval，可直接拼接 IN 列表（无注入面）
+        $cidList = implode(',', array_map('intval', $cids));
+        $rows = $db->fetchAll($db->select('cid')
+            ->from($prefix . 'contents')
+            ->where('type = ?', 'post')
+            ->where('status = ?', 'publish')
+            ->where('(password IS NULL OR password = ?)', '')
+            ->where('cid IN (' . $cidList . ')'));
+        $valid = array();
+        foreach ($rows as $row) {
+            $valid[intval($row['cid'])] = true;
+        }
+    } catch (\Throwable $e) {
+        error_log('[ShuFeiCat] 评论引用校验失败: ' . $e->getMessage());
+        return $comment;
+    }
+
+    $markers = array();
+    foreach ($cids as $cid) {
+        if (isset($valid[$cid])) {
+            $markers[] = '[cite:' . $cid . ']';
+        }
+    }
+    if (!empty($markers)) {
+        $comment['text'] = rtrim((string)$comment['text']) . "\n\n" . implode("\n", $markers);
+    }
+    return $comment;
+}
+
+/**
+ * 从评论文本中提取文章引用 CID 列表（按出现顺序去重）
+ *
+ * @param string $text 评论原始 text
+ * @return array CID 数组（cid => cid）
+ */
+function shufei_extract_comment_cites($text)
+{
+    if (empty($text) || strpos($text, '[cite:') === false) {
+        return array();
+    }
+    if (!preg_match_all('/\[cite:(\d+)\]/', $text, $m)) {
+        return array();
+    }
+    $cids = array();
+    foreach ($m[1] as $cid) {
+        $cid = intval($cid);
+        if ($cid > 0 && !isset($cids[$cid])) {
+            $cids[$cid] = $cid;
+        }
+    }
+    return array_slice($cids, 0, SHUFEI_COMMENT_MAX_CITES, true);
+}
+
+/**
+ * 批量查询引用文章信息（隐私锁 + 静态缓存，同页多评论只查一次库）
+ *
+ * @param array $cids CID 数组
+ * @return array cid => array('title','permalink','date')；不可见文章不出现
+ */
+function shufei_get_comment_cites_info($cids)
+{
+    static $cache = array();
+    $cids = array_map('intval', (array)$cids);
+
+    $missing = array();
+    foreach ($cids as $cid) {
+        if ($cid > 0 && !array_key_exists($cid, $cache)) {
+            $missing[$cid] = $cid;
+        }
+    }
+    if (!empty($missing)) {
+        try {
+            $db = \Typecho\Db::get();
+            $prefix = $db->getPrefix();
+            $cidList = implode(',', array_map('intval', $missing));
+            $rows = $db->fetchAll($db->select('cid, title, slug, created')
+                ->from($prefix . 'contents')
+                ->where('type = ?', 'post')
+                ->where('status = ?', 'publish')
+                ->where('(password IS NULL OR password = ?)', '')
+                ->where('cid IN (' . $cidList . ')'));
+            foreach ($rows as $row) {
+                $permalink = '';
+                if (class_exists('AiChat')) {
+                    $permalink = \AiChat::buildPermalink($row);
+                }
+                $cache[$row['cid']] = array(
+                    'title'     => (string)$row['title'],
+                    'permalink' => $permalink,
+                    'date'      => date('Y-m-d', intval($row['created'])),
+                );
+            }
+            // 查不到的文章也入缓存（false 占位），避免每条评论重复查
+            foreach ($missing as $cid) {
+                if (!isset($cache[$cid])) {
+                    $cache[$cid] = false;
+                }
+            }
+        } catch (\Throwable $e) {
+            error_log('[ShuFeiCat] 评论引用文章查询失败: ' . $e->getMessage());
+        }
+    }
+
+    $result = array();
+    foreach ($cids as $cid) {
+        if (!empty($cache[$cid])) {
+            $result[$cid] = $cache[$cid];
+        }
+    }
+    return $result;
+}
+
+/**
+ * 渲染评论下方的文章引用卡片
+ *
+ * @param array $cids CID 数组
+ * @return string HTML（无可见引用时返回空串）
+ */
+function shufei_render_comment_cites($cids)
+{
+    if (empty($cids)) {
+        return '';
+    }
+    $info = shufei_get_comment_cites_info($cids);
+    if (empty($info)) {
+        return '';
+    }
+    $html = '<div class="comment-cites"><span class="comment-cites-label"><i class="fa fa-quote-right"></i> 引用了文章</span>';
+    $count = 0;
+    foreach ($cids as $cid) {
+        if (!isset($info[$cid])) {
+            continue;
+        }
+        $item = $info[$cid];
+        $count++;
+        if ($count > SHUFEI_COMMENT_MAX_CITES) {
+            break;
+        }
+        $title = htmlspecialchars($item['title'], ENT_QUOTES, 'UTF-8');
+        $date = htmlspecialchars($item['date'], ENT_QUOTES, 'UTF-8');
+        $url = $item['permalink'] !== '' ? htmlspecialchars($item['permalink'], ENT_QUOTES, 'UTF-8') : '';
+        $tag = $url !== '' ? 'a' : 'span';
+        $attrs = $url !== '' ? ' href="' . $url . '"' : '';
+        $html .= '<' . $tag . ' class="comment-cite-card"' . $attrs . '>';
+        $html .= '<span class="comment-cite-icon"><i class="fa fa-file-text-o"></i></span>';
+        $html .= '<span class="comment-cite-body">';
+        $html .= '<span class="comment-cite-title">' . $title . '</span>';
+        $html .= '<span class="comment-cite-date">' . $date . '</span>';
+        $html .= '</span>';
+        $html .= '<i class="fa fa-angle-right comment-cite-arrow"></i>';
+        $html .= '</' . $tag . '>';
+    }
+    $html .= '</div>';
+    return $html;
+}
+
+/**
+ * 从评论 HTML 中剥离 [cite:N] 标记（卡片已单独渲染）
+ * 顺带清理剥离后产生的空 <p>，避免留下空白行
+ *
+ * @param string $html 评论 HTML
+ * @return string 处理后的 HTML
+ */
+function shufei_strip_comment_cite_markers($html)
+{
+    if (empty($html) || strpos($html, '[cite:') === false) {
+        return $html;
+    }
+    $html = preg_replace('/\s*\[cite:\d+\]/', '', $html);
+    // 剥离后可能留下空段落，清理掉（仅清理完全空白的 p）
+    $html = preg_replace('/<p>(\s|&nbsp;)*<\/p>/', '', $html);
+    return $html;
 }
 
