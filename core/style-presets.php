@@ -178,7 +178,7 @@ function shufei_recommended_presets()
             'id'         => 'rec-fc-1',
             'name'       => '珊瑚紫韵（渐变经典）',
             'desc'       => '珊瑚红主题色 × 紫罗兰渐变背景 · 经典文章列表',
-            'image'      => 'https://img-cf.czzu.cn/1787928621083_s452dkvk.png',
+            'image'      => 'https://img-cf.czzu.cn/shufeicat-rec-fc-1.png',
             'preview_bg' => '',
             'settings'   => array(
                 'themeColor'        => '#FF6B6B',
@@ -195,7 +195,7 @@ function shufei_recommended_presets()
             'id'         => 'rec-fc-2',
             'name'       => '静谧紫罗兰（卡片）',
             'desc'       => '紫色主题色 × 白色简约背景 · 卡片文章列表',
-            'image'      => 'https://img-cf.czzu.cn/1787928699296_mrzy2ann.png',
+            'image'      => 'https://img-cf.czzu.cn/shufeicat-rec-fc-2.png',
             'preview_bg' => '',
             'settings'   => array(
                 'themeColor'        => '#6C5CE7',
@@ -211,7 +211,7 @@ function shufei_recommended_presets()
             'id'         => 'rec-fc-3',
             'name'       => '暖阳金秋（卡片）',
             'desc'       => '金黄主题色 × 白色简约背景 · 卡片文章列表',
-            'image'      => 'https://img-cf.czzu.cn/1787928767684_f66qwfgd.png',
+            'image'      => 'https://img-cf.czzu.cn/shufeicat-rec-fc-3.png',
             'preview_bg' => '',
             'settings'   => array(
                 'themeColor'        => '#9B8F27',
