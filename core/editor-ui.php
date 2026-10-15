@@ -690,3 +690,354 @@ function shufei_editor_cursor_fix($post)
 <?php
 }
 
+/**
+ * 输出文章引用编辑器 UI（工具栏按钮 + chips + 搜索弹窗）
+ *
+ * 复用核心自定义字段自动保存机制：JS 动态维护表单内隐藏域
+ * fields[shufeiCitePosts]（JSON 数组字符串），Typecho 核心
+ * getFields()/applyFields() 自动落库/清理，无需自写保存钩子；
+ * 保存前由 shufei_article_cite_write_filter（write 过滤器）消毒。
+ *
+ * 注意：bottom 钩子在 </form> 之后触发，隐藏域必须由 JS append 进表单。
+ *
+ * @param mixed $post 文章/页面 Edit widget（write-post.php 传 $post，write-page.php 传 $page）
+ */
+function shufei_article_cite_editor_ui($post)
+{
+    $options = \Typecho\Widget::widget('Widget_Options');
+
+    // 后台检索端点
+    $ajaxUrl = \Typecho\Common::url('usr/themes/ShuFeiCat/core/article-cite-ajax.php', $options->siteUrl);
+
+    // 当前已配置的引用（编辑已有文章时回显；新文章为空数组）
+    $currentCid = 0;
+    $current = array();
+    $currentCids = array();
+    if (is_object($post) && isset($post->cid)) {
+        $currentCid = intval($post->cid);
+    }
+    if (is_object($post) && $currentCid > 0 && isset($post->fields)) {
+        $raw = $post->fields->{SHUFEI_ARTICLE_CITE_FIELD};
+        if (isset($raw)) {
+            $cids = shufei_get_article_cites($raw);
+            if (!empty($cids)) {
+                // 编辑器回显不加隐私锁（有权查看全部状态），按选择顺序输出
+                $info = shufei_get_article_cites_info_admin($cids);
+                foreach ($cids as $cid) {
+                    if (isset($info[$cid])) {
+                        $current[] = $info[$cid];
+                        $currentCids[] = $cid;
+                    }
+                }
+            }
+        }
+    }
+    ?>
+<style>
+/* ===== 文章引用编辑器 UI ===== */
+.shufei-cite-toolbar {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    padding: 6px 10px;
+    margin: 4px 0 8px;
+    background: linear-gradient(135deg, #fff7e6 0%, #fff0f6 100%);
+    border: 1px solid #ffd591;
+    border-radius: 6px;
+    flex-wrap: wrap;
+}
+.shufei-cite-toolbar .sc-label {
+    font-weight: bold;
+    color: #d46b08;
+    font-size: 13px;
+    margin-right: 2px;
+}
+.shufei-cite-btn {
+    display: inline-block;
+    padding: 4px 14px;
+    font-size: 12px;
+    color: #fff;
+    background: #fa8c16;
+    border: 1px solid #fa8c16;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    line-height: 1.6;
+}
+.shufei-cite-btn:hover {
+    background: #ffa940;
+    border-color: #ffa940;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(250, 140, 22, 0.35);
+}
+.shufei-cite-status-tip {
+    color: #8c6116;
+    font-size: 12px;
+    margin-left: auto;
+}
+
+/* chips（工具栏下方） */
+.shufei-cite-chips {
+    display: none;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0 0 10px;
+}
+.shufei-cite-chips.has-items { display: flex; }
+.shufei-cite-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 100%;
+    padding: 3px 8px;
+    background: #fff7e6;
+    border: 1px solid #ffd591;
+    border-radius: 4px;
+    font-size: 12px;
+    color: #874d00;
+}
+.shufei-cite-chip-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 220px;
+}
+.shufei-cite-chip-badge {
+    flex-shrink: 0;
+    padding: 0 6px;
+    background: rgba(250, 140, 22, 0.15);
+    border-radius: 8px;
+    font-size: 11px;
+    color: #ad4e00;
+}
+.shufei-cite-chip-remove {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: rgba(250, 140, 22, 0.25);
+    color: #ad4e00;
+    font-size: 10px;
+    line-height: 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.shufei-cite-chip-remove:hover {
+    background: #d4380d;
+    color: #fff;
+}
+
+/* 搜索弹窗 */
+.shufei-cite-modal-mask {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 10020;
+    display: none;
+}
+.shufei-cite-modal {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 640px;
+    max-width: 92vw;
+    max-height: 85vh;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+    z-index: 10021;
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+}
+.shufei-cite-modal.show, .shufei-cite-modal-mask.show { display: flex; }
+.shufei-cite-modal-header {
+    padding: 12px 16px;
+    background: #fa8c16;
+    color: #fff;
+    font-weight: bold;
+    font-size: 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.shufei-cite-modal-close {
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+    padding: 0 4px;
+    opacity: 0.85;
+}
+.shufei-cite-modal-close:hover { opacity: 1; }
+.shufei-cite-modal-body {
+    padding: 14px 16px;
+    overflow-y: auto;
+    flex: 1;
+}
+.shufei-cite-search-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+.shufei-cite-search-row input {
+    flex: 1;
+    padding: 6px 10px;
+    border: 1px solid #d9d9d9;
+    border-radius: 4px;
+    font-size: 13px;
+    box-sizing: border-box;
+}
+.shufei-cite-search-row input:focus {
+    border-color: #fa8c16;
+    outline: none;
+}
+.shufei-cite-results {
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid #f0f0f0;
+    border-radius: 4px;
+}
+.shufei-cite-result-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: background 0.15s;
+}
+.shufei-cite-result-item + .shufei-cite-result-item {
+    border-top: 1px solid #f5f5f5;
+}
+.shufei-cite-result-item:hover { background: #fff7e6; }
+.shufei-cite-result-item.selected { background: #fff2e8; }
+.shufei-cite-result-title {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #333;
+}
+.shufei-cite-result-item.selected .shufei-cite-result-title { color: #d46b08; font-weight: 500; }
+.shufei-cite-result-date {
+    flex-shrink: 0;
+    font-size: 11px;
+    color: #999;
+}
+.shufei-cite-result-badge {
+    flex-shrink: 0;
+    padding: 0 6px;
+    background: #f0f0f0;
+    border-radius: 8px;
+    font-size: 11px;
+    color: #666;
+}
+.shufei-cite-result-badge.draft { background: #fff7e6; color: #ad4e00; }
+.shufei-cite-result-badge.waiting { background: #e6f7ff; color: #096dd9; }
+.shufei-cite-result-badge.private { background: #f9f0ff; color: #722ed1; }
+.shufei-cite-result-badge.hidden { background: #f5f5f5; color: #8c8c8c; }
+.shufei-cite-result-check {
+    flex-shrink: 0;
+    color: #fa8c16;
+    visibility: hidden;
+}
+.shufei-cite-result-item.selected .shufei-cite-result-check { visibility: visible; }
+.shufei-cite-empty {
+    padding: 30px 20px;
+    text-align: center;
+    color: #999;
+    font-size: 13px;
+}
+.shufei-cite-modal-footer {
+    padding: 10px 16px;
+    border-top: 1px solid #f0f0f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    background: #fafafa;
+}
+.shufei-cite-tip {
+    font-size: 11px;
+    color: #999;
+    line-height: 1.5;
+}
+.shufei-cite-modal-footer .btn {
+    padding: 5px 16px;
+    font-size: 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    border: 1px solid #d9d9d9;
+    background: #fff;
+    color: #595959;
+}
+.shufei-cite-modal-footer .btn:hover { border-color: #fa8c16; color: #fa8c16; }
+.shufei-cite-modal-footer .btn-primary {
+    background: #fa8c16;
+    border-color: #fa8c16;
+    color: #fff;
+}
+.shufei-cite-modal-footer .btn-primary:hover { background: #ffa940; border-color: #ffa940; color: #fff; }
+</style>
+
+<div class="shufei-cite-toolbar" id="shufei-cite-toolbar" style="display:none;">
+    <span class="sc-label">📌 文章引用</span>
+    <button type="button" class="shufei-cite-btn" id="shufei-cite-open-btn">选择引用文章</button>
+    <span class="shufei-cite-status-tip" id="shufei-cite-status-tip">发布后将在文章末尾显示引用卡片</span>
+</div>
+
+<div class="shufei-cite-chips" id="shufei-cite-chips" style="display:none;"></div>
+
+<div class="shufei-cite-modal-mask" id="shufei-cite-mask"></div>
+<div class="shufei-cite-modal" id="shufei-cite-modal">
+    <div class="shufei-cite-modal-header">
+        <span>选择要引用的文章（最多 <?php echo SHUFEI_ARTICLE_MAX_CITES; ?> 篇）</span>
+        <span class="shufei-cite-modal-close" id="shufei-cite-close">&times;</span>
+    </div>
+    <div class="shufei-cite-modal-body">
+        <div class="shufei-cite-search-row">
+            <input type="text" id="shufei-cite-search-input" placeholder="输入文章标题关键词搜索，留空显示最新文章…" autocomplete="off">
+        </div>
+        <div class="shufei-cite-results" id="shufei-cite-results"></div>
+    </div>
+    <div class="shufei-cite-modal-footer">
+        <span class="shufei-cite-tip">草稿/待审核/私密文章可预先配置，发布并公开后引用卡片自动生效</span>
+        <button type="button" class="btn btn-primary" id="shufei-cite-done-btn">完成</button>
+    </div>
+</div>
+
+<script>window.SHUFEI_ADMIN = Object.assign(window.SHUFEI_ADMIN || {}, {
+    articleCiteAjaxUrl: <?php echo json_encode($ajaxUrl); ?>,
+    articleCiteMax: <?php echo intval(SHUFEI_ARTICLE_MAX_CITES); ?>,
+    articleCiteCid: <?php echo $currentCid; ?>,
+    articleCiteCurrent: <?php echo json_encode($current, JSON_UNESCAPED_UNICODE); ?>
+});</script>
+
+<?php if (!empty($currentCids)): ?>
+<script>
+/* 隐藏域服务端预填（vanilla，不依赖 jQuery）：
+ * action 保存请求不加载主题 functions.php，write 过滤器不可用（见 comments.php 注释），
+ * 保存完全依赖核心 fields 自动化——隐藏域在则存、不在则删（$exists 清理）。
+ * 此处按服务端当前值预填，确保 jQuery 加载失败/JS 异常时不会丢失已配置的引用；
+ * 用户在前端清空引用时由 article-cite.js 移除本隐藏域，触发核心删除字段行。 */
+(function () {
+    var form = document.querySelector('form[name="write_post"]') || document.querySelector('form[name="write_page"]');
+    if (!form) return;
+    if (form.querySelector('input[name="fields[shufeiCitePosts]"]')) return;
+    var input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'fields[shufeiCitePosts]';
+    input.value = <?php echo json_encode(array_values($currentCids)); ?>;
+    form.appendChild(input);
+})();
+</script>
+<?php endif; ?>
+<script src="<?php echo $options->themeUrl; ?>/assets/js/admin/article-cite.js?v=<?php echo shufei_get_theme_version(); ?>"></script>
+
+<?php
+}
+

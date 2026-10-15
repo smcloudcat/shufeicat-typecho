@@ -115,6 +115,10 @@
             <?php endif; ?>
         </div>
         
+        <?php if (!$this->hidden): ?>
+        <?php echo shufei_render_article_cites(shufei_get_article_cites(isset($this->fields->shufeiCitePosts) ? $this->fields->shufeiCitePosts : '')); ?>
+        <?php endif; ?>
+        
         <?php if (count($this->tags) > 0): ?>
         <div class="post-tags" itemprop="keywords">
             <span class="post-tags-label"><i class="fa fa-tags"></i><?php _e('标签'); ?></span>

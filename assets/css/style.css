@@ -10292,6 +10292,129 @@ article.post {
     }
 }
 
+/* 文章页正文下方的引用卡片（发布文章时引用其他文章） */
+.post-cites {
+    margin-top: 14px;
+    padding: 10px 12px;
+    background: #fafafa;
+    border: 1px solid #f0f0f0;
+    border-radius: var(--lb-radius, 12px);
+}
+
+.post-cites-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-bottom: 8px;
+    font-size: 12px;
+    color: #999;
+}
+
+.post-cites-label i {
+    color: var(--primary-color, #FF6B6B);
+}
+
+.post-cite-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    background: #fff;
+    border: 1px solid #ececec;
+    border-radius: 8px;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.post-cite-card + .post-cite-card {
+    margin-top: 6px;
+}
+
+.post-cite-card:hover {
+    border-color: var(--primary-color, #FF6B6B);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    transform: translateY(-1px);
+}
+
+.post-cite-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+    background: rgba(255, 107, 107, 0.1);
+    border-radius: 6px;
+    color: var(--primary-color, #FF6B6B);
+    font-size: 14px;
+}
+
+.post-cite-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.post-cite-title {
+    font-size: 14px;
+    color: #333;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.post-cite-card:hover .post-cite-title {
+    color: var(--primary-color, #FF6B6B);
+}
+
+.post-cite-date {
+    font-size: 11px;
+    color: #999;
+}
+
+.post-cite-arrow {
+    color: #ccc;
+    font-size: 13px;
+    flex-shrink: 0;
+}
+
+.post-cite-card:hover .post-cite-arrow {
+    color: var(--primary-color, #FF6B6B);
+}
+
+/* 深色主题适配 */
+[data-theme="dark"] .post-cites {
+    background: #1a1a24;
+    border-color: #2a2a36;
+}
+
+[data-theme="dark"] .post-cite-card {
+    background: #1e1e2e;
+    border-color: #2a2a36;
+}
+
+[data-theme="dark"] .post-cite-title {
+    color: #ccc;
+}
+
+[data-theme="dark"] .post-cite-arrow {
+    color: #555;
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+    .post-cite-card {
+        padding: 8px 10px;
+    }
+
+    .post-cite-title {
+        font-size: 13px;
+    }
+}
+
 /* 自定义表情面板 */
 .sf-emoji-container {
     position: absolute;

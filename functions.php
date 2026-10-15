@@ -3214,7 +3214,43 @@ if (defined('__TYPECHO_ADMIN__')) {
     \Typecho\Plugin::factory('admin/write-post.php')->bottom = 'shufei_storage_editor_ui';
 
     \Typecho\Plugin::factory('admin/write-page.php')->bottom = 'shufei_storage_editor_ui';
+
+    // 注册文章引用后台编辑器钩子（文章 + 页面）
+    \Typecho\Plugin::factory('admin/write-post.php')->bottom = 'shufei_article_cite_editor_ui';
+
+    \Typecho\Plugin::factory('admin/write-page.php')->bottom = 'shufei_article_cite_editor_ui';
+
+    // 文章引用字段对自定义字段面板隐藏（isFieldReadOnly）：
+    // getFieldItems() 会把 DB 字段渲染成面板行并随 fieldNames[] 重新提交，
+    // 导致编辑器里清空引用后被面板"复活"。标记只读后面板不再渲染该行，
+    // 隐藏域 fields[shufeiCitePosts] 成为唯一数据源。
+    // 注意：applyFields 也会跳过只读字段，但保存走 action 请求（functions.php
+    // 不加载、钩子未注册），不受影响；仅在编辑器页面渲染时生效。
+    \Typecho\Plugin::factory('Widget\Base\Contents')->isFieldReadOnly = 'shufei_cite_field_readonly';
+
+    \Typecho\Plugin::factory('Widget_Contents_Post_Edit')->isFieldReadOnly = 'shufei_cite_field_readonly';
+
+    \Typecho\Plugin::factory('Widget_Contents_Page_Edit')->isFieldReadOnly = 'shufei_cite_field_readonly';
 }
+
+/**
+ * 自定义字段面板隐藏文章引用字段（见 functions.php 注册处注释）
+ *
+ * @param string $name 字段名
+ * @return bool true = 只读（面板不渲染该行）
+ */
+function shufei_cite_field_readonly($name)
+{
+    return $name === SHUFEI_ARTICLE_CITE_FIELD;
+}
+
+/*
+ * 说明：文章引用的保存不注册 write 过滤器。
+ * /action/contents-post-edit 由 Router::dispatch 直接实例化 Edit widget，
+ * 主题 functions.php 在该 action 请求中不加载（仅前台 Archive 与后台编辑页
+ * getDefaultFieldItems() 加载），过滤器永远不会触发（已实测验证）。
+ * 保存依赖核心 fields 自动化 + 渲染层消毒，详见 core/comments.php 章节注释。
+ */
 
 /**
  * ===== 历史文章修改后排序前置 =====

@@ -684,6 +684,59 @@ function shufei_sanitize_style_value($style)
 /** 单条评论最多引用几篇文章（防滥用） */
 define('SHUFEI_COMMENT_MAX_CITES', 5);
 
+/** 单篇文章最多引用几篇文章（与评论同标准） */
+define('SHUFEI_ARTICLE_MAX_CITES', 5);
+
+/** 文章引用自定义字段名（后台编辑器隐藏域 fields[shufeiCitePosts] → 核心自动保存） */
+define('SHUFEI_ARTICLE_CITE_FIELD', 'shufeiCitePosts');
+
+/**
+ * 消毒引用 CID 列表（评论提交与文章保存共用）
+ *
+ * 接受三种输入：JSON 数组字符串（'[1,2]'）、逗号分隔字符串（'1,2'）、数组（[1,2] / [['cid'=>1]]）。
+ * 处理：整数化 → 丢弃 ≤0 → 保序去重 → 截断到 $max。
+ *
+ * @param mixed $raw 原始输入
+ * @param int $max 上限
+ * @return array CID 映射（cid => cid），空数组表示无有效引用
+ */
+function shufei_sanitize_cite_cids($raw, $max = 5)
+{
+    if (is_string($raw) || is_int($raw) || is_float($raw)) {
+        $raw = trim((string)$raw);
+        if ($raw === '') {
+            return array();
+        }
+        $list = json_decode($raw, true);
+        if (!is_array($list)) {
+            // 兜底：兼容逗号分隔的 CID 列表
+            $list = explode(',', $raw);
+        }
+    } elseif (is_array($raw)) {
+        $list = $raw;
+    } else {
+        return array();
+    }
+    if (empty($list)) {
+        return array();
+    }
+
+    $cids = array();
+    foreach ($list as $item) {
+        if (is_array($item)) {
+            $item = isset($item['cid']) ? $item['cid'] : 0;
+        }
+        $cid = intval($item);
+        if ($cid > 0 && !isset($cids[$cid])) {
+            $cids[$cid] = $cid;
+        }
+    }
+    if (empty($cids)) {
+        return array();
+    }
+    return array_slice($cids, 0, $max, true);
+}
+
 /**
  * 评论提交时处理文章引用（在 shufei_comment_check 内调用）
  *
@@ -703,27 +756,11 @@ function shufei_process_comment_cites($comment)
     if ($raw === '' || !isset($comment['text'])) {
         return $comment;
     }
-    $list = json_decode($raw, true);
-    if (!is_array($list)) {
-        // 兜底：兼容逗号分隔的 CID 列表
-        $list = explode(',', $raw);
-    }
-    if (empty($list)) {
-        return $comment;
-    }
 
-    // 整数化 + 去重（保留用户选择顺序）
-    $cids = array();
-    foreach ($list as $item) {
-        $cid = intval($item);
-        if ($cid > 0 && !isset($cids[$cid])) {
-            $cids[$cid] = $cid;
-        }
-    }
+    $cids = shufei_sanitize_cite_cids($raw, SHUFEI_COMMENT_MAX_CITES);
     if (empty($cids)) {
         return $comment;
     }
-    $cids = array_slice($cids, 0, SHUFEI_COMMENT_MAX_CITES, true);
 
     // 隐私锁：只允许引用公开、无密码的文章；否则整篇丢弃
     try {
@@ -900,6 +937,133 @@ function shufei_strip_comment_cite_markers($html)
     $html = preg_replace('/\s*\[cite:\d+\]/', '', $html);
     // 剥离后可能留下空段落，清理掉（仅清理完全空白的 p）
     $html = preg_replace('/<p>(\s|&nbsp;)*<\/p>/', '', $html);
+    return $html;
+}
+
+/* ================================================================
+ * 文章引用（2026-10-15 新增）
+ * 后台编辑器选择引用文章 → 隐藏域 fields[shufeiCitePosts]（JSON 数组）
+ * → 核心 getFields()/applyFields() 自动存为自定义字段（无需自写保存钩子）
+ * → 前台 post.php / page.php 在正文后渲染引用卡片。
+ *
+ * 架构约束（重要，勿再尝试 write 过滤器方案）：
+ *   /action/contents-post-edit 由 Router::dispatch 直接实例化
+ *   Widget\Contents\Post\Edit，主题 functions.php 在该请求中不加载
+ *   （仅前台 Archive 与后台编辑页 getDefaultFieldItems() 会加载），
+ *   因此 functions.php 里注册的 write 过滤器永远不会触发（已实测验证）。
+ *   保存侧完全依赖核心 fields 自动化 + 以下约定：
+ *   - 隐藏域存在且非空 → 核心存字段；JS 清空时移除隐藏域 →
+ *     核心 applyFields 的 $exists 清理自动删字段行（DB 不留垃圾）。
+ *   - 隐藏域缺失 → 核心删除已存字段行。故 JS 禁用/失败时有清空风险，
+ *     由 editor-ui.php 的 vanilla 内联脚本（不依赖 jQuery）按服务端
+ *     当前值预填隐藏域来兜底。
+ *   安全边界在渲染层：shufei_get_article_cites() 消毒（intval/去重/上限），
+ *   shufei_get_comment_cites_info() 强制隐私锁（publish + 无密码）。
+ * ================================================================ */
+
+/**
+ * 从文章自定义字段原值解析引用 CID 列表
+ *
+ * @param mixed $raw 字段值（JSON 数组字符串，或已是数组）
+ * @return array CID 映射（cid => cid）
+ */
+function shufei_get_article_cites($raw)
+{
+    return shufei_sanitize_cite_cids($raw, SHUFEI_ARTICLE_MAX_CITES);
+}
+
+/**
+ * 编辑器回显用：批量查询引用文章信息（不加隐私锁——后台编辑器有权查看全部状态）
+ *
+ * @param array $cids CID 数组
+ * @return array cid => array('title','permalink','date','status','statusLabel')
+ */
+function shufei_get_article_cites_info_admin($cids)
+{
+    if (empty($cids)) {
+        return array();
+    }
+    $statusLabels = array(
+        'publish' => '已发布',
+        'waiting' => '待审核',
+        'draft'   => '草稿',
+        'private' => '私密',
+        'hidden'  => '隐藏',
+    );
+    $result = array();
+    try {
+        $db = \Typecho\Db::get();
+        $prefix = $db->getPrefix();
+        $cidList = implode(',', array_map('intval', $cids));
+        $rows = $db->fetchAll($db->select('cid, title, slug, created, status')
+            ->from($prefix . 'contents')
+            ->where('type = ?', 'post')
+            ->where('cid IN (' . $cidList . ')'));
+        foreach ($rows as $row) {
+            $permalink = '';
+            if (class_exists('AiChat')) {
+                $permalink = \AiChat::buildPermalink($row);
+            }
+            $status = (string)$row['status'];
+            $result[intval($row['cid'])] = array(
+                'cid'         => intval($row['cid']),
+                'title'       => (string)$row['title'],
+                'permalink'   => $permalink,
+                'date'        => date('Y-m-d', intval($row['created'])),
+                'status'      => $status,
+                'statusLabel' => isset($statusLabels[$status]) ? $statusLabels[$status] : $status,
+            );
+        }
+    } catch (\Throwable $e) {
+        error_log('[ShuFeiCat] 文章引用编辑器查询失败: ' . $e->getMessage());
+    }
+    return $result;
+}
+
+/**
+ * 渲染文章页下方的引用卡片（复用评论引用的隐私锁查询与静态缓存）
+ *
+ * 隐私锁与评论引用一致：仅渲染 publish 且无密码的文章；
+ * 草稿/待审核/加密引用不显示（发布后自动生效）。
+ *
+ * @param array $cids CID 数组（cid => cid）
+ * @return string HTML（无可见引用时返回空串）
+ */
+function shufei_render_article_cites($cids)
+{
+    if (empty($cids)) {
+        return '';
+    }
+    $info = shufei_get_comment_cites_info($cids);
+    if (empty($info)) {
+        return '';
+    }
+    $html = '<div class="post-cites"><span class="post-cites-label"><i class="fa fa-quote-right"></i> 本文引用了</span>';
+    $count = 0;
+    foreach ($cids as $cid) {
+        if (!isset($info[$cid])) {
+            continue;
+        }
+        $item = $info[$cid];
+        $count++;
+        if ($count > SHUFEI_ARTICLE_MAX_CITES) {
+            break;
+        }
+        $title = htmlspecialchars($item['title'], ENT_QUOTES, 'UTF-8');
+        $date = htmlspecialchars($item['date'], ENT_QUOTES, 'UTF-8');
+        $url = $item['permalink'] !== '' ? htmlspecialchars($item['permalink'], ENT_QUOTES, 'UTF-8') : '';
+        $tag = $url !== '' ? 'a' : 'span';
+        $attrs = $url !== '' ? ' href="' . $url . '"' : '';
+        $html .= '<' . $tag . ' class="post-cite-card"' . $attrs . '>';
+        $html .= '<span class="post-cite-icon"><i class="fa fa-file-text-o"></i></span>';
+        $html .= '<span class="post-cite-body">';
+        $html .= '<span class="post-cite-title">' . $title . '</span>';
+        $html .= '<span class="post-cite-date">' . $date . '</span>';
+        $html .= '</span>';
+        $html .= '<i class="fa fa-angle-right post-cite-arrow"></i>';
+        $html .= '</' . $tag . '>';
+    }
+    $html .= '</div>';
     return $html;
 }
 
