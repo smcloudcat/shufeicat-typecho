@@ -545,6 +545,21 @@ function shufei_replace_cite_markers($html, $info)
         return '';
     }, $html);
 
+    // 1.5 容错：整段仅由「标记 + <br>」组成（手写连续引用忘补空行时
+    // HyperDown 会把多个标记软换行合并进同一 <p>）→ 全部按块级拆分为多张卡
+    $html = preg_replace_callback('/<p>\s*(\[cite:\d+\]\s*(?:<br\s*\/?>\s*\[cite:\d+\]\s*)+)<\/p>/', function ($m) use (&$info, &$rendered) {
+        preg_match_all('/\[cite:(\d+)\]/', $m[1], $mm);
+        $out = '';
+        foreach ($mm[1] as $cid) {
+            $cid = intval($cid);
+            if (isset($info[$cid]) && $rendered < SHUFEI_ARTICLE_MAX_CITES) {
+                $rendered++;
+                $out .= shufei_render_cite_card_html($info[$cid], false);
+            }
+        }
+        return $out;
+    }, $html);
+
     // 2. 行内：剩余 [cite:N] → 行内卡片；不可见/超限 → 仅移除标记文本
     $html = preg_replace_callback('/\[cite:(\d+)\]/', function ($m) use (&$info, &$rendered) {
         $cid = intval($m[1]);

@@ -10418,7 +10418,12 @@ article.post {
 
 /* 正文 Markdown 标记 [cite:cid] 渲染的引用卡片（2026-10-15 新语法） */
 .post-content .post-cite-card {
-    margin: 16px 0;
+    margin: 12px 0;
+}
+
+/* 连续引用卡片分组内紧凑（特异性高于上面的单卡规则） */
+.post-content .post-cite-card + .post-cite-card {
+    margin-top: 6px;
 }
 
 /* 行内引用卡片（与正文文字混排） */
@@ -10454,7 +10459,11 @@ article.post {
 
 @media (max-width: 768px) {
     .post-content .post-cite-card {
-        margin: 12px 0;
+        margin: 10px 0;
+    }
+
+    .post-content .post-cite-card + .post-cite-card {
+        margin-top: 5px;
     }
 }
 
