@@ -215,15 +215,17 @@ function threadedComments($comments, $options) {
                     </label>
                     <textarea rows="6" cols="50" name="text" id="textarea" class="textarea"
                               required placeholder="<?php _e('写下你的评论...'); ?>"><?php $this->remember('text'); ?></textarea>
-                    <div class="emoji-panel" id="emoji-panel">
-                        <button type="button" class="emoji-toggle" id="emoji-toggle" aria-label="<?php _e('表情面板'); ?>" aria-expanded="false">
-                            <i class="fa fa-smile-o" aria-hidden="true"></i> <?php _e('表情'); ?>
-                        </button>
-                    </div>
-                    <div class="cite-article-panel" id="cite-article-panel">
-                        <button type="button" class="cite-article-toggle" id="cite-article-toggle" data-cid="<?php echo $this->cid; ?>" aria-label="<?php _e('引用文章'); ?>" aria-expanded="false">
-                            <i class="fa fa-quote-right" aria-hidden="true"></i> <?php _e('引用文章'); ?>
-                        </button>
+                    <div class="comment-tools-row">
+                        <div class="emoji-panel" id="emoji-panel">
+                            <button type="button" class="emoji-toggle" id="emoji-toggle" aria-label="<?php _e('表情面板'); ?>" aria-expanded="false">
+                                <i class="fa fa-smile-o" aria-hidden="true"></i> <?php _e('表情'); ?>
+                            </button>
+                        </div>
+                        <div class="cite-article-panel" id="cite-article-panel">
+                            <button type="button" class="cite-article-toggle" id="cite-article-toggle" data-cid="<?php echo $this->cid; ?>" aria-label="<?php _e('引用文章'); ?>" aria-expanded="false">
+                                <i class="fa fa-quote-right" aria-hidden="true"></i> <?php _e('引用文章'); ?>
+                            </button>
+                        </div>
                     </div>
                 </div>
 

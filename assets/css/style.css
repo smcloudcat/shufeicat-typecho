@@ -9951,9 +9951,18 @@ article.post {
     }
 }
 
+/* ===== 评论工具行：表情 + 引用文章 放一行（2026-10-15） ===== */
+.comment-tools-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+}
+
 /* ===== 表情面板 ===== */
 .emoji-panel {
-    margin-top: 8px;
+    display: inline-flex;
 }
 
 .emoji-toggle {
@@ -9978,8 +9987,7 @@ article.post {
 
 /* ==================== 评论文章引用（2026-10-14 新增） ==================== */
 .cite-article-panel {
-    margin-top: 8px;
-    display: inline-block;
+    display: inline-flex;
 }
 
 .cite-article-toggle {
