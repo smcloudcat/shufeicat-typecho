@@ -930,6 +930,10 @@
                 window.initCommentSort();
             }
 
+            if (typeof window.initCommentLoadMore === 'function') {
+                window.initCommentLoadMore();
+            }
+
             if (typeof window.initCommentIpRegions === 'function') {
                 window.initCommentIpRegions();
             }
