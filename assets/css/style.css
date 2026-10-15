@@ -5073,6 +5073,7 @@ pre[class*="language-"].line-numbers > code {
         top: auto;
         width: 100%;
         max-height: none;
+        margin-top: 20px;
         padding: 20px 15px;
     }
 }
