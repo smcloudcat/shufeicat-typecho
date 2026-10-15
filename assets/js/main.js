@@ -1599,7 +1599,7 @@ window.applyCommentSort = function(sortType) {
  * 检测到服务端真实分页导航（.page-navigator 内有链接）时自动让位。
  * 排序（applyCommentSort）/「只看作者」过滤后自动重算截断。
  */
-window.COMMENT_LOAD_MORE_PAGE = 10;
+window.COMMENT_LOAD_MORE_PAGE = 6;
 window.initCommentLoadMore = function() {
     var list = document.getElementById('comment-list');
     if (!list) return;
