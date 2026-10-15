@@ -830,6 +830,29 @@ function shufei_article_cite_editor_ui($post)
     color: #fff;
 }
 
+/* 旧版 fields 引用（待迁移 chip，2026-10-15 新语法兼容） */
+.shufei-cite-chip-legacy {
+    background: #f6ffed;
+    border-color: #b7eb8f;
+    color: #389e0d;
+}
+.shufei-cite-chip-migrate {
+    flex-shrink: 0;
+    padding: 0 8px;
+    border: none;
+    border-radius: 8px;
+    background: rgba(82, 196, 26, 0.2);
+    color: #237804;
+    font-size: 11px;
+    line-height: 18px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.shufei-cite-chip-migrate:hover {
+    background: #52c41a;
+    color: #fff;
+}
+
 /* 搜索弹窗 */
 .shufei-cite-modal-mask {
     position: fixed;
@@ -987,7 +1010,7 @@ function shufei_article_cite_editor_ui($post)
 <div class="shufei-cite-toolbar" id="shufei-cite-toolbar" style="display:none;">
     <span class="sc-label">📌 文章引用</span>
     <button type="button" class="shufei-cite-btn" id="shufei-cite-open-btn">选择引用文章</button>
-    <span class="shufei-cite-status-tip" id="shufei-cite-status-tip">发布后将在文章末尾显示引用卡片</span>
+    <span class="shufei-cite-status-tip" id="shufei-cite-status-tip">点选文章即在光标处插入 [cite:cid] 标记</span>
 </div>
 
 <div class="shufei-cite-chips" id="shufei-cite-chips" style="display:none;"></div>
@@ -1005,7 +1028,7 @@ function shufei_article_cite_editor_ui($post)
         <div class="shufei-cite-results" id="shufei-cite-results"></div>
     </div>
     <div class="shufei-cite-modal-footer">
-        <span class="shufei-cite-tip">草稿/待审核/私密文章可预先配置，发布并公开后引用卡片自动生效</span>
+        <span class="shufei-cite-tip">点击文章即在正文光标处插入引用标记，可随时在正文中删除</span>
         <button type="button" class="btn btn-primary" id="shufei-cite-done-btn">完成</button>
     </div>
 </div>
@@ -1019,11 +1042,13 @@ function shufei_article_cite_editor_ui($post)
 
 <?php if (!empty($currentCids)): ?>
 <script>
-/* 隐藏域服务端预填（vanilla，不依赖 jQuery）：
- * action 保存请求不加载主题 functions.php，write 过滤器不可用（见 comments.php 注释），
- * 保存完全依赖核心 fields 自动化——隐藏域在则存、不在则删（$exists 清理）。
- * 此处按服务端当前值预填，确保 jQuery 加载失败/JS 异常时不会丢失已配置的引用；
- * 用户在前端清空引用时由 article-cite.js 移除本隐藏域，触发核心删除字段行。 */
+/* 旧版 fields 引用兜底预填（vanilla，不依赖 jQuery）：
+ * 2026-10-15 起引用改为正文 [cite:cid] 标记语法（article-cite.js 光标处插入）。
+ * 本隐藏域仅用于**保留旧数据**：自定义字段面板已用 isFieldReadOnly 隐藏该字段，
+ * 若表单不提交 fields[shufeiCitePosts]，核心 applyFields 会删除该字段行。
+ * 保留旧值 → 旧文章保存后字段不丢 → 正文无 [cite: 标记时文末兜底渲染继续生效
+ * （见 post.php / page.php 的 strpos 条件）。
+ * 新语法不写此域；用户在编辑器点「迁移到正文」后标记进正文，字段沦为无害死数据。 */
 (function () {
     var form = document.querySelector('form[name="write_post"]') || document.querySelector('form[name="write_page"]');
     if (!form) return;
@@ -1031,7 +1056,7 @@ function shufei_article_cite_editor_ui($post)
     var input = document.createElement('input');
     input.type = 'hidden';
     input.name = 'fields[shufeiCitePosts]';
-    input.value = <?php echo json_encode(array_values($currentCids)); ?>;
+    input.value = <?php echo json_encode(json_encode(array_values($currentCids))); ?>;
     form.appendChild(input);
 })();
 </script>

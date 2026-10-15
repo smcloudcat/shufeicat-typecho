@@ -1021,7 +1021,35 @@ function shufei_get_article_cites_info_admin($cids)
 }
 
 /**
- * 渲染文章页下方的引用卡片（复用评论引用的隐私锁查询与静态缓存）
+ * 渲染单张引用卡片（文末列表与正文 Markdown 标记 [cite:cid] 共用）
+ *
+ * @param array $item 文章信息（title/permalink/date，来自 shufei_get_comment_cites_info）
+ * @param bool $inline true = 正文行内卡片（span 小尺寸）；false = 块级卡片
+ * @return string HTML
+ */
+function shufei_render_cite_card_html($item, $inline = false)
+{
+    $title = htmlspecialchars($item['title'], ENT_QUOTES, 'UTF-8');
+    $date = htmlspecialchars($item['date'], ENT_QUOTES, 'UTF-8');
+    $url = $item['permalink'] !== '' ? htmlspecialchars($item['permalink'], ENT_QUOTES, 'UTF-8') : '';
+    $tag = $url !== '' ? 'a' : 'span';
+    $attrs = $url !== '' ? ' href="' . $url . '"' : '';
+    $cls = $inline ? 'post-cite-card post-cite-inline' : 'post-cite-card';
+    $html = '<' . $tag . ' class="' . $cls . '"' . $attrs . '>';
+    $html .= '<span class="post-cite-icon"><i class="fa fa-file-text-o"></i></span>';
+    $html .= '<span class="post-cite-body">';
+    $html .= '<span class="post-cite-title">' . $title . '</span>';
+    $html .= '<span class="post-cite-date">' . $date . '</span>';
+    $html .= '</span>';
+    if (!$inline) {
+        $html .= '<i class="fa fa-angle-right post-cite-arrow"></i>';
+    }
+    $html .= '</' . $tag . '>';
+    return $html;
+}
+
+/**
+ * 渲染文章页下方的引用卡片（旧版 fields 数据兜底；正文含 [cite: 标记时模板不再调用）
  *
  * 隐私锁与评论引用一致：仅渲染 publish 且无密码的文章；
  * 草稿/待审核/加密引用不显示（发布后自动生效）。
@@ -1049,19 +1077,7 @@ function shufei_render_article_cites($cids)
         if ($count > SHUFEI_ARTICLE_MAX_CITES) {
             break;
         }
-        $title = htmlspecialchars($item['title'], ENT_QUOTES, 'UTF-8');
-        $date = htmlspecialchars($item['date'], ENT_QUOTES, 'UTF-8');
-        $url = $item['permalink'] !== '' ? htmlspecialchars($item['permalink'], ENT_QUOTES, 'UTF-8') : '';
-        $tag = $url !== '' ? 'a' : 'span';
-        $attrs = $url !== '' ? ' href="' . $url . '"' : '';
-        $html .= '<' . $tag . ' class="post-cite-card"' . $attrs . '>';
-        $html .= '<span class="post-cite-icon"><i class="fa fa-file-text-o"></i></span>';
-        $html .= '<span class="post-cite-body">';
-        $html .= '<span class="post-cite-title">' . $title . '</span>';
-        $html .= '<span class="post-cite-date">' . $date . '</span>';
-        $html .= '</span>';
-        $html .= '<i class="fa fa-angle-right post-cite-arrow"></i>';
-        $html .= '</' . $tag . '>';
+        $html .= shufei_render_cite_card_html($item, false);
     }
     $html .= '</div>';
     return $html;

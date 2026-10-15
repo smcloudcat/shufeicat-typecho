@@ -30,7 +30,7 @@
                 <?php echo shufei_render_post_content($this); ?>
             <?php endif; ?>
         </div>
-        <?php if (!$this->hidden): ?>
+        <?php if (!$this->hidden && strpos((string)$this->text, '[cite:') === false): ?>
         <?php echo shufei_render_article_cites(shufei_get_article_cites(isset($this->fields->shufeiCitePosts) ? $this->fields->shufeiCitePosts : '')); ?>
         <?php endif; ?>
     </article>

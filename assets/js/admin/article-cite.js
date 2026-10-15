@@ -1,12 +1,13 @@
 /**
- * 文章引用选择器（后台编辑器）
+ * 文章引用选择器（后台编辑器）— Markdown 增强语法版
  *
- * 功能：在后台写文章/写页面时，搜索站内文章并选择引用（上限 5 篇）。
- * 存储：动态维护表单内隐藏域 fields[shufeiCitePosts]（JSON 数组字符串），
- *      由 Typecho 核心 getFields()/applyFields() 自动保存为自定义字段；
- *      保存前由服务端 write 过滤器（shufei_article_cite_write_filter）消毒。
- * 空值策略：无选中时隐藏域保留 "[]"（与「JS 未运行→无此域」区分，
- *      服务端据此 unset 触发核心清理字段行）。
+ * 2026-10-15 起改为正文标记语法：在编辑器光标处插入 [cite:cid]（独占一行），
+ * 前台由 shufei_process_article_cites()（core/markdown.php）渲染为引用卡片。
+ * 上限 SHUFEI_ARTICLE_MAX_CITES 篇（按正文标记计数）。
+ *
+ * 旧版兼容：articleCiteCurrent（PHP 回显的 fields[shufeiCitePosts] 旧数据）
+ * 渲染为「待迁移」chips，一键插入正文；fields 隐藏域由 editor-ui.php 预填保留
+ * （旧文章保存不丢字段，正文无标记时文末兜底渲染继续生效）。
  */
 (function ($) {
     $(function () {
@@ -27,91 +28,148 @@
         var $statusTip = $('#shufei-cite-status-tip');
         if (!$toolbar.length || !$modal.length || !ajaxUrl) return;
 
-        var selected = [];   // [{cid,title,date,status,statusLabel}]
         var articles = [];   // 最近一次搜索结果
         var searchTimer = null;
         var curCtrl = null;
+        var titleMap = {};   // cid => 文章信息（插入时记录，chips 展示用）
 
-        // 初始回显（PHP 传入，已按选择顺序；防御性去重）
+        // 旧版 fields 回显（待迁移，不在正文中）
+        var legacy = [];
         (cfg.articleCiteCurrent || []).forEach(function (a) {
-            if (a && a.cid && !findIdx(a.cid).found) {
-                selected.push({
+            if (a && a.cid && !titleMap[a.cid]) {
+                titleMap[a.cid] = {
                     cid: parseInt(a.cid, 10),
                     title: a.title || '',
                     date: a.date || '',
                     status: a.status || '',
                     statusLabel: a.statusLabel || ''
-                });
+                };
+                legacy.push(parseInt(a.cid, 10));
             }
         });
 
-        function findIdx(cid) {
-            for (var i = 0; i < selected.length; i++) {
-                if (selected[i].cid === cid) return { found: true, idx: i };
-            }
-            return { found: false, idx: -1 };
+        /* ---------- 正文 textarea 操作 ---------- */
+        function $text() {
+            return $('#text');
         }
 
-        /* ---------- 隐藏域维护（核心保存依赖） ----------
-         * action 请求不加载主题 functions.php（write 过滤器不可用），保存完全依赖
-         * 核心 fields 自动化：隐藏域在 → 存字段；不在 → $exists 清理删字段行。
-         * 故空选时移除隐藏域而非留 "[]"，避免 DB 积压空字段行；
-         * JS 禁用/失败时由 editor-ui.php 的 vanilla 预填脚本兜底。
-         */
-        function syncHidden() {
-            var $form = $('form[name="write_post"], form[name="write_page"]').first();
-            if (!$form.length) return;
-            var $input = $form.find('input[name="fields[shufeiCitePosts]"]');
-            if (!$input.length) {
-                // bottom 钩子在 </form> 之后，隐藏域必须动态挂进表单
-                $input = $('<input type="hidden" name="fields[shufeiCitePosts]">');
-                $form.append($input);
-            }
+        // 解析正文中的 [cite:N] 标记（保序去重）
+        function parseMarkers() {
+            var val = $text().val() || '';
+            var re = /\[cite:(\d+)\]/g;
             var cids = [];
-            selected.forEach(function (a) { cids.push(a.cid); });
-            if (!cids.length) {
-                // 无选中：移除隐藏域 → 核心 $exists 清理删除该自定义字段行
-                if ($input.length) $input.remove();
-                return;
+            var m;
+            while ((m = re.exec(val)) !== null) {
+                var c = parseInt(m[1], 10);
+                if (c > 0 && cids.indexOf(c) === -1) cids.push(c);
             }
-            if (!$input.length) {
-                // bottom 钩子在 </form> 之后，隐藏域必须动态挂进表单
-                $input = $('<input type="hidden" name="fields[shufeiCitePosts]"]');
-                $form.append($input);
-            }
-            $input.val(JSON.stringify(cids));
+            return cids;
         }
 
-        /* ---------- chips 渲染 ---------- */
+        // 在光标处插入 [cite:cid]（独占一段：前后均保证空行，块级渲染）
+        function insertMarker(cid) {
+            var $t = $text();
+            if (!$t.length) return false;
+            var el = $t[0];
+            var val = el.value || '';
+            var start = el.selectionStart;
+            var end = el.selectionEnd;
+            if (typeof start !== 'number') start = val.length;
+            if (typeof end !== 'number') end = start;
+
+            var before = val.slice(0, start);
+            var after = val.slice(end);
+            // 前缀：before 非空行结尾时补空行（\n → \n\n；行中 → \n\n）
+            var prefix = /\n\n$/.test(before) ? '' : (/\n$/.test(before) ? '\n' : '\n\n');
+            // 后缀：after 非空行开头时补空行
+            var suffix = /^\n\n/.test(after) ? '' : (/^\n/.test(after) ? '\n' : '\n\n');
+            var marker = '[cite:' + cid + ']';
+            var insertText = prefix + marker + suffix;
+
+            el.value = before + insertText + after;
+            var pos = start + insertText.length;
+            el.selectionStart = el.selectionEnd = pos;
+            $t.trigger('input').trigger('change').trigger('keyup');
+            return true;
+        }
+
+        // 从正文移除某个 [cite:N] 标记（删除所在行）
+        function removeMarker(cid) {
+            var $t = $text();
+            if (!$t.length) return;
+            var el = $t[0];
+            var val = el.value || '';
+            var re = new RegExp('[ \\t]*\\[cite:' + cid + '\\][ \\t]*\\n?', 'g');
+            el.value = val.replace(re, '');
+            $t.trigger('input').trigger('change').trigger('keyup');
+        }
+
+        /* ---------- chips 渲染（正文标记 + 待迁移旧引用） ---------- */
         function badgeClass(status) {
             return (status && status !== 'publish') ? ' ' + status : '';
         }
 
+        function chipTitle(cid) {
+            var info = titleMap[cid];
+            return info ? info.title : ('文章 #' + cid);
+        }
+
         function renderChips() {
             $chips.empty();
-            if (!selected.length) {
-                // JS 直接控制显示（内联 display 优先于类，避免与注入前的 display:none 冲突）
+            var markers = parseMarkers();
+            var hasItems = markers.length > 0 || legacy.length > 0;
+
+            if (!hasItems) {
                 $chips.css('display', 'none').removeClass('has-items');
-                $statusTip.text('发布后将在文章末尾显示引用卡片');
+                $statusTip.text('点选文章即在光标处插入 [cite:cid] 标记');
                 return;
             }
             $chips.addClass('has-items').css('display', 'flex');
-            selected.forEach(function (a) {
+
+            // 1. 正文标记 chips（可移除）
+            markers.forEach(function (cid) {
+                var info = titleMap[cid] || {};
                 var $chip = $('<span class="shufei-cite-chip"></span>');
-                var $title = $('<span class="shufei-cite-chip-title"></span>').text(a.title);
-                $chip.append($title);
-                if (a.status && a.status !== 'publish') {
-                    $chip.append($('<span class="shufei-cite-chip-badge"></span>').text(a.statusLabel || a.status));
+                $chip.append($('<span class="shufei-cite-chip-title"></span>').text(chipTitle(cid)));
+                if (info.status && info.status !== 'publish') {
+                    $chip.append($('<span class="shufei-cite-chip-badge"></span>').text(info.statusLabel || info.status));
                 }
-                var $remove = $('<button type="button" class="shufei-cite-chip-remove" title="移除引用">&times;</button>');
+                var $remove = $('<button type="button" class="shufei-cite-chip-remove" title="从正文移除">&times;</button>');
                 $remove.on('click', function (e) {
                     e.preventDefault();
-                    removeCite(a.cid);
+                    removeMarker(cid);
+                    refreshAll();
                 });
                 $chip.append($remove);
                 $chips.append($chip);
             });
-            $statusTip.text('已选 ' + selected.length + ' / ' + MAX + ' 篇');
+
+            // 2. 旧版 fields 引用（待迁移）
+            legacy.forEach(function (cid) {
+                var info = titleMap[cid] || {};
+                var $chip = $('<span class="shufei-cite-chip shufei-cite-chip-legacy"></span>');
+                $chip.append($('<span class="shufei-cite-chip-title"></span>').text(chipTitle(cid)));
+                $chip.append($('<span class="shufei-cite-chip-badge"></span>').text('旧版'));
+                var $migrate = $('<button type="button" class="shufei-cite-chip-migrate" title="插入正文">插入正文</button>');
+                $migrate.on('click', function (e) {
+                    e.preventDefault();
+                    if (parseMarkers().length >= MAX) {
+                        toast('正文引用标记已达上限 ' + MAX + ' 篇');
+                        return;
+                    }
+                    insertMarker(cid);
+                    legacy.splice(legacy.indexOf(cid), 1);
+                    refreshAll();
+                });
+                $chip.append($migrate);
+                $chips.append($chip);
+            });
+
+            if (legacy.length > 0) {
+                $statusTip.text('检测到 ' + legacy.length + ' 篇旧版引用，点「插入正文」迁移');
+            } else {
+                $statusTip.text('正文引用 ' + markers.length + ' / ' + MAX + ' 篇');
+            }
         }
 
         /* ---------- 搜索结果渲染 ---------- */
@@ -122,10 +180,11 @@
                     .text($searchInput.val().trim() ? '没有找到相关文章' : '暂无文章'));
                 return;
             }
+            var markers = parseMarkers();
             articles.forEach(function (a) {
-                var hit = findIdx(a.cid);
+                var inText = markers.indexOf(a.cid) !== -1;
                 var $item = $('<div class="shufei-cite-result-item" role="option"></div>');
-                if (hit.found) $item.addClass('selected');
+                if (inText) $item.addClass('selected');
                 $item.append($('<span class="shufei-cite-result-title"></span>').text(a.title));
                 $item.append($('<span class="shufei-cite-result-date"></span>').text(a.date || ''));
                 if (a.status && a.status !== 'publish') {
@@ -133,40 +192,46 @@
                         .text(a.statusLabel || a.status));
                 }
                 $item.append($('<i class="fa fa-check shufei-cite-result-check"></i>'));
-                $item.on('click', function () { toggleCite(a); });
+                $item.on('click', function () { insertCite(a); });
                 $results.append($item);
             });
         }
 
-        function toggleCite(a) {
-            var hit = findIdx(a.cid);
-            if (hit.found) {
-                selected.splice(hit.idx, 1);
-            } else {
-                if (selected.length >= MAX) {
-                    $statusTip.text('最多只能引用 ' + MAX + ' 篇文章').css('color', '#cf1322');
-                    setTimeout(function () { $statusTip.css('color', ''); renderChips(); }, 1500);
-                    return;
-                }
-                selected.push({
-                    cid: a.cid,
-                    title: a.title || '',
-                    date: a.date || '',
-                    status: a.status || '',
-                    statusLabel: a.statusLabel || ''
-                });
+        function insertCite(a) {
+            var markers = parseMarkers();
+            if (markers.indexOf(a.cid) !== -1) {
+                toast('该文章已在正文中引用');
+                return;
             }
-            renderChips();
-            renderResults();
-            syncHidden();
+            if (markers.length >= MAX) {
+                toast('最多只能引用 ' + MAX + ' 篇文章');
+                return;
+            }
+            if (!insertMarker(a.cid)) {
+                toast('未找到正文编辑器');
+                return;
+            }
+            titleMap[a.cid] = {
+                cid: a.cid,
+                title: a.title || '',
+                date: a.date || '',
+                status: a.status || '',
+                statusLabel: a.statusLabel || ''
+            };
+            var li = legacy.indexOf(a.cid);
+            if (li !== -1) legacy.splice(li, 1);
+            refreshAll();
+            toast('已插入 [cite:' + a.cid + ']');
         }
 
-        function removeCite(cid) {
-            var hit = findIdx(cid);
-            if (hit.found) selected.splice(hit.idx, 1);
+        function toast(msg) {
+            $statusTip.text(msg).css('color', '#cf1322');
+            setTimeout(function () { $statusTip.css('color', ''); refreshAll(); }, 1500);
+        }
+
+        function refreshAll() {
             renderChips();
             renderResults();
-            syncHidden();
         }
 
         /* ---------- 搜索（防抖 + 请求中断） ---------- */
@@ -249,9 +314,9 @@
         /* ---------- 工具栏注入到编辑器上方（与 AI 写作工具栏一致） ---------- */
         function injectToolbar() {
             if ($toolbar.data('injected')) return;
-            var $text = $('#text');
-            if (!$text.length) return;
-            $toolbar.add($chips).insertBefore($text).show();
+            var $t = $text();
+            if (!$t.length) return;
+            $toolbar.add($chips).insertBefore($t).show();
             $toolbar.data('injected', true);
         }
         injectToolbar();
@@ -259,8 +324,14 @@
         setTimeout(injectToolbar, 500);
         setTimeout(injectToolbar, 1500);
 
+        /* ---------- 正文变化时刷新 chips（粘贴/撤销/手动删除标记） ---------- */
+        $text().on('input change', function () {
+            if (!$modal.hasClass('show')) {
+                renderChips();
+            }
+        });
+
         /* ---------- 初始化 ---------- */
         renderChips();
-        syncHidden();
     });
 })(jQuery);

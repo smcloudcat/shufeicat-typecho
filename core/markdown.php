@@ -474,7 +474,118 @@ function shufei_apply_markdown_ext($content)
     // 8. 处理音乐短代码 [music]url[/music] 或 [music src="url"]
     $content = shufei_process_music_shortcode($content);
 
+    // 9. 处理文章引用 Markdown 增强语法 [cite:cid]（2026-10-15）
+    $content = shufei_process_article_cites($content);
+
     return $content;
+}
+
+/* ==================== 文章引用 Markdown 增强语法 ==================== */
+/**
+ * 语法：[cite:cid]（cid 为站内文章 ID）
+ *  - 独占一行时渲染为块级引用卡片（替换整个段落）
+ *  - 行内混排时渲染为行内小卡片
+ *  - 上限 SHUFEI_ARTICLE_MAX_CITES 篇，超出部分标记移除不渲染
+ *  - 隐私锁与评论引用一致：仅 publish 且无密码的文章可见，
+ *    不可见 cid 静默移除标记（不阻断正文）
+ */
+
+/**
+ * 从已解析的 HTML 中提取引用标记的 CID 列表（纯函数，可单测）
+ *
+ * @param string $html 已解析的 HTML
+ * @return array 按出现顺序去重的 CID 数组
+ */
+function shufei_extract_cite_cids_from_content($html)
+{
+    if (!is_string($html) || strpos($html, '[cite:') === false) {
+        return array();
+    }
+    preg_match_all('/\[cite:(\d+)\]/', $html, $matches);
+    $cids = array();
+    foreach ($matches[1] as $cid) {
+        $cid = intval($cid);
+        if ($cid > 0 && !isset($cids[$cid])) {
+            $cids[$cid] = $cid;
+        }
+    }
+    return $cids;
+}
+
+/**
+ * 替换正文中的 [cite:cid] 标记为引用卡片 HTML（纯函数，可单测）
+ *
+ * @param string $html 已解析的 HTML
+ * @param array $info cid => 文章信息（title/permalink/date），仅含可见文章
+ * @return string 替换后的 HTML
+ */
+function shufei_replace_cite_markers($html, $info)
+{
+    if (!is_string($html) || strpos($html, '[cite:') === false) {
+        return $html;
+    }
+
+    // 保护 <pre>/<code>：代码块/行内代码中的 [cite:N] 是示例文本，不渲染
+    $protected = array();
+    $html = preg_replace_callback('/<(code|pre)[^>]*>.*?<\/\1>/si', function ($m) use (&$protected) {
+        $key = '<!--CITEPROTECT' . count($protected) . '-->';
+        $protected[] = $m[0];
+        return $key;
+    }, $html);
+
+    $rendered = 0; // 已渲染计数（上限控制）
+
+    // 1. 块级：<p>[cite:N]</p> 整段 → 卡片；不可见/超限 → 整段移除
+    $html = preg_replace_callback('/<p>\s*\[cite:(\d+)\]\s*<\/p>/', function ($m) use (&$info, &$rendered) {
+        $cid = intval($m[1]);
+        if (isset($info[$cid]) && $rendered < SHUFEI_ARTICLE_MAX_CITES) {
+            $rendered++;
+            return shufei_render_cite_card_html($info[$cid], false);
+        }
+        return '';
+    }, $html);
+
+    // 2. 行内：剩余 [cite:N] → 行内卡片；不可见/超限 → 仅移除标记文本
+    $html = preg_replace_callback('/\[cite:(\d+)\]/', function ($m) use (&$info, &$rendered) {
+        $cid = intval($m[1]);
+        if (isset($info[$cid]) && $rendered < SHUFEI_ARTICLE_MAX_CITES) {
+            $rendered++;
+            return shufei_render_cite_card_html($info[$cid], true);
+        }
+        return '';
+    }, $html);
+
+    // 还原保护内容
+    foreach ($protected as $i => $htmlFragment) {
+        $html = str_replace('<!--CITEPROTECT' . $i . '-->', $htmlFragment, $html);
+    }
+
+    return $html;
+}
+
+/**
+ * 文章引用 Markdown 语法处理入口（shufei_apply_markdown_ext 第 9 步）
+ *
+ * @param string $content 已解析的 HTML
+ * @return string 处理后的 HTML
+ */
+function shufei_process_article_cites($content)
+{
+    if ($content === null || !is_string($content) || strpos($content, '[cite:') === false) {
+        return $content ?? '';
+    }
+    $cids = shufei_extract_cite_cids_from_content($content);
+    if (empty($cids)) {
+        return $content;
+    }
+    // 消毒（整数化/去重/上限）→ 隐私锁批量查询（静态缓存，与评论引用共用）
+    $cids = shufei_sanitize_cite_cids($cids, SHUFEI_ARTICLE_MAX_CITES);
+    $info = shufei_get_comment_cites_info($cids);
+    if (empty($info)) {
+        // 全部不可见：移除所有标记（保留正文其他内容）
+        return shufei_replace_cite_markers($content, array());
+    }
+    return shufei_replace_cite_markers($content, $info);
 }
 
 /**
