@@ -3757,30 +3757,70 @@ pre[class*="language-"].line-numbers > code {
 /* 评论「加载更多」分批显示（2026-10-15） */
 .comment-load-more-wrap {
     text-align: center;
-    margin: 18px 0 6px;
+    margin: 22px 0 8px;
 }
 
 .comment-load-more-btn {
+    position: relative;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
     font-size: 13px;
-    padding: 7px 20px;
-    border: 1px solid var(--border-color);
-    border-radius: 20px;
-    background: var(--card-bg);
-    color: var(--text-secondary);
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    padding: 9px 26px;
+    border: none;
+    border-radius: 24px;
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%);
+    color: #fff;
     cursor: pointer;
-    transition: var(--transition-fast);
+    box-shadow: 0 4px 14px rgba(255, 107, 107, 0.28);
+    transition: all 0.25s ease;
 }
 
 .comment-load-more-btn:hover {
-    color: var(--primary-color);
-    border-color: var(--primary-color);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 107, 107, 0.38);
 }
 
+.comment-load-more-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
+}
+
+/* 图标 hover 时上下浮动，暗示"展开下一批" */
 .comment-load-more-btn i {
     font-size: 14px;
+    transition: transform 0.25s ease;
+}
+
+.comment-load-more-btn:hover i {
+    animation: comment-lm-bounce 0.9s ease infinite;
+}
+
+@keyframes comment-lm-bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(3px); }
+}
+
+/* 点击加载态（JS 临时加 .loading，展开后按钮重建自动移除） */
+.comment-load-more-btn.loading {
+    pointer-events: none;
+    opacity: 0.85;
+    transform: none;
+}
+
+.comment-load-more-btn.loading i {
+    animation: comment-lm-spin 0.8s linear infinite;
+}
+
+@keyframes comment-lm-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* 深色主题：阴影略收敛避免发闷 */
+[data-theme="dark"] .comment-load-more-btn {
+    box-shadow: 0 4px 16px rgba(255, 107, 107, 0.35);
 }
 
 .sort-btn.active {

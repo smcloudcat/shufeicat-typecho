@@ -1647,8 +1647,14 @@ window.applyCommentLoadMore = function() {
         '<i class="fa fa-angle-down"></i> 加载更多评论（还剩 ' + remaining + ' 条）</button>';
     var btn = document.getElementById('comment-load-more-btn');
     btn.addEventListener('click', function() {
-        window._commentShown = (window._commentShown || PAGE) + PAGE;
-        window.applyCommentLoadMore();
+        // 加载态反馈：图标转圈 + 文案切换，短暂延迟让动画可感知
+        // （纯本地 DOM 展开，无网络请求）
+        btn.classList.add('loading');
+        btn.innerHTML = '<i class="fa fa-spinner"></i> 加载中…';
+        setTimeout(function() {
+            window._commentShown = (window._commentShown || PAGE) + PAGE;
+            window.applyCommentLoadMore();
+        }, 250);
     });
 };
 
