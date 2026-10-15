@@ -6,6 +6,7 @@
     var AJAX_URL = window.SHUFEI_ADMIN.ajaxUrl;
     var pendingFiles = [];
     var uploadResults = [];
+    var hasProfiles = false; // loadProfiles 结果（无 Profile 时按钮点击给出提示）
 
     function $(id){ return document.getElementById(id); }
 
@@ -51,9 +52,9 @@
                 if (!d.enabled) { return; }
                 if (!d.profiles || d.profiles.length === 0) {
                     $('shufei-storage-status-tip').textContent = '尚未配置任何 Profile，请到主题设置中添加';
-                    $('shufei-storage-editor-toolbar').style.display = 'flex';
                     return;
                 }
+                hasProfiles = true;
                 var sel = $('shufei-storage-profile-select');
                 sel.innerHTML = '';
                 d.profiles.forEach(function(p){
@@ -69,7 +70,6 @@
                 if (d.processing && d.processing.webp === 'on') tips.push('WebP');
                 if (d.processing && d.processing.watermark === 'on') tips.push('水印');
                 $('shufei-storage-status-tip').textContent = tips.length ? '已启用：' + tips.join(' / ') : '';
-                $('shufei-storage-editor-toolbar').style.display = 'flex';
             })
             .catch(function(e){
                 $('shufei-storage-status-tip').textContent = '加载失败: ' + e.message;
@@ -93,6 +93,10 @@
 
     // 上传弹窗
     function openUploadModal(){
+        if (!hasProfiles) {
+            alert('尚未配置任何存储 Profile，请先到主题设置中添加');
+            return;
+        }
         pendingFiles = [];
         uploadResults = [];
         $('shufei-storage-up-list').innerHTML = '';
@@ -225,12 +229,11 @@
         histStatus('已插入: ' + (name||'图片'), '#080');
     }
 
-    $('shufei-storage-open-upload-btn').addEventListener('click', openUploadModal);
+    // 2026-10-15：入口按钮移入快捷按钮行（SHUFEI_QI_ACTIONS），不再绑定独立按钮
     $('shufei-storage-up-close').addEventListener('click', closeUploadModal);
     $('shufei-storage-up-cancel-btn').addEventListener('click', closeUploadModal);
     $('shufei-storage-up-mask').addEventListener('click', closeUploadModal);
 
-    $('shufei-storage-open-history-btn').addEventListener('click', openHistoryModal);
     $('shufei-storage-hist-close').addEventListener('click', closeHistoryModal);
     $('shufei-storage-hist-mask').addEventListener('click', closeHistoryModal);
     $('shufei-hist-refresh').addEventListener('click', function(){ histPage = 1; loadHistory(); });
@@ -373,13 +376,21 @@
     }
 
     function init(){
-        // 将工具条移动到编辑器 textarea 上方（紧贴标题下方、内容区上方）
-        var toolbar = $('shufei-storage-editor-toolbar');
-        var ta = document.getElementById('text');
-        if (ta && ta.parentNode) {
-            ta.parentNode.insertBefore(toolbar, ta);
-        }
+        // 2026-10-15：工具栏合并进编辑器快捷按钮行，不再注入独立 toolbar；
+        // profile 下拉移入上传弹窗（历史弹窗仍读同一 select 的 value）。
         loadProfiles();
     }
+
+    // ===== 注册到编辑器快捷按钮行（传图 / 历史）=====
+    window.SHUFEI_QI_EXTRA = window.SHUFEI_QI_EXTRA || [];
+    window.SHUFEI_QI_ACTIONS = window.SHUFEI_QI_ACTIONS || {};
+    SHUFEI_QI_EXTRA.push(
+        { action: 'storage-upload', label: '传图', title: '上传图片到存储（支持压缩/WebP/水印）' },
+        { action: 'storage-history', label: '历史图', title: '浏览已上传图片并插入' }
+    );
+    SHUFEI_QI_ACTIONS['storage-upload'] = openUploadModal;
+    SHUFEI_QI_ACTIONS['storage-history'] = openHistoryModal;
+    // 本脚本加载晚于快捷按钮重建时补挂
+    if (window.shufeiQiApplyExtra) window.shufeiQiApplyExtra();
 })();
 

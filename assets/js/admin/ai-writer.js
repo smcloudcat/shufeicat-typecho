@@ -15,16 +15,8 @@
         var lastResult = '';
         var lastAction = '';
 
-        // 将工具栏注入到编辑器上方
-        function injectToolbar() {
-            if ($('#shufei-ai-toolbar').data('injected')) return;
-            var $text = $('#text');
-            if (!$text.length) return;
-            $('#shufei-ai-toolbar').insertBefore($text).show().data('injected', true);
-        }
-        injectToolbar();
-        // 重试注入（等待编辑器初始化）
-        setTimeout(injectToolbar, 500);
+        // 2026-10-15：工具栏合并进编辑器快捷按钮行（editor-quick-insert.js 的
+        // SHUFEI_QI_EXTRA 注册机制），不再注入独立 .shufei-ai-toolbar
 
         // 获取编辑器内容（选区优先）
         function getContent() {
@@ -255,14 +247,19 @@
             });
         }
 
-        // 工具栏按钮事件
-        $(document).on('click', '.shufei-ai-btn[data-ai-action]', function (e) {
-            e.preventDefault();
-            var action = $(this).data('ai-action');
-            if (action === 'beautify') openBeautify();
-            else if (action === 'continue') openContinue();
-            else if (action === 'check') openCheck();
-        });
+        // ===== 注册到编辑器快捷按钮行（AI 美化 / AI 续写 / AI 检查）=====
+        window.SHUFEI_QI_EXTRA = window.SHUFEI_QI_EXTRA || [];
+        window.SHUFEI_QI_ACTIONS = window.SHUFEI_QI_ACTIONS || {};
+        SHUFEI_QI_EXTRA.push(
+            { action: 'ai-beautify', label: 'AI美化', title: 'AI 美化文章排版（可选风格）' },
+            { action: 'ai-continue', label: 'AI续写', title: 'AI 基于当前内容续写' },
+            { action: 'ai-check', label: 'AI检查', title: 'AI 检查错别字/语法/逻辑' }
+        );
+        SHUFEI_QI_ACTIONS['ai-beautify'] = openBeautify;
+        SHUFEI_QI_ACTIONS['ai-continue'] = openContinue;
+        SHUFEI_QI_ACTIONS['ai-check'] = openCheck;
+        // 本脚本加载晚于快捷按钮重建时补挂
+        if (window.shufeiQiApplyExtra) window.shufeiQiApplyExtra();
 
         // 关闭事件
         $('#shufei-ai-close, #shufei-ai-mask').on('click', closeModal);

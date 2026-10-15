@@ -16,17 +16,14 @@
         var MAX = parseInt(cfg.articleCiteMax, 10) || 5;
         var currentCid = parseInt(cfg.articleCiteCid, 10) || 0;
 
-        var $toolbar = $('#shufei-cite-toolbar');
         var $chips = $('#shufei-cite-chips');
         var $mask = $('#shufei-cite-mask');
         var $modal = $('#shufei-cite-modal');
-        var $openBtn = $('#shufei-cite-open-btn');
         var $closeBtn = $('#shufei-cite-close');
         var $doneBtn = $('#shufei-cite-done-btn');
         var $searchInput = $('#shufei-cite-search-input');
         var $results = $('#shufei-cite-results');
-        var $statusTip = $('#shufei-cite-status-tip');
-        if (!$toolbar.length || !$modal.length || !ajaxUrl) return;
+        if (!$chips.length || !$modal.length || !ajaxUrl) return;
 
         var articles = [];   // 最近一次搜索结果
         var searchTimer = null;
@@ -121,7 +118,6 @@
 
             if (!hasItems) {
                 $chips.css('display', 'none').removeClass('has-items');
-                $statusTip.text('点选文章即在光标处插入 [cite:cid] 标记');
                 return;
             }
             $chips.addClass('has-items').css('display', 'flex');
@@ -154,7 +150,7 @@
                 $migrate.on('click', function (e) {
                     e.preventDefault();
                     if (parseMarkers().length >= MAX) {
-                        toast('正文引用标记已达上限 ' + MAX + ' 篇');
+                        alert('正文引用标记已达上限 ' + MAX + ' 篇');
                         return;
                     }
                     insertMarker(cid);
@@ -164,12 +160,6 @@
                 $chip.append($migrate);
                 $chips.append($chip);
             });
-
-            if (legacy.length > 0) {
-                $statusTip.text('检测到 ' + legacy.length + ' 篇旧版引用，点「插入正文」迁移');
-            } else {
-                $statusTip.text('正文引用 ' + markers.length + ' / ' + MAX + ' 篇');
-            }
         }
 
         /* ---------- 搜索结果渲染 ---------- */
@@ -225,8 +215,8 @@
         }
 
         function toast(msg) {
-            $statusTip.text(msg).css('color', '#cf1322');
-            setTimeout(function () { $statusTip.css('color', ''); refreshAll(); }, 1500);
+            alert(msg);
+            refreshAll();
         }
 
         function refreshAll() {
@@ -284,14 +274,6 @@
             $modal.removeClass('show');
         }
 
-        $openBtn.on('click', function (e) {
-            e.preventDefault();
-            if ($modal.hasClass('show')) {
-                closeModal();
-            } else {
-                openModal();
-            }
-        });
         $closeBtn.add($doneBtn).on('click', function (e) {
             e.preventDefault();
             closeModal();
@@ -307,22 +289,31 @@
         $searchInput.on('keydown', function (e) {
             if (e.key === 'Escape' || e.keyCode === 27) {
                 closeModal();
-                $openBtn.focus();
             }
         });
 
-        /* ---------- 工具栏注入到编辑器上方（与 AI 写作工具栏一致） ---------- */
-        function injectToolbar() {
-            if ($toolbar.data('injected')) return;
+        /* ---------- chips 注入到编辑器上方（引用标记存在时才显示） ---------- */
+        function injectChips() {
+            if ($chips.data('injected')) return;
             var $t = $text();
             if (!$t.length) return;
-            $toolbar.add($chips).insertBefore($t).show();
-            $toolbar.data('injected', true);
+            $chips.insertBefore($t);
+            $chips.data('injected', true);
         }
-        injectToolbar();
+        injectChips();
         // 重试注入（等待编辑器初始化）
-        setTimeout(injectToolbar, 500);
-        setTimeout(injectToolbar, 1500);
+        setTimeout(injectChips, 500);
+        setTimeout(injectChips, 1500);
+
+        /* ---------- 注册到编辑器快捷按钮行（选择引用文章） ---------- */
+        window.SHUFEI_QI_EXTRA = window.SHUFEI_QI_EXTRA || [];
+        window.SHUFEI_QI_ACTIONS = window.SHUFEI_QI_ACTIONS || {};
+        SHUFEI_QI_EXTRA.push(
+            { action: 'article-cite', label: '引用文章', title: '引用站内文章，在光标处插入 [cite:cid] 标记' }
+        );
+        SHUFEI_QI_ACTIONS['article-cite'] = openModal;
+        // 本脚本加载晚于快捷按钮重建时补挂
+        if (window.shufeiQiApplyExtra) window.shufeiQiApplyExtra();
 
         /* ---------- 正文变化时刷新 chips（粘贴/撤销/手动删除标记） ---------- */
         $text().on('input change', function () {

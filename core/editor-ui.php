@@ -242,23 +242,7 @@ function shufei_ai_writer_editor_ui($post)
     ?>
 <style>
 /* ===== AI 写作助手样式 ===== */
-.shufei-ai-toolbar {
-    display: flex;
-    gap: 6px;
-    align-items: center;
-    padding: 6px 8px;
-    margin: 4px 0 8px;
-    background: linear-gradient(135deg, #f0f7ff 0%, #fff5f6 100%);
-    border: 1px solid #d6e4ff;
-    border-radius: 6px;
-    flex-wrap: wrap;
-}
-.shufei-ai-toolbar .ai-label {
-    font-weight: bold;
-    color: #1d39c4;
-    font-size: 13px;
-    margin-right: 4px;
-}
+/* 2026-10-15：工具栏样式已随合并进快捷按钮行移除，保留浮窗与弹窗内按钮样式 */
 .shufei-ai-btn {
     display: inline-block;
     padding: 4px 12px;
@@ -430,13 +414,7 @@ function shufei_ai_writer_editor_ui($post)
 }
 </style>
 
-<!-- AI 工具栏（注入到编辑器上方） -->
-<div class="shufei-ai-toolbar" id="shufei-ai-toolbar" style="display:none;">
-    <span class="ai-label">✨ AI 助手</span>
-    <button type="button" class="shufei-ai-btn beautify" data-ai-action="beautify">美化</button>
-    <button type="button" class="shufei-ai-btn continue" data-ai-action="continue">续写</button>
-    <button type="button" class="shufei-ai-btn check" data-ai-action="check">检查</button>
-</div>
+<!-- 2026-10-15：AI 助手工具栏合并进编辑器快捷按钮行（SHUFEI_QI_EXTRA），仅保留浮窗 -->
 
 <!-- AI 浮窗 -->
 <div class="shufei-ai-modal-mask" id="shufei-ai-mask"></div>
@@ -478,18 +456,7 @@ function shufei_storage_editor_ui($post)
     ?>
 <style>
 /* ===== 图片存储编辑器 UI ===== */
-.shufei-storage-editor-toolbar {
-    display: flex; gap: 8px; align-items: center; padding: 6px 8px;
-    margin: 4px 0 8px; background: linear-gradient(135deg, #f0fff4 0%, #f0f7ff 100%);
-    border: 1px solid #b7eb8f; border-radius: 6px; flex-wrap: wrap;
-}
-.shufei-storage-editor-toolbar .se-label {
-    font-weight: bold; color: #389e0d; font-size: 13px; margin-right: 4px;
-}
-.shufei-storage-editor-toolbar select {
-    padding: 4px 8px; border: 1px solid #d9d9d9; border-radius: 4px;
-    font-size: 12px; background: #fff; max-width: 220px;
-}
+/* 2026-10-15：工具栏样式已随合并进快捷按钮行移除，保留上传/历史弹窗样式 */
 .shufei-storage-upload-btn {
     display: inline-block; padding: 4px 14px; font-size: 12px; color: #fff;
     background: #52c41a; border: 1px solid #52c41a; border-radius: 4px;
@@ -612,14 +579,7 @@ function shufei_storage_editor_ui($post)
 .shufei-storage-hist-empty { color: #999; text-align: center; padding: 40px; grid-column: 1/-1; }
 </style>
 
-<div class="shufei-storage-editor-toolbar" id="shufei-storage-editor-toolbar" style="display:none;">
-    <span class="se-label">图片存储</span>
-    <select id="shufei-storage-profile-select" title="切换存储 Profile"></select>
-    <button type="button" class="shufei-storage-upload-btn" id="shufei-storage-open-upload-btn">上传图片</button>
-    <button type="button" class="shufei-storage-history-btn" id="shufei-storage-open-history-btn">历史图片</button>
-    <span class="shufei-storage-status-tip" id="shufei-storage-status-tip"></span>
-</div>
-
+<!-- 2026-10-15：图片存储工具栏合并进编辑器快捷按钮行，profile 下拉移入上传弹窗 -->
 <div class="shufei-storage-up-modal-mask" id="shufei-storage-up-mask"></div>
 <div class="shufei-storage-up-modal" id="shufei-storage-up-modal">
     <div class="shufei-storage-up-modal-header">
@@ -627,6 +587,10 @@ function shufei_storage_editor_ui($post)
         <span class="shufei-storage-up-modal-close" id="shufei-storage-up-close">×</span>
     </div>
     <div class="shufei-storage-up-modal-body">
+        <div class="shufei-storage-up-options" style="margin-bottom:10px;">
+            <label>存储 Profile：<select id="shufei-storage-profile-select" title="切换存储 Profile" style="padding:4px 8px;border:1px solid #d9d9d9;border-radius:4px;font-size:12px;max-width:220px;"></select></label>
+            <span class="shufei-storage-status-tip" id="shufei-storage-status-tip" style="margin-left:8px;color:#888;font-size:12px;"></span>
+        </div>
         <div class="shufei-storage-up-options">
             <label><input type="checkbox" id="shufei-up-insert-markdown" checked> 上传后插入 Markdown</label>
             <label><input type="checkbox" id="shufei-up-insert-newline" checked> 每张图独占一行</label>
@@ -691,12 +655,11 @@ function shufei_editor_cursor_fix($post)
 }
 
 /**
- * 输出文章引用编辑器 UI（工具栏按钮 + chips + 搜索弹窗）
+ * 输出文章引用编辑器 UI（chips + 搜索弹窗；入口按钮在编辑器快捷按钮行）
  *
- * 复用核心自定义字段自动保存机制：JS 动态维护表单内隐藏域
- * fields[shufeiCitePosts]（JSON 数组字符串），Typecho 核心
- * getFields()/applyFields() 自动落库/清理，无需自写保存钩子；
- * 保存前由 shufei_article_cite_write_filter（write 过滤器）消毒。
+ * 2026-10-15 起改为正文 [cite:cid] 标记语法：入口按钮由 article-cite.js
+ * 注册进快捷按钮行（SHUFEI_QI_EXTRA），点选文章即在光标处插入标记；
+ * chips 仅在正文已有引用标记时显示（实时解析 textarea）。
  *
  * 注意：bottom 钩子在 </form> 之后触发，隐藏域必须由 JS append 进表单。
  *
@@ -735,53 +698,13 @@ function shufei_article_cite_editor_ui($post)
     ?>
 <style>
 /* ===== 文章引用编辑器 UI ===== */
-.shufei-cite-toolbar {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    padding: 6px 10px;
-    margin: 4px 0 8px;
-    background: linear-gradient(135deg, #fff7e6 0%, #fff0f6 100%);
-    border: 1px solid #ffd591;
-    border-radius: 6px;
-    flex-wrap: wrap;
-}
-.shufei-cite-toolbar .sc-label {
-    font-weight: bold;
-    color: #d46b08;
-    font-size: 13px;
-    margin-right: 2px;
-}
-.shufei-cite-btn {
-    display: inline-block;
-    padding: 4px 14px;
-    font-size: 12px;
-    color: #fff;
-    background: #fa8c16;
-    border: 1px solid #fa8c16;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.2s;
-    line-height: 1.6;
-}
-.shufei-cite-btn:hover {
-    background: #ffa940;
-    border-color: #ffa940;
-    transform: translateY(-1px);
-    box-shadow: 0 2px 6px rgba(250, 140, 22, 0.35);
-}
-.shufei-cite-status-tip {
-    color: #8c6116;
-    font-size: 12px;
-    margin-left: auto;
-}
-
-/* chips（工具栏下方） */
+/* 2026-10-15：工具栏样式已随合并进快捷按钮行移除，保留 chips 与弹窗样式 */
+/* chips（编辑器上方，有引用标记时显示） */
 .shufei-cite-chips {
     display: none;
     flex-wrap: wrap;
     gap: 6px;
-    margin: 0 0 10px;
+    margin: 6px 0 10px;
 }
 .shufei-cite-chips.has-items { display: flex; }
 .shufei-cite-chip {
@@ -1007,12 +930,7 @@ function shufei_article_cite_editor_ui($post)
 .shufei-cite-modal-footer .btn-primary:hover { background: #ffa940; border-color: #ffa940; color: #fff; }
 </style>
 
-<div class="shufei-cite-toolbar" id="shufei-cite-toolbar" style="display:none;">
-    <span class="sc-label">📌 文章引用</span>
-    <button type="button" class="shufei-cite-btn" id="shufei-cite-open-btn">选择引用文章</button>
-    <span class="shufei-cite-status-tip" id="shufei-cite-status-tip">点选文章即在光标处插入 [cite:cid] 标记</span>
-</div>
-
+<!-- 2026-10-15：文章引用工具栏合并进编辑器快捷按钮行，chips 仅在有引用标记时显示 -->
 <div class="shufei-cite-chips" id="shufei-cite-chips" style="display:none;"></div>
 
 <div class="shufei-cite-modal-mask" id="shufei-cite-mask"></div>

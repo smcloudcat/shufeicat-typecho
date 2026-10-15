@@ -8,6 +8,13 @@
         var textarea = $('#text');
         if (textarea.length === 0) return;
 
+        // ===== 扩展按钮注册点（2026-10-15 工具栏合并）=====
+        // AI 助手 / 图片存储 / 文章引用等功能通过 push 到 SHUFEI_QI_EXTRA
+        // 注册按钮（{action,label,title}），在 SHUFEI_QI_ACTIONS 注册点击处理。
+        // rebuildToolbar 重建时统一挂载；已重建后注册的调用 shufeiQiApplyExtra 补挂。
+        window.SHUFEI_QI_EXTRA = window.SHUFEI_QI_EXTRA || [];
+        window.SHUFEI_QI_ACTIONS = window.SHUFEI_QI_ACTIONS || {};
+
         // 在光标位置插入文本，并触发预览刷新
         // 修复：保存/恢复 scrollTop，防止 setSelectionRange 和 pagedown 的 scrollableEditor
         // 导致 textarea 跳转到文章末尾
@@ -392,8 +399,36 @@
 
             buttonRow.data('shufei-rebuilt', true);
 
+            // 挂载扩展功能按钮（注册时序：先于此脚本则直接读到）
+            appendExtraButtons();
+
             return true;
         }
+
+        // === 第6组：扩展功能按钮（AI 助手 / 图片存储 / 文章引用等注册注入）===
+        function appendExtraButtons() {
+            var extra = window.SHUFEI_QI_EXTRA || [];
+            var row = $('.wmd-button-row');
+            if (!row.length) return;
+            var existing = {};
+            row.find('.shufei-qi-ext').each(function () {
+                existing[$(this).data('action')] = true;
+            });
+            var toAdd = [];
+            extra.forEach(function (b) {
+                if (b && b.action && !existing[b.action]) toAdd.push(b);
+            });
+            if (!toAdd.length) return;
+            // 第一批扩展按钮前加分隔符，与内置按钮分组
+            if (row.find('.shufei-qi-ext').length === 0) {
+                row.append('<li class="shufei-qi-sep"></li>');
+            }
+            toAdd.forEach(function (b) {
+                row.append('<li class="shufei-qi-btn shufei-qi-ext" data-action="' + b.action + '" title="' + (b.title || b.label) + '"><span>' + b.label + '</span></li>');
+            });
+        }
+        // 暴露补挂入口：扩展 JS 加载晚于 rebuild 时调用
+        window.shufeiQiApplyExtra = appendExtraButtons;
 
         // 尝试立即重建，若工具栏尚未创建则监听 DOM 变化
         if (!rebuildToolbar()) {
@@ -431,7 +466,7 @@
                         span.css('background-image', 'none').width('auto').text('退出全屏');
                     }
                 }
-                // 全屏可能重建工具栏，重新文字化所有 sprite 按钮
+                // 全屏可能重建工具栏，重新 rebuild（含扩展按钮挂载）+ 文字化所有 sprite 按钮
                 $('.wmd-button-row li[id]').each(function () {
                     var li = $(this);
                     var id = li.attr('id');
@@ -442,6 +477,8 @@
                         }
                     }
                 });
+                rebuildToolbar();
+                appendExtraButtons();
                 // 调整内容区位置
                 adjustFullscreenLayout();
             }, 100);
@@ -465,6 +502,11 @@
                 case 'image': insertImage(); break;
                 case 'video': insertVideo(); break;
                 case 'music': insertMusic(); break;
+                default: {
+                    // 扩展功能按钮（AI 助手 / 图片存储 / 文章引用等）
+                    var extHandler = window.SHUFEI_QI_ACTIONS && window.SHUFEI_QI_ACTIONS[action];
+                    if (typeof extHandler === 'function') extHandler();
+                }
             }
         });
     });
