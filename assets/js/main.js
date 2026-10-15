@@ -1525,13 +1525,21 @@ window.applyCommentSort = function(sortType) {
         for (var i = 0; i < items.length; i++) {
             var isAuthor = items[i].getAttribute('data-is-author') === '1';
             items[i].style.display = isAuthor ? '' : 'none';
+            if (isAuthor) {
+                items[i].removeAttribute('data-author-hidden');
+            } else {
+                items[i].setAttribute('data-author-hidden', '1');
+            }
         }
+        // 过滤后重算「加载更多」截断
+        window.applyCommentLoadMore();
         return;
     }
 
     // 恢复所有评论显示
     for (var i = 0; i < items.length; i++) {
         items[i].style.display = '';
+        items[i].removeAttribute('data-author-hidden');
     }
 
     // 先恢复 default 顺序，再按目标排序（避免上次排序结果干扰）
@@ -1543,6 +1551,7 @@ window.applyCommentSort = function(sortType) {
     if (sortType === 'default') {
         // 一次性追加，避免循环 appendChild 触发多次重排
         commentList.append.apply(commentList, arr);
+        window.applyCommentLoadMore();
         return;
     }
 
@@ -1577,6 +1586,70 @@ window.applyCommentSort = function(sortType) {
 
     // 一次性追加，避免循环 appendChild 触发多次重排
     commentList.append.apply(commentList, arr);
+
+    // 排序后重算「加载更多」截断
+    window.applyCommentLoadMore();
+};
+
+/**
+ * 评论「加载更多」分批显示（2026-10-15）
+ *
+ * 后台「评论设置」为 commentsPageDisplay=last 时服务端一次渲染全部评论，
+ * 前台按 COMMENT_LOAD_MORE_PAGE 条一批截断显示，点按钮逐批展开。
+ * 检测到服务端真实分页导航（.page-navigator 内有链接）时自动让位。
+ * 排序（applyCommentSort）/「只看作者」过滤后自动重算截断。
+ */
+window.COMMENT_LOAD_MORE_PAGE = 10;
+window.initCommentLoadMore = function() {
+    var list = document.getElementById('comment-list');
+    if (!list) return;
+
+    // 服务端分页真实存在 → 让位（不接管）
+    var nav = document.querySelector('.page-navigator');
+    if (nav && nav.querySelector('a[href]')) return;
+
+    // 按钮容器挂在评论列表后（pjax 切换后旧容器随旧 DOM 销毁，此处重建）
+    var wrap = document.getElementById('comment-load-more-wrap');
+    if (!wrap) {
+        wrap = document.createElement('div');
+        wrap.id = 'comment-load-more-wrap';
+        wrap.className = 'comment-load-more-wrap';
+        list.parentNode.insertBefore(wrap, list.nextSibling);
+    }
+    wrap.innerHTML = '';
+    window._commentShown = window.COMMENT_LOAD_MORE_PAGE;
+    window.applyCommentLoadMore();
+};
+
+/**
+ * 按当前排序/过滤结果重新截断显示（排序与 author 过滤后调用）
+ */
+window.applyCommentLoadMore = function() {
+    var list = document.getElementById('comment-list');
+    var wrap = document.getElementById('comment-load-more-wrap');
+    if (!list || !wrap) return;
+    var PAGE = window.COMMENT_LOAD_MORE_PAGE;
+    var shown = window._commentShown || PAGE;
+
+    // 顶层 li（author 过滤隐藏的不占配额；加载更多隐藏的仍占）
+    var items = Array.prototype.filter.call(list.children, function(li) {
+        return li.tagName === 'LI' && !li.hasAttribute('data-author-hidden');
+    });
+    var total = items.length;
+
+    items.forEach(function(li, i) {
+        li.style.display = i < shown ? '' : 'none';
+    });
+
+    var remaining = total - Math.min(shown, total);
+    if (remaining <= 0) { wrap.innerHTML = ''; return; }
+    wrap.innerHTML = '<button type="button" class="comment-load-more-btn" id="comment-load-more-btn">' +
+        '<i class="fa fa-angle-down"></i> 加载更多评论（还剩 ' + remaining + ' 条）</button>';
+    var btn = document.getElementById('comment-load-more-btn');
+    btn.addEventListener('click', function() {
+        window._commentShown = (window._commentShown || PAGE) + PAGE;
+        window.applyCommentLoadMore();
+    });
 };
 
 /**
@@ -5118,6 +5191,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // 初始化评论点赞和排序
     window.initCommentLike();
     window.initCommentSort();
+
+    // 初始化评论「加载更多」分批显示（需在排序后，排序恢复偏好会重算截断）
+    window.initCommentLoadMore();
 
     // 初始化评论 IP 归属地显示
     window.initCommentIpRegions();

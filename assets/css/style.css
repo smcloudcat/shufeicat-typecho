@@ -3754,6 +3754,35 @@ pre[class*="language-"].line-numbers > code {
     border-color: var(--text-secondary);
 }
 
+/* 评论「加载更多」分批显示（2026-10-15） */
+.comment-load-more-wrap {
+    text-align: center;
+    margin: 18px 0 6px;
+}
+
+.comment-load-more-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    padding: 7px 20px;
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    background: var(--card-bg);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.comment-load-more-btn:hover {
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.comment-load-more-btn i {
+    font-size: 14px;
+}
+
 .sort-btn.active {
     color: #fff;
     background: var(--primary-color);

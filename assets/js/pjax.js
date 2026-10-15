@@ -469,6 +469,10 @@
                     if (typeof window.initCommentSort === 'function') {
                         window.initCommentSort();
                     }
+                    // 重新初始化评论「加载更多」分批显示（新区分页）
+                    if (typeof window.initCommentLoadMore === 'function') {
+                        window.initCommentLoadMore();
+                    }
                     // 重新加载新评论的 IP 归属地
                     if (typeof window.initCommentIpRegions === 'function') {
                         window.initCommentIpRegions();
