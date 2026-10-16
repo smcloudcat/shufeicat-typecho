@@ -984,3 +984,188 @@ function shufei_article_cite_editor_ui($post)
 <?php
 }
 
+/**
+ * 输出编辑器焦点模式（沉浸式写作）CSS 与 JS
+ *
+ * 2026-10-16 编辑器重构 · 阶段一：
+ * - 焦点模式隐藏后台 chrome（顶栏/页标题/页脚/自定义字段/提交栏），
+ *   正文收窄居中、textarea 撑满视口；右侧「选项/附件」变抽屉（仍位于 form 内，提交不受影响）
+ * - 当前段落高亮 + 打字机模式 + 底部悬浮操作条 + Ctrl+Shift+F/Esc 快捷键
+ * - 入口：编辑器快捷按钮行「专注」按钮（editor-focus.js 自行注册 SHUFEI_QI_EXTRA）
+ *
+ * @param mixed $post 文章/页面对象（由钩子传入，此处未使用）
+ */
+function shufei_editor_focus_ui($post)
+{
+    $options = \Typecho\Widget::widget('Widget_Options');
+    if (empty($options->markdown)) {
+        return;
+    }
+    ?>
+<style>
+/* ===== 编辑器焦点模式（2026-10-16 · 阶段一：沉浸）===== */
+/* 隐藏后台 chrome（自定义字段与提交栏退出焦点后照常可用） */
+body.shufei-focus-mode header.typecho-head-nav,
+body.shufei-focus-mode .typecho-page-title,
+body.shufei-focus-mode footer.typecho-foot,
+body.shufei-focus-mode #custom-field,
+body.shufei-focus-mode .submit,
+body.shufei-focus-mode cite.edit-draft-notice {
+    display: none !important;
+}
+
+body.shufei-focus-mode .main {
+    padding-top: 10px;
+}
+
+/* 主栏收窄居中，腾出沉浸空间 */
+body.shufei-focus-mode .typecho-post-area > [class*="col-tb-9"] {
+    flex: 0 0 100%;
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+/* 侧栏变右侧抽屉（DOM 仍在 form 内，提交/附件不受影响） */
+body.shufei-focus-mode #edit-secondary {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 340px;
+    max-width: 88vw;
+    margin: 0;
+    padding: 14px;
+    background: #fff;
+    border-left: 1px solid #e3e3e0;
+    box-shadow: -8px 0 28px rgba(0, 0, 0, .12);
+    transform: translateX(105%);
+    transition: transform .25s ease;
+    z-index: 100000;
+    overflow-y: auto;
+}
+body.shufei-focus-mode #edit-secondary.shufei-drawer-open {
+    transform: translateX(0);
+}
+
+/* 标题无框化，聚焦时下划线强调 */
+body.shufei-focus-mode #title {
+    font-size: 22px;
+    height: auto;
+    padding: 10px 12px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-bottom: 2px solid #e8e8e4;
+    border-radius: 6px 6px 0 0;
+}
+body.shufei-focus-mode #title:focus {
+    border-bottom-color: var(--primary-color, #FF6B6B);
+    outline: none;
+}
+
+/* textarea 包裹容器与段落高亮条 */
+.shufei-focus-wrap {
+    position: relative;
+}
+.shufei-focus-hl {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 0;
+    background: rgba(255, 107, 107, .09);
+    border-radius: 3px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity .12s;
+    z-index: 0;
+}
+.shufei-focus-hl.on {
+    opacity: 1;
+}
+body.shufei-focus-mode #text {
+    background: transparent;
+    position: relative;
+    z-index: 1;
+    caret-color: #FF6B6B;
+    border-color: #e8e8e4;
+    border-radius: 8px;
+    font-size: 15px;
+    line-height: 1.8;
+    padding: 14px 16px;
+}
+
+/* 底部悬浮操作条 */
+.shufei-focus-bar {
+    position: fixed;
+    left: 50%;
+    bottom: 18px;
+    transform: translateX(-50%);
+    display: none;
+    align-items: center;
+    gap: 2px;
+    background: rgba(255, 255, 255, .96);
+    border: 1px solid #e3e3e0;
+    border-radius: 999px;
+    padding: 6px 8px;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, .14);
+    z-index: 100001;
+    font-size: 12px;
+}
+body.shufei-focus-mode .shufei-focus-bar {
+    display: inline-flex;
+}
+.sf-fb-btn {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    color: #555;
+    white-space: nowrap;
+    transition: background .15s, color .15s;
+}
+.sf-fb-btn:hover {
+    background: #f0f0ed;
+    color: #333;
+}
+.sf-fb-btn.on {
+    background: rgba(255, 107, 107, .12);
+    color: #e05353;
+}
+.sf-fb-btn.sf-fb-primary {
+    background: var(--primary-color, #FF6B6B);
+    color: #fff;
+}
+.sf-fb-btn.sf-fb-primary:hover {
+    filter: brightness(1.06);
+    background: var(--primary-color, #FF6B6B);
+}
+.sf-fb-sep {
+    width: 1px;
+    height: 16px;
+    background: #e3e3e0;
+    margin: 0 4px;
+}
+.sf-fb-status {
+    margin-left: 6px;
+    padding-right: 6px;
+    color: #999;
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+/* 窄屏：操作条换行不溢出 */
+@media (max-width: 640px) {
+    .shufei-focus-bar {
+        flex-wrap: wrap;
+        justify-content: center;
+        max-width: 92vw;
+        border-radius: 16px;
+    }
+}
+</style>
+<script src="<?php echo $options->themeUrl; ?>/assets/js/admin/editor-focus.js?v=<?php echo shufei_get_theme_version(); ?>"></script>
+<?php
+}
+

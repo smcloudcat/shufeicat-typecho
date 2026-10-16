@@ -3205,6 +3205,13 @@ if (defined('__TYPECHO_ADMIN__')) {
 
     \Typecho\Plugin::factory('admin/write-page.php')->bottom = 'shufei_quick_insert_js';
 
+    // 注册编辑器焦点模式（沉浸式写作）钩子（文章 + 页面）
+    // 注意：须在 quick_insert 之后注册，保证 editor-focus.js 晚于
+    // editor-quick-insert.js 加载（SHUFEI_QI_EXTRA 补挂机制依赖此顺序）
+    \Typecho\Plugin::factory('admin/write-post.php')->bottom = 'shufei_editor_focus_ui';
+
+    \Typecho\Plugin::factory('admin/write-page.php')->bottom = 'shufei_editor_focus_ui';
+
     // 注册 AI 写作助手后台编辑器钩子（文章 + 页面）
     \Typecho\Plugin::factory('admin/write-post.php')->bottom = 'shufei_ai_writer_editor_ui';
 
