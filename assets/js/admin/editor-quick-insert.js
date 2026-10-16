@@ -429,9 +429,10 @@
             });
 
             var moreLi = $('<li class="shufei-qi-btn shufei-qi-more" title="更多插入类型">更多 ▾</li>');
+            var mask = $('<div class="shufei-qi-more-mask"></div>');
             var panel = $('<div class="shufei-qi-more-panel"></div>');
             moved.forEach(function (li) { panel.append(li); });
-            moreLi.append(panel);
+            moreLi.append(mask).append(panel);
             buttonRow.append(moreLi);
 
             // 点「更多」本身才切换面板；面板内按钮冒泡上交文档级委托分发

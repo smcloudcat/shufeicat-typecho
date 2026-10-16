@@ -240,6 +240,18 @@
     }
 
     /* ===== 选项抽屉 ===== */
+    var drawerMask = null;
+    function showDrawerMask() {
+        if (drawerMask) return;
+        drawerMask = document.createElement('div');
+        drawerMask.id = 'shufei-drawer-mask';
+        drawerMask.addEventListener('click', function () { toggleDrawer(); });
+        document.body.appendChild(drawerMask);
+    }
+    function hideDrawerMask() {
+        if (drawerMask && drawerMask.parentNode) drawerMask.parentNode.removeChild(drawerMask);
+        drawerMask = null;
+    }
     function toggleDrawer() {
         var secondary = document.getElementById('edit-secondary');
         if (!secondary) return;
@@ -247,6 +259,8 @@
         secondary.classList.toggle('shufei-drawer-open', drawerOpen);
         var btn = bar && bar.querySelector('#sf-fb-options');
         if (btn) btn.classList.toggle('on', drawerOpen);
+        // 遮罩：抽屉打开时挡住左侧编辑区，防误触（移动端尤其需要）
+        if (drawerOpen) showDrawerMask(); else hideDrawerMask();
     }
 
     /* ===== 焦点模式开关 ===== */
@@ -279,6 +293,7 @@
             var secondary = document.getElementById('edit-secondary');
             if (secondary) secondary.classList.remove('shufei-drawer-open');
             drawerOpen = false;
+            hideDrawerMask();
             if (bar) {
                 var optBtn = bar.querySelector('#sf-fb-options');
                 if (optBtn) optBtn.classList.remove('on');

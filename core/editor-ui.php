@@ -216,6 +216,18 @@ function shufei_quick_insert_js($post)
 }
 
 /* ===== 「更多」下拉（2026-10-16 阶段三：低频按钮收纳）===== */
+/* 面板展开时的全屏防误触遮罩：移动端工具栏换行后，向下展开的面板会盖住
+ * 下一行按钮（复现：395px 下点「专注」实际命中面板内「视频」项）——遮罩挡掉
+ * 面板外一切点击，点遮罩冒泡到 document 关闭面板 */
+.shufei-qi-more-mask {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 999;
+}
+.wmd-button-row li.shufei-qi-more.open .shufei-qi-more-mask {
+    display: block;
+}
 .wmd-button-row li.shufei-qi-more {
     position: relative;
 }
@@ -243,6 +255,28 @@ function shufei_quick_insert_js($post)
     white-space: nowrap;
     padding: 0 10px;
     margin-right: 0;
+}
+
+/* 移动端（≤640px）：工具栏会换行，absolute 下拉会盖住下一行按钮导致误触
+ * （复现：395px 点「专注」实际命中面板内「视频」项）——改为底部弹出
+ * bottom sheet：fixed 贴底、脱离工具栏流、大触摸目标，配防误触遮罩 */
+@media (max-width: 640px) {
+    .shufei-qi-more-panel {
+        position: fixed;
+        left: 8px;
+        right: 8px;
+        bottom: 12px;
+        top: auto;
+        max-height: 60vh;
+        overflow-y: auto;
+        border-radius: 12px;
+        box-shadow: 0 -4px 24px rgba(0, 0, 0, .18);
+        padding: 6px 0;
+    }
+    #wmd-button-bar .wmd-button-row .shufei-qi-more-panel li.shufei-qi-btn {
+        padding: 12px 16px;
+        font-size: 14px;
+    }
 }
 
 /* ===== 图片粘贴/拖拽直传（2026-10-16 阶段三）===== */
@@ -1105,6 +1139,14 @@ body.shufei-focus-mode #edit-secondary.shufei-drawer-open {
     transform: translateX(0);
 }
 
+/* 抽屉遮罩：打开时挡住编辑区防误触，点击关闭（移动端必需） */
+#shufei-drawer-mask {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, .35);
+    z-index: 99999;
+}
+
 /* 标题无框化，聚焦时下划线强调 */
 body.shufei-focus-mode #title {
     font-size: 22px;
@@ -1213,13 +1255,20 @@ body.shufei-focus-mode .shufei-focus-bar {
     white-space: nowrap;
 }
 
-/* 窄屏：操作条换行不溢出 */
+/* 窄屏：操作条换行不溢出；按钮加大触摸目标（实测 26px 偏小，提到 36px） */
 @media (max-width: 640px) {
     .shufei-focus-bar {
         flex-wrap: wrap;
         justify-content: center;
         max-width: 92vw;
         border-radius: 16px;
+    }
+    .sf-fb-btn {
+        padding: 10px 12px;
+        font-size: 13px;
+    }
+    .sf-fb-sep {
+        display: none;
     }
 }
 </style>
