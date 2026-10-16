@@ -1158,7 +1158,7 @@ body.shufei-focus-mode #title {
     border-radius: 6px 6px 0 0;
 }
 body.shufei-focus-mode #title:focus {
-    border-bottom-color: var(--primary-color, #FF6B6B);
+    border-bottom-color: #467B96;
     outline: none;
 }
 
@@ -1172,7 +1172,7 @@ body.shufei-focus-mode #title:focus {
     right: 0;
     top: 0;
     height: 0;
-    background: rgba(255, 107, 107, .09);
+    background: rgba(70, 123, 150, .10);
     border-radius: 3px;
     pointer-events: none;
     opacity: 0;
@@ -1186,7 +1186,7 @@ body.shufei-focus-mode #text {
     background: transparent;
     position: relative;
     z-index: 1;
-    caret-color: #FF6B6B;
+    caret-color: #467B96;
     border-color: #e8e8e4;
     border-radius: 8px;
     font-size: 15px;
@@ -1194,7 +1194,8 @@ body.shufei-focus-mode #text {
     padding: 14px 16px;
 }
 
-/* 底部悬浮操作条 */
+/* 底部悬浮操作条（2026-10-16 重构：对齐 Typecho 后台设计语言——
+ * 2px 圆角 / #E9E9E6 灰底按钮 / #467B96 primary / 白底细边框浮层，去毛玻璃去胶囊去 emoji） */
 .shufei-focus-bar {
     position: fixed;
     left: 50%;
@@ -1202,69 +1203,85 @@ body.shufei-focus-mode #text {
     transform: translateX(-50%);
     display: none;
     align-items: center;
-    gap: 2px;
-    background: rgba(255, 255, 255, .96);
-    border: 1px solid #e3e3e0;
-    border-radius: 999px;
-    padding: 6px 8px;
-    box-shadow: 0 6px 24px rgba(0, 0, 0, .14);
+    gap: 4px;
+    background: #FFF;
+    border: 1px solid #D9D9D6;
+    border-radius: 2px;
+    padding: 6px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, .1);
     z-index: 100001;
-    font-size: 12px;
+    font-size: 13px;
 }
 body.shufei-focus-mode .shufei-focus-bar {
     display: inline-flex;
 }
 .sf-fb-btn {
     border: none;
-    background: transparent;
+    background: #E9E9E6;
     cursor: pointer;
-    padding: 6px 10px;
-    border-radius: 999px;
-    font-size: 12px;
-    color: #555;
+    padding: 0 12px;
+    height: 28px;
+    line-height: 28px;
+    border-radius: 2px;
+    font-size: 13px;
+    color: #666;
     white-space: nowrap;
     transition: background .15s, color .15s;
 }
 .sf-fb-btn:hover {
-    background: #f0f0ed;
+    background: #dbdbd6;
     color: #333;
 }
-.sf-fb-btn.on {
-    background: rgba(255, 107, 107, .12);
-    color: #e05353;
+.sf-fb-btn:active {
+    background: #d6d6d0;
 }
+.sf-fb-btn .fa {
+    margin-right: 4px;
+}
+/* 开关类激活态：等同后台 primary（深蓝白字），一眼看出「开没开」 */
+.sf-fb-btn.on {
+    background: #467B96;
+    color: #FFF;
+}
+.sf-fb-btn.on:hover {
+    background: #3c6a81;
+}
+/* 发布按钮：后台 .primary 同款 */
 .sf-fb-btn.sf-fb-primary {
-    background: var(--primary-color, #FF6B6B);
+    background: #467B96;
     color: #fff;
 }
 .sf-fb-btn.sf-fb-primary:hover {
-    filter: brightness(1.06);
-    background: var(--primary-color, #FF6B6B);
+    background: #3c6a81;
+}
+.sf-fb-btn.sf-fb-primary:active {
+    background: #39647a;
 }
 .sf-fb-sep {
     width: 1px;
     height: 16px;
-    background: #e3e3e0;
-    margin: 0 4px;
+    background: #D9D9D6;
+    margin: 0 2px;
 }
 .sf-fb-status {
-    margin-left: 6px;
+    margin-left: 4px;
     padding-right: 6px;
     color: #999;
-    font-size: 11px;
+    font-size: 12px;
     white-space: nowrap;
 }
 
-/* 窄屏：操作条换行不溢出；按钮加大触摸目标（实测 26px 偏小，提到 36px） */
+/* 窄屏：操作条换行不溢出；按钮加大触摸目标（实测 35px 高） */
 @media (max-width: 640px) {
     .shufei-focus-bar {
         flex-wrap: wrap;
         justify-content: center;
         max-width: 92vw;
-        border-radius: 16px;
     }
     .sf-fb-btn {
-        padding: 10px 12px;
+        padding: 0 12px;
+        height: 35px;
+        line-height: 35px;
         font-size: 13px;
     }
     .sf-fb-sep {

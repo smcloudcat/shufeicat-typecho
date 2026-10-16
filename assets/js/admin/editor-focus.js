@@ -181,15 +181,15 @@
         bar.className = 'shufei-focus-bar';
         bar.id = 'shufei-focus-bar';
         bar.innerHTML =
-            '<button type="button" class="sf-fb-btn" id="sf-fb-highlight" title="当前段落高亮">✨ 高亮</button>' +
-            '<button type="button" class="sf-fb-btn" id="sf-fb-typewriter" title="打字机模式：当前段居中">⌨️ 居中</button>' +
+            '<button type="button" class="sf-fb-btn" id="sf-fb-highlight" title="当前段落高亮"><i class="fa fa-lightbulb-o"></i> 高亮</button>' +
+            '<button type="button" class="sf-fb-btn" id="sf-fb-typewriter" title="打字机模式：当前段居中"><i class="fa fa-i-cursor"></i> 居中</button>' +
             '<span class="sf-fb-sep"></span>' +
-            '<button type="button" class="sf-fb-btn" id="sf-fb-options" title="发布选项与附件">📐 选项</button>' +
+            '<button type="button" class="sf-fb-btn" id="sf-fb-options" title="发布选项与附件"><i class="fa fa-cog"></i> 选项</button>' +
             '<span class="sf-fb-sep"></span>' +
-            '<button type="button" class="sf-fb-btn sf-fb-primary" id="sf-fb-publish" title="发布文章">🚀 发布</button>' +
-            '<button type="button" class="sf-fb-btn" id="sf-fb-save" title="保存草稿">💾 草稿</button>' +
+            '<button type="button" class="sf-fb-btn sf-fb-primary" id="sf-fb-publish" title="发布文章"><i class="fa fa-check"></i> 发布</button>' +
+            '<button type="button" class="sf-fb-btn" id="sf-fb-save" title="保存草稿"><i class="fa fa-floppy-o"></i> 草稿</button>' +
             '<span class="sf-fb-sep"></span>' +
-            '<button type="button" class="sf-fb-btn" id="sf-fb-exit" title="退出焦点模式 (Esc)">✕ 退出</button>' +
+            '<button type="button" class="sf-fb-btn" id="sf-fb-exit" title="退出焦点模式 (Esc)"><i class="fa fa-sign-out"></i> 退出</button>' +
             '<span class="sf-fb-status" id="shufei-focus-status"></span>';
         document.body.appendChild(bar);
 
