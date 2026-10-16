@@ -163,12 +163,18 @@ img {
 /* 左侧边栏其它区域样式 */
 .left-sidebar .other-widget .widget-list {
     text-align: center;
-    padding: 12px 0;
+    padding: 6px 0;
 }
 
 .left-sidebar .other-widget .widget-list li {
     display: block;
     margin: 6px 0;
+}
+
+/* 首项去掉上外间距：否则「进入后台/登录」距标题 26px（12 内边距+6 外间距+8 项内边距），
+ * 是其他板块（约 9-11px）的两倍多，展开后首项像脱离标题单独一组 */
+.left-sidebar .other-widget .widget-list li:first-child {
+    margin-top: 0;
 }
 
 .left-sidebar .other-widget .widget-list li a {
