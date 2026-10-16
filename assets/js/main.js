@@ -5102,6 +5102,26 @@ window.initWeather = function(force) {
 };
 
 document.addEventListener('DOMContentLoaded', function() {
+    // ===== 预览帧守卫（后台「免保存实时预览」iframe，preview-render.php）=====
+    // 只保留与正文渲染相关的 init（暗夜/代码高亮/复制/灯箱/目录/Markdown 扩展/
+    // Mermaid/ECharts/KaTeX/缩略图回退），跳过 pjax/AI 助手/评论/天气等
+    // 页面级行为——保证预览帧的渲染结果与前台文章页逐字节一致
+    if (window.__shufeiPreviewFrame) {
+        window.initDarkMode();
+        window.initMobileMenu();
+        window.initPasswordForms();
+        setTimeout(window.initPrismHighlight, 200);
+        setTimeout(window.initCopyButtons, 250);
+        setTimeout(window.initLightbox, 300);
+        window.initPostThumbFallback();
+        setTimeout(window.initMarkdownExt, 500);
+        setTimeout(window.initTableOfContents, 520);
+        setTimeout(window.initMermaid, 350);
+        setTimeout(window.initECharts, 400);
+        setTimeout(window.initKaTeX, 450);
+        return;
+    }
+
     // 初始化夜间模式（优先执行，避免页面闪烁）
     window.initDarkMode();
 

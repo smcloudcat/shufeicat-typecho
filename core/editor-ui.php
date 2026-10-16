@@ -1409,3 +1409,23 @@ body.shufei-focus-mode .shufei-editor-status {
 <?php
 }
 
+/**
+ * 输出编辑器免保存实时预览的接口配置与脚本（2026-10-16 预览优化）
+ *
+ * 接管「预览文章」按钮：编辑器当前内容 → preview-ajax.php（前台同款渲染
+ * 管线）→ preview-render.php 整页呈现。不保存草稿、不污染 draft 字段，
+ * 新文章（无 cid）也能立即预览（原生 write-js.php 三分支落空静默无响应）。
+ *
+ * @param mixed $post 文章/页面对象（由钩子传入，此处未使用）
+ */
+function shufei_editor_preview_ui($post)
+{
+    $options = \Typecho\Widget::widget('Widget_Options');
+    $ajaxUrl = \Typecho\Common::url('usr/themes/ShuFeiCat/core/preview-ajax.php', $options->siteUrl);
+    $renderUrl = \Typecho\Common::url('usr/themes/ShuFeiCat/core/preview-render.php', $options->siteUrl);
+    ?>
+<script>window.SHUFEI_ADMIN = Object.assign(window.SHUFEI_ADMIN || {}, {previewAjaxUrl: <?php echo json_encode($ajaxUrl); ?>, previewRenderUrl: <?php echo json_encode($renderUrl); ?>});</script>
+<script src="<?php echo $options->themeUrl; ?>/assets/js/admin/editor-preview.js?v=<?php echo shufei_get_theme_version(); ?>"></script>
+<?php
+}
+

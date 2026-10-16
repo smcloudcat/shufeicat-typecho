@@ -3212,6 +3212,11 @@ if (defined('__TYPECHO_ADMIN__')) {
 
     \Typecho\Plugin::factory('admin/write-page.php')->bottom = 'shufei_editor_focus_ui';
 
+    // 注册编辑器免保存实时预览钩子（文章 + 页面）
+    \Typecho\Plugin::factory('admin/write-post.php')->bottom = 'shufei_editor_preview_ui';
+
+    \Typecho\Plugin::factory('admin/write-page.php')->bottom = 'shufei_editor_preview_ui';
+
     // 注册编辑器自动保存与状态增强钩子（文章 + 页面）
     \Typecho\Plugin::factory('admin/write-post.php')->bottom = 'shufei_editor_autosave_ui';
 
