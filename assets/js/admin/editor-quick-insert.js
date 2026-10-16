@@ -402,7 +402,51 @@
             // 挂载扩展功能按钮（注册时序：先于此脚本则直接读到）
             appendExtraButtons();
 
+            // 低频按钮收进「更多」下拉（2026-10-16 阶段三：降噪）
+            appendMoreMenu();
+
             return true;
+        }
+
+        /* ===== 「更多」下拉：低频插入按钮收进来，主行只留常用 ===== */
+        var COLLAPSE_ACTIONS = ['video', 'music', 'math', 'tip', 'details', 'mermaid', 'echarts'];
+
+        function appendMoreMenu() {
+            var buttonRow = $('.wmd-button-row');
+            if (!buttonRow.length) return;
+            if (buttonRow.children('.shufei-qi-more').length) return; // 防重复
+            var moved = [];
+            COLLAPSE_ACTIONS.forEach(function (action) {
+                var li = buttonRow.children('li.shufei-qi-btn[data-action="' + action + '"]');
+                if (li.length) moved.push(li.detach());
+            });
+            if (!moved.length) return;
+
+            // 清理因按钮移走而空出来的分隔符（后面已无主行按钮的 sep 删除）
+            buttonRow.children('li.shufei-qi-sep').each(function () {
+                var $sep = $(this);
+                if ($sep.nextAll('li.shufei-qi-btn').length === 0) $sep.remove();
+            });
+
+            var moreLi = $('<li class="shufei-qi-btn shufei-qi-more" title="更多插入类型">更多 ▾</li>');
+            var panel = $('<div class="shufei-qi-more-panel"></div>');
+            moved.forEach(function (li) { panel.append(li); });
+            moreLi.append(panel);
+            buttonRow.append(moreLi);
+
+            // 点「更多」本身才切换面板；面板内按钮冒泡上交文档级委托分发
+            moreLi.on('click', function (e) {
+                if (e.target.closest('.shufei-qi-btn') !== moreLi[0]) return;
+                e.stopPropagation();
+                moreLi.toggleClass('open');
+            });
+            // 点别处 / Esc 关闭
+            $(document).on('click', function () {
+                moreLi.removeClass('open');
+            });
+            $(document).on('keydown', function (e) {
+                if (e.key === 'Escape') moreLi.removeClass('open');
+            });
         }
 
         // === 第6组：扩展功能按钮（AI 助手 / 图片存储 / 文章引用等注册注入）===
@@ -487,6 +531,9 @@
         // 绑定按钮点击事件（事件委托，支持动态注入）
         $(document).on('click', '.shufei-qi-btn', function (e) {
             e.preventDefault();
+            // 「更多」下拉容器也带 shufei-qi-btn 类（样式复用），其内部按钮点击会
+            // 冒泡匹配到它——此处拦截避免二次空派发
+            if ($(this).hasClass('shufei-qi-more')) return;
             var action = $(this).data('action');
             switch (action) {
                 case 'highlight': insertHighlight(); break;

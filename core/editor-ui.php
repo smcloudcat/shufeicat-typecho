@@ -214,8 +214,66 @@ function shufei_quick_insert_js($post)
     color: #666;
     border: 1px solid #ddd;
 }
+
+/* ===== 「更多」下拉（2026-10-16 阶段三：低频按钮收纳）===== */
+.wmd-button-row li.shufei-qi-more {
+    position: relative;
+}
+.shufei-qi-more-panel {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    z-index: 1000;
+    display: none;
+    min-width: 110px;
+    margin-top: 2px;
+    padding: 4px 0;
+    background: #fff;
+    border: 1px solid #d9d9d6;
+    border-radius: 4px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, .12);
+}
+.wmd-button-row li.shufei-qi-more.open .shufei-qi-more-panel {
+    display: block;
+}
+/* 面板项需盖过原生 #wmd-button-bar .wmd-button-row li{display:inline-block}
+ * （(1,1,1) 带 ID，普通类选择器压不过，必须同款 ID 前缀提权） */
+#wmd-button-bar .wmd-button-row .shufei-qi-more-panel li.shufei-qi-btn {
+    display: block;
+    white-space: nowrap;
+    padding: 0 10px;
+    margin-right: 0;
+}
+
+/* ===== 图片粘贴/拖拽直传（2026-10-16 阶段三）===== */
+.shufei-paste-toast {
+    position: fixed;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-8px);
+    z-index: 100003;
+    padding: 8px 18px;
+    background: rgba(40, 40, 40, .92);
+    color: #fff;
+    font-size: 13px;
+    border-radius: 999px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, .25);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s, transform .2s;
+}
+.shufei-paste-toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+#text.shufei-drag-over {
+    border-color: var(--primary-color, #FF6B6B);
+    border-style: dashed;
+    background: rgba(255, 107, 107, .04);
+}
 </style>
 <script src="<?php echo $options->themeUrl; ?>/assets/js/admin/editor-quick-insert.js?v=<?php echo shufei_get_theme_version(); ?>"></script>
+<script src="<?php echo $options->themeUrl; ?>/assets/js/admin/editor-paste-upload.js?v=<?php echo shufei_get_theme_version(); ?>"></script>
 <?php
 }
 
