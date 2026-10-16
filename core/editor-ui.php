@@ -1169,3 +1169,119 @@ body.shufei-focus-mode .shufei-focus-bar {
 <?php
 }
 
+/**
+ * 输出编辑器自动保存与状态增强（2026-10-16 编辑器重构 · 阶段二：方便）
+ *
+ * 背景：Typecho 原生自动保存读 $options->autoSave（站点选项 user=0），
+ * 而用户设置里的「自动保存」存 user=uid 行——原生自动保存实际不生效。
+ * 本组件用 localStorage 兜底自动保存，并补齐字数/阅读时间/快捷键/焦点状态联动。
+ *
+ * - 本地自动保存：停输 3s（+30s 兜底）存 localStorage，按 cid/new 分 key
+ * - 恢复横幅：草稿与线上不同时提示恢复/丢弃，相同则静默清理
+ * - 状态条：未保存/已保存时间 + 字数 + 阅读时间（焦点模式进悬浮条状态槽）
+ * - 快捷键：Ctrl+S 存草稿 / Ctrl+Enter 发布 / Ctrl+Shift+P 预览
+ * - 新文章自动聚焦标题；离开提醒沿用 Typecho 原生（不重复绑定）
+ *
+ * @param mixed $post 文章/页面对象（由钩子传入，此处未使用）
+ */
+function shufei_editor_autosave_ui($post)
+{
+    $options = \Typecho\Widget::widget('Widget_Options');
+    if (empty($options->markdown)) {
+        return;
+    }
+    ?>
+<style>
+/* ===== 本地草稿恢复横幅（2026-10-16 · 阶段二）===== */
+.shufei-draft-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100002;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 16px;
+    background: #fff8e6;
+    border-bottom: 1px solid #ffe7a8;
+    color: #8a6d1a;
+    font-size: 13px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, .08);
+}
+.shufei-draft-banner .sdb-icon {
+    font-size: 15px;
+}
+.shufei-draft-banner .sdb-text {
+    flex: 1;
+    min-width: 0;
+}
+.shufei-draft-banner .sdb-btn {
+    border: 1px solid #e3c878;
+    background: #fff;
+    color: #8a6d1a;
+    border-radius: 4px;
+    padding: 4px 14px;
+    font-size: 12px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.shufei-draft-banner .sdb-btn:hover {
+    background: #fff3d6;
+}
+.shufei-draft-banner .sdb-restore {
+    background: #faad14;
+    border-color: #faad14;
+    color: #fff;
+}
+.shufei-draft-banner .sdb-restore:hover {
+    background: #ffc53d;
+}
+
+/* ===== 编辑器状态条（2026-10-16 · 阶段二）===== */
+.shufei-editor-status {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    z-index: 99998;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 12px;
+    background: rgba(255, 255, 255, .94);
+    border: 1px solid #e3e3e0;
+    border-radius: 999px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, .08);
+    font-size: 12px;
+    color: #666;
+    pointer-events: none;
+    user-select: none;
+}
+.shufei-editor-status .ses-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex: none;
+}
+.shufei-editor-status .ses-ok {
+    background: #52c41a;
+}
+.shufei-editor-status .ses-warn {
+    background: #faad14;
+}
+.shufei-editor-status .ses-idle {
+    background: #bfbfbf;
+}
+.shufei-editor-status .ses-meta {
+    color: #999;
+}
+
+/* 焦点模式下状态条让位给悬浮操作条状态槽 */
+body.shufei-focus-mode .shufei-editor-status {
+    display: none !important;
+}
+</style>
+<script src="<?php echo $options->themeUrl; ?>/assets/js/admin/editor-autosave.js?v=<?php echo shufei_get_theme_version(); ?>"></script>
+<?php
+}
+

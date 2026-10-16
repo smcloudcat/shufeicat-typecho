@@ -284,6 +284,8 @@
                 if (optBtn) optBtn.classList.remove('on');
             }
         }
+        // 通知阶段二自动保存状态条重渲（焦点条状态槽显隐切换）
+        if (typeof window.shufeiOnFocusChange === 'function') window.shufeiOnFocusChange(on);
     }
 
     /* ===== 事件 ===== */
