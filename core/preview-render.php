@@ -138,6 +138,9 @@ if ($resourceMode === 'cdn') {
 
 $title = isset($payload['title']) ? (string)$payload['title'] : '';
 $html = isset($payload['html']) ? (string)$payload['html'] : '';
+// 旧 fields 兜底的文末引用列表（正文无 [cite: 标记时由 preview-ajax 查库渲染，
+// 位置与 post.php 一致：.post-content 之后、article 之内）
+$fieldsCites = isset($payload['fieldsCites']) ? (string)$payload['fieldsCites'] : '';
 $siteTitle = (string)$options->title;
 $pageTitle = ($title !== '' ? $title . ' - ' : '') . $siteTitle;
 
@@ -216,6 +219,9 @@ document.addEventListener('keydown', function (e) {
             <article class="post">
                 <h1 class="post-title" style="font-size:24px;margin:18px 0 10px;"><?php echo htmlspecialchars($title); ?></h1>
                 <div class="post-content"><?php echo $html; ?></div>
+                <?php if ($fieldsCites !== ''): ?>
+                <?php echo $fieldsCites; ?>
+                <?php endif; ?>
             </article>
         </div>
     </div>

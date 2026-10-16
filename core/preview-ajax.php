@@ -115,7 +115,12 @@ function handlePreviewSave()
     try {
         require_once dirname(__FILE__) . '/markdown.php';
         require_once dirname(__FILE__) . '/media.php'; // shufei_process_images（apply_markdown_ext 依赖）
-        require_once dirname(__FILE__) . '/comments.php'; // shufei_parse_reply_content（render_post_content 依赖）
+        require_once dirname(__FILE__) . '/comments.php'; // shufei_parse_reply_content / 引用卡片（render_post_content 依赖）
+        // ⚠️ 必须与前台 functions.php 的 $_coreLibs 保持一致加载 ai-chat.php：
+        // shufei_get_comment_cites_info() 构建引用卡片 permalink 时用的是
+        // class_exists('AiChat') 守卫——缺此类时 permalink 为空，
+        // [cite:cid] 卡片会降级成不可点击的 <span>（前台正常、预览死链）。
+        require_once dirname(__FILE__) . '/ai-chat.php'; // AiChat::buildPermalink（引用卡片链接）
         $fakeWidget = (object)array(
             'cid' => (int)$cid,
             'text' => $text,
@@ -124,6 +129,25 @@ function handlePreviewSave()
             'created' => time(),
         );
         $html = shufei_render_post_content($fakeWidget);
+        // 与 post.php 一致的旧 fields 兜底：正文无 [cite: 标记时，按被编辑文章的
+        // 自定义字段 shufeiCitePosts 渲染文末引用列表（旧文章迁移前的数据形态），
+        // 保证预览与前台呈现一致。预览帧无 fields 概念，需自行查库。
+        $fieldsCites = '';
+        if ((int)$cid > 0 && strpos($text, '[cite:') === false) {
+            try {
+                $db = \Typecho\Db::get();
+                $prefix = $db->getPrefix();
+                $row = $db->fetchRow($db->select()->from($prefix . 'contents')->where('cid = ?', (int)$cid));
+                if ($row && !empty($row['fields'])) {
+                    $fields = @unserialize((string)$row['fields']);
+                    if (is_array($fields) && !empty($fields['shufeiCitePosts'])) {
+                        $fieldsCites = shufei_render_article_cites(shufei_get_article_cites($fields['shufeiCitePosts']));
+                    }
+                }
+            } catch (\Throwable $e) {
+                $fieldsCites = ''; // 兜底失败不阻断预览
+            }
+        }
     } catch (\Throwable $e) {
         echo json_encode(array('success' => false, 'message' => '渲染失败: ' . $e->getMessage()));
         return;
@@ -147,6 +171,7 @@ function handlePreviewSave()
         'cid' => $cid,
         'title' => $title,
         'html' => $html,
+        'fieldsCites' => $fieldsCites,
         'time' => time(),
     );
     if (@file_put_contents($dir . '/' . $token . '.json', json_encode($payload, JSON_UNESCAPED_UNICODE)) === false) {
