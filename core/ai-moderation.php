@@ -9,14 +9,6 @@ if (!defined('__TYPECHO_ROOT_DIR__')) exit;
 class AiModeration
 {
     /**
-     * 免费 API 配置（内置）
-     * 用户在后台选择「免费接口」时使用，无需填写地址和密钥
-     */
-    const FREE_API_URL = 'https://newapi.nki.pw/v1/chat/completions';
-    const FREE_API_KEY = 'sk-IZ5WDehg4A5P3XyNkZHdwxsPxFvMmIQP0m0dDkVOSwBsB0Dh';
-    const FREE_API_MODEL = '[福利]GPT-4o';
-
-    /**
      * 默认安全审核提示词
      */
     const DEFAULT_SAFETY_PROMPT = '你是一个内容安全审核助手。请仔细分析以下评论内容，并判断是否包含以下违规内容：
@@ -209,16 +201,6 @@ class AiModeration
     public function getApiType()
     {
         return $this->apiType;
-    }
-
-    /**
-     * 判断是否使用免费接口
-     *
-     * @return bool
-     */
-    public function isFreeApi()
-    {
-        return $this->apiType === 'free';
     }
 
     /**

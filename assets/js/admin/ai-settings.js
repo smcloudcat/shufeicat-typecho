@@ -1,8 +1,8 @@
 /**
  * AI 设置页面交互
  * 从 functions.php themeConfig() heredoc 抽取
- * 依赖: window.SHUFEI_ADMIN {freeApiUrl, freeApiKey, freeApiModel, aiAjaxUrl}
- * 支持：提供商选择（Chat Completions / Responses / DeepSeek / OpenAI / 免费）、获取模型列表、AI总结设置
+ * 依赖: window.SHUFEI_ADMIN {aiAjaxUrl}
+ * 支持：提供商选择（Chat Completions / Responses / DeepSeek / OpenAI）、获取模型列表、AI总结设置
  */
 (function(){
     function initAiSettings(){
@@ -61,12 +61,12 @@
             return provider==="custom_chat"||provider==="custom_responses";
         }
         function providerNeedsKey(provider){
-            // 所有（除 free 外）都需要密钥；free 不需要
-            return provider!=="free";
+            // 所有提供商都需要密钥
+            return true;
         }
         function providerNeedsModel(provider){
-            // 所有都需要模型；free 内置模型
-            return provider!=="free";
+            // 所有提供商都需要模型
+            return true;
         }
 
         function updateFields(){
@@ -224,15 +224,9 @@
          */
         function doTest(btn,prefix,label){
             var cfg=collectConfig(prefix);
-            if(cfg.provider==="free"){
-                cfg.url=window.SHUFEI_ADMIN.freeApiUrl;
-                cfg.key=window.SHUFEI_ADMIN.freeApiKey;
-                cfg.model=window.SHUFEI_ADMIN.freeApiModel;
-            }else{
-                if(!cfg.key){showStatus("请先填写 API 密钥","error");return;}
-                if(cfg.provider==="custom_chat"||cfg.provider==="custom_responses"){
-                    if(!cfg.url){showStatus("请先填写 API 地址","error");return;}
-                }
+            if(!cfg.key){showStatus("请先填写 API 密钥","error");return;}
+            if(cfg.provider==="custom_chat"||cfg.provider==="custom_responses"){
+                if(!cfg.url){showStatus("请先填写 API 地址","error");return;}
             }
             btn.disabled=true;
             btn.textContent="测试中...";
@@ -262,14 +256,9 @@
          */
         function doFetchModels(btn,prefix,label){
             var cfg=collectConfig(prefix);
-            if(cfg.provider==="free"){
-                cfg.url=window.SHUFEI_ADMIN.freeApiUrl;
-                cfg.key=window.SHUFEI_ADMIN.freeApiKey;
-            }else{
-                if(!cfg.key){showModelsStatus("请先填写 API 密钥","error");return;}
-                if(cfg.provider==="custom_chat"||cfg.provider==="custom_responses"){
-                    if(!cfg.url){showModelsStatus("请先填写 API 地址","error");return;}
-                }
+            if(!cfg.key){showModelsStatus("请先填写 API 密钥","error");return;}
+            if(cfg.provider==="custom_chat"||cfg.provider==="custom_responses"){
+                if(!cfg.url){showModelsStatus("请先填写 API 地址","error");return;}
             }
             btn.disabled=true;
             btn.textContent="获取中...";

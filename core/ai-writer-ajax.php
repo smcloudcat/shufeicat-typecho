@@ -189,7 +189,7 @@ exit;
  * @param string $apiUrl API 地址
  * @param string $apiKey API 密钥
  * @param string $model 模型名称
- * @param string $provider 提供商类型（custom_chat/custom_responses/deepseek/openai/free）
+ * @param string $provider 提供商类型（custom_chat/custom_responses/deepseek/openai）
  * @return array
  */
 function shufei_test_ai_api($apiUrl, $apiKey, $model, $provider = 'custom_chat')
@@ -199,13 +199,6 @@ function shufei_test_ai_api($apiUrl, $apiKey, $model, $provider = 'custom_chat')
         'message' => '',
         'latency' => 0,
     );
-
-    // 免费接口：使用内置配置
-    if ($provider === 'free' && class_exists('AiModeration')) {
-        $apiUrl = AiModeration::FREE_API_URL;
-        $apiKey = AiModeration::FREE_API_KEY;
-        $model = AiModeration::FREE_API_MODEL;
-    }
 
     $aiProvider = new AiProvider($provider, $apiUrl, $apiKey, $model, 15);
     if (!$aiProvider->isConfigured()) {

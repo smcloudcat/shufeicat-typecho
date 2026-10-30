@@ -1677,22 +1677,21 @@ function themeConfig($form)
             'custom_responses'=> _t('自定义 Responses'),
             'deepseek'        => _t('DeepSeek'),
             'openai'          => _t('OpenAI'),
-            'free'            => _t('免费接口（内置，无需填写）'),
         ),
         'custom_chat',
         _t('统一接口提供商'),
-        _t('介绍：选择 AI 服务提供商。<br><b>自定义 Chat Completions</b>：任意兼容 OpenAI /chat/completions 格式的接口<br><b>自定义 Responses</b>：兼容 OpenAI Responses API /responses 的接口<br><b>DeepSeek</b> / <b>OpenAI</b>：使用官方预设地址，仅需填写密钥和模型<br><b>免费接口</b>：使用内置免费接口，无需填写')
+        _t('介绍：选择 AI 服务提供商。<br><b>自定义 Chat Completions</b>：任意兼容 OpenAI /chat/completions 格式的接口<br><b>自定义 Responses</b>：兼容 OpenAI Responses API /responses 的接口<br><b>DeepSeek</b> / <b>OpenAI</b>：使用官方预设地址，仅需填写密钥和模型')
     );
     $aiUnifiedProvider->setAttribute('class', 'typecho-option cat-group-ai ai-unified-field');
     $form->addInput($aiUnifiedProvider);
 
-    // 统一接口类型（兼容旧版：免费接口 or 自定义接口，已并入提供商选择）
+    // 统一接口类型（兼容旧版，已并入提供商选择；免费接口已移除）
     $aiUnifiedApiType = new \Typecho\Widget\Helper\Form\Element\Radio(
         'aiUnifiedApiType',
-        array('free' => _t('免费接口（内置，无需填写）'), 'custom' => _t('自定义接口')),
+        array('custom' => _t('自定义接口')),
         'custom',
         _t('统一接口类型（旧版）'),
-        _t('介绍：旧版设置项，已由「统一接口提供商」替代。选择「免费接口」将使用内置的免费 AI 接口；选择「自定义接口」需在下方填写您自己的 API 地址和密钥')
+        _t('介绍：旧版设置项，已由「统一接口提供商」替代，请在上方选择接口提供商并填写地址与密钥')
     );
     $aiUnifiedApiType->setAttribute('class', 'typecho-option cat-group-ai ai-unified-field ai-old-field');
     $form->addInput($aiUnifiedApiType);
@@ -1736,7 +1735,6 @@ function themeConfig($form)
             'custom_responses'=> _t('自定义 Responses'),
             'deepseek'        => _t('DeepSeek'),
             'openai'          => _t('OpenAI'),
-            'free'            => _t('免费接口（内置，无需填写）'),
         ),
         'custom_chat',
         _t('写作接口提供商'),
@@ -1748,7 +1746,7 @@ function themeConfig($form)
     // 分别设置模式：写作专用接口类型（旧版兼容）
     $aiWriterApiType = new \Typecho\Widget\Helper\Form\Element\Radio(
         'aiWriterApiType',
-        array('free' => _t('免费接口（内置，无需填写）'), 'custom' => _t('自定义接口')),
+        array('custom' => _t('自定义接口')),
         'custom',
         _t('写作接口类型（旧版）'),
         _t('介绍：旧版设置项，已由「写作接口提供商」替代。仅当接口模式为「分别设置」时生效')
@@ -1795,7 +1793,6 @@ function themeConfig($form)
             'custom_responses'=> _t('自定义 Responses'),
             'deepseek'        => _t('DeepSeek'),
             'openai'          => _t('OpenAI'),
-            'free'            => _t('免费接口（内置，无需填写）'),
         ),
         'custom_chat',
         _t('审核接口提供商'),
@@ -1807,7 +1804,7 @@ function themeConfig($form)
     // 分别设置模式：审核专用接口类型（旧版兼容）
     $aiModerationApiType = new \Typecho\Widget\Helper\Form\Element\Radio(
         'aiModerationApiType',
-        array('free' => _t('免费接口（内置，无需填写）'), 'custom' => _t('自定义接口')),
+        array('custom' => _t('自定义接口')),
         'custom',
         _t('审核接口类型（旧版）'),
         _t('介绍：旧版设置项，已由「审核接口提供商」替代。仅当接口模式为「分别设置」时生效')
@@ -2001,12 +1998,8 @@ function themeConfig($form)
     // AI 设置页面的 JS：接口模式切换 + 接口类型切换 + 测试按钮
     $aiOptions = \Typecho\Widget::widget('Widget_Options');
     $aiAjaxUrl = \Typecho\Common::url('usr/themes/ShuFeiCat/core/ai-writer-ajax.php', $aiOptions->siteUrl);
-    // 内置免费接口配置（供前端测试时回传后端，避免在 JS 中硬编码密钥）
-    $freeApiUrl = AiModeration::FREE_API_URL;
-    $freeApiKey = AiModeration::FREE_API_KEY;
-    $freeApiModel = AiModeration::FREE_API_MODEL;
     // 使用 heredoc 避免单引号/双引号在 PHP 字符串拼接中误判（曾导致 "Undefined constant label" 错误）
-    echo '<script>window.SHUFEI_ADMIN = Object.assign(window.SHUFEI_ADMIN || {}, {freeApiUrl: ' . json_encode($freeApiUrl) . ', freeApiKey: ' . json_encode($freeApiKey) . ', freeApiModel: ' . json_encode($freeApiModel) . ', aiAjaxUrl: ' . json_encode($aiAjaxUrl) . '});</script>';
+    echo '<script>window.SHUFEI_ADMIN = Object.assign(window.SHUFEI_ADMIN || {}, {aiAjaxUrl: ' . json_encode($aiAjaxUrl) . '});</script>';
     // 版本号用 filemtime：改完 JS 立即生效，避免浏览器缓存旧文件（曾因主题版本号不变而长期命中缓存）
     echo '<script src="' . $options->themeUrl . '/assets/js/admin/ai-settings.js?v='
         . (filemtime(dirname(__FILE__) . '/assets/js/admin/ai-settings.js') ?: shufei_get_theme_version()) . '"></script>';

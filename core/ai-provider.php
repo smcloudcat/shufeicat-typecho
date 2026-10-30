@@ -9,7 +9,9 @@ if (!defined('__TYPECHO_ROOT_DIR__')) exit;
  *  - custom_responses : 自定义 Responses（OpenAI Responses API /responses）
  *  - deepseek       : DeepSeek 官方（https://api.deepseek.com）
  *  - openai         : OpenAI 官方（https://api.openai.com/v1）
- *  - free           : 兼容旧版内置免费接口
+ *
+ * 注：内置免费接口已于 2026-10-30 移除；旧配置中的 provider=free 会按
+ * custom_chat 处理（地址为空 → isConfigured() 返回 false，后台提示需自行配置）。
  *
  * 同时提供获取模型列表（GET /models）能力，供后台下拉选择。
  */
@@ -46,7 +48,7 @@ class AiProvider
     /**
      * 构造
      *
-     * @param string $provider 提供商类型（custom_chat/custom_responses/deepseek/openai/free）
+     * @param string $provider 提供商类型（custom_chat/custom_responses/deepseek/openai）
      * @param string $rawUrl   自定义地址（custom_* 必填；预设可留空自动使用官方地址）
      * @param string $apiKey   API 密钥
      * @param string $model    模型名
@@ -54,6 +56,10 @@ class AiProvider
      */
     public function __construct($provider = 'custom_chat', $rawUrl = '', $apiKey = '', $model = '', $timeout = 60)
     {
+        // 旧配置兼容：内置免费接口已移除，provider=free 统一按 custom_chat 处理
+        if ($provider === 'free') {
+            $provider = 'custom_chat';
+        }
         $this->provider = $provider;
         $this->rawUrl = trim($rawUrl);
         $this->apiKey = trim($apiKey);
@@ -79,20 +85,6 @@ class AiProvider
             $base = self::normalizeBaseUrl($rawUrl);
             $this->responsesUrl = $base . '/responses';
             $this->modelsUrl = $base . '/models';
-        } elseif ($provider === 'free') {
-            // 旧版免费接口（向后兼容）
-            if (class_exists('AiModeration')) {
-                $this->chatUrl = AiModeration::normalizeApiUrl(AiModeration::FREE_API_URL);
-                $this->apiKey = AiModeration::FREE_API_KEY;
-                $this->model = AiModeration::FREE_API_MODEL;
-                $this->modelsUrl = self::chatUrlToBase($this->chatUrl) . '/models';
-            } else {
-                // 兜底：直接使用内置免费配置（不依赖 AiModeration 类）
-                $this->chatUrl = 'https://newapi.nki.pw/v1/chat/completions';
-                $this->apiKey = 'sk-IZ5WDehg4A5P3XyNkZHdwxsPxFvMmIQP0m0dDkVOSwBsB0Dh';
-                $this->model = '[福利]GPT-4o';
-                $this->modelsUrl = 'https://newapi.nki.pw/v1/models';
-            }
         }
     }
 
@@ -110,9 +102,9 @@ class AiProvider
 
         $provider = isset($options->aiWriterProvider) ? $options->aiWriterProvider : '';
         if (empty($provider)) {
-            // 兼容旧版：aiWriterApiType free/custom
+            // 兼容旧版：aiWriterApiType free/custom（免费接口已移除，free 降级为 custom_chat）
             $apiType = isset($options->aiWriterApiType) ? $options->aiWriterApiType : 'custom';
-            $provider = ($apiType === 'free') ? 'free' : 'custom_chat';
+            $provider = 'custom_chat';
         }
 
         $url = isset($options->aiWriterApiUrl) ? $options->aiWriterApiUrl : '';
@@ -132,8 +124,8 @@ class AiProvider
 
         $provider = isset($options->aiUnifiedProvider) ? $options->aiUnifiedProvider : '';
         if (empty($provider)) {
-            $apiType = isset($options->aiUnifiedApiType) ? $options->aiUnifiedApiType : 'custom';
-            $provider = ($apiType === 'free') ? 'free' : 'custom_chat';
+            // 兼容旧版 aiUnifiedApiType（免费接口已移除，free 降级为 custom_chat）
+            $provider = 'custom_chat';
         }
 
         $url = isset($options->aiModerationApiUrl) ? $options->aiModerationApiUrl : '';
@@ -153,8 +145,8 @@ class AiProvider
 
         $provider = isset($options->aiModerationProvider) ? $options->aiModerationProvider : '';
         if (empty($provider)) {
-            $apiType = isset($options->aiModerationApiType) ? $options->aiModerationApiType : 'custom';
-            $provider = ($apiType === 'free') ? 'free' : 'custom_chat';
+            // 兼容旧版 aiModerationApiType（免费接口已移除，free 降级为 custom_chat）
+            $provider = 'custom_chat';
         }
 
         $url = isset($options->aiModerationSepApiUrl) ? $options->aiModerationSepApiUrl : '';
@@ -228,9 +220,6 @@ class AiProvider
         }
         if ($this->provider === 'custom_responses') {
             return !empty($this->responsesUrl) && !empty($this->apiKey);
-        }
-        if ($this->provider === 'free') {
-            return !empty($this->chatUrl) && !empty($this->apiKey);
         }
         return !empty($this->chatUrl) && !empty($this->apiKey);
     }
