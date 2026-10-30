@@ -422,6 +422,15 @@ function shufei_process_post_gallery($content)
         return $content;
     }
 
+    // 保护 <pre>/<code> 内的示例文本：语法文档里会写 [gallery:图1|图2] 作为示例，
+    // 若不保护会被当真实语法渲染（渲染成 src="图1" 的破图）
+    $protected = array();
+    $content = preg_replace_callback('/<(code|pre)[^>]*>.*?<\/\1>/si', function ($m) use (&$protected) {
+        $key = '<!--GALLERYPROTECT' . count($protected) . '-->';
+        $protected[] = $m[0];
+        return $key;
+    }, $content);
+
     $render = function ($inner) {
         $inner = trim($inner);
         $noslide = false;
@@ -461,6 +470,11 @@ function shufei_process_post_gallery($content)
 
     // 3. 清理无效标记留下的空段落（如写了空的 [gallery:]）
     $content = preg_replace('/<p>\s*<\/p>/', '', $content);
+
+    // 4. 还原被保护的代码块内容
+    foreach ($protected as $i => $html) {
+        $content = str_replace('<!--GALLERYPROTECT' . $i . '-->', $html, $content);
+    }
 
     return $content;
 }

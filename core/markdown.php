@@ -197,8 +197,10 @@ function shufei_render_post_content($widget)
     // 仅对已发布文章/页面启用缓存
     $cid = $widget->cid;
     $rawText = $widget->text;
-    // 加入主题文件版本因子（functions.php 修改时间），主题功能改动后旧缓存自动失效
-    $themeVersion = filemtime(__FILE__);
+    // 加入主题文件版本因子（markdown.php + media.php 修改时间），主题功能改动后旧缓存自动失效
+    // 注意：media.php 里的短代码渲染（[gallery:] 等）也在 apply_ext 阶段执行，
+    // 只算 markdown.php 的 mtime 会导致改 media.php 后旧缓存不失效（曾踩坑）
+    $themeVersion = filemtime(__FILE__) . '_' . (filemtime(dirname(__FILE__) . '/media.php') ?: 0);
     $contentHash = md5($rawText . ($widget->modified ?? $widget->created) . '|tv:' . $themeVersion);
     $cacheKey = 'content_' . $cid . '_' . $contentHash;
     $cacheFile = dirname(__FILE__) . '/cache/' . $cacheKey . '.html';
