@@ -115,6 +115,11 @@
                         if (val === f.value) option.attr('selected', 'selected');
                         input.append(option);
                     });
+                } else if (f.type === 'textarea') {
+                    input = $('<textarea rows="' + (f.rows || 4) + '"></textarea>')
+                        .attr('id', 'shufei-field-' + f.name)
+                        .attr('placeholder', f.placeholder || '');
+                    if (f.value) input.val(f.value);
                 } else {
                     input = $('<input type="text" />')
                         .attr('id', 'shufei-field-' + f.name)
@@ -290,6 +295,30 @@
             });
         }
 
+        // 图片滑块：[gallery:url1|url2|url3] 轮播 / [gallery:noslide:url1|url2|url3] 不轮播
+        function insertGallery() {
+            showModal('插入图片滑块', [
+                {
+                    name: 'urls', label: '图片地址 *（每行一个）', type: 'textarea', rows: 5,
+                    placeholder: 'https://example.com/1.jpg\nhttps://example.com/2.jpg\nhttps://example.com/3.jpg'
+                },
+                {
+                    name: 'slide', label: '展示方式', type: 'select', value: '1',
+                    options: [
+                        { value: '1', text: '轮播（自动播放）' },
+                        { value: '0', text: '不轮播（网格平铺）' }
+                    ]
+                }
+            ], function (v) {
+                var urls = (v.urls || '').split('\n')
+                    .map(function (s) { return s.trim(); })
+                    .filter(function (s) { return s !== ''; });
+                if (!urls.length) return;
+                var prefix = v.slide === '0' ? '[gallery:noslide:' : '[gallery:';
+                insertAtCursor('\n' + prefix + urls.join('|') + ']\n');
+            });
+        }
+
         // ===== 重建工具栏：原按钮文字化 + 新按钮 + 统一排序 =====
 
         // 原编辑器按钮 ID → 文字标签
@@ -375,6 +404,7 @@
             appendNew('image', '图片', '插入图片（支持大小/对齐）');
             appendNew('video', '视频', '插入视频（支持封面）');
             appendNew('music', '音乐', '插入音乐');
+            appendNew('gallery', '图片滑块', '插入图片滑块（可设置不轮播）');
             appendNew('codeblock', '代码块', '代码块 ```code```');
             appendSep();
 
@@ -409,7 +439,7 @@
         }
 
         /* ===== 「更多」下拉：低频插入按钮收进来，主行只留常用 ===== */
-        var COLLAPSE_ACTIONS = ['video', 'music', 'math', 'tip', 'details', 'mermaid', 'echarts'];
+        var COLLAPSE_ACTIONS = ['video', 'music', 'gallery', 'math', 'tip', 'details', 'mermaid', 'echarts'];
 
         function appendMoreMenu() {
             var buttonRow = $('.wmd-button-row');
@@ -550,6 +580,7 @@
                 case 'image': insertImage(); break;
                 case 'video': insertVideo(); break;
                 case 'music': insertMusic(); break;
+                case 'gallery': insertGallery(); break;
                 default: {
                     // 扩展功能按钮（AI 助手 / 图片存储 / 文章引用等）
                     var extHandler = window.SHUFEI_QI_ACTIONS && window.SHUFEI_QI_ACTIONS[action];

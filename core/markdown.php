@@ -223,6 +223,10 @@ function shufei_render_post_content($widget)
         $icodeBlocks = array();
         $rawText = shufei_protect_inline_code_backticks($rawText, $icodeBlocks);
 
+        // 保护图片滑块短代码 [gallery:...]（防 HyperDown 把裸 URL 自动转成 <a>）
+        $galleryBlocks = array();
+        $rawText = shufei_protect_gallery_shortcodes($rawText, $galleryBlocks);
+
         // KaTeX 公式保护：在 Markdown 解析前提取数学公式，防止 _ 等被破坏
         $mathBlocks = array();
         $katexEnabled = false;
@@ -237,6 +241,9 @@ function shufei_render_post_content($widget)
 
         // 还原行内代码占位符
         $html = shufei_restore_inline_code_backticks($html, $icodeBlocks);
+
+        // 还原图片滑块短代码占位符（扩展阶段由 shufei_process_post_gallery 渲染）
+        $html = shufei_restore_gallery_shortcodes($html, $galleryBlocks);
 
         // 还原数学公式占位符
         if ($katexEnabled) {
@@ -476,6 +483,9 @@ function shufei_apply_markdown_ext($content)
 
     // 9. 处理文章引用 Markdown 增强语法 [cite:cid]（2026-10-15）
     $content = shufei_process_article_cites($content);
+
+    // 10. 处理图片滑块短代码 [gallery:url1|url2|url3] / [gallery:noslide:...]（2026-10-30）
+    $content = shufei_process_post_gallery($content);
 
     return $content;
 }

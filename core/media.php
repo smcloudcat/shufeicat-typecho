@@ -270,3 +270,197 @@ function shufei_process_music_shortcode($content)
     return $content;
 }
 
+
+/* ==================== 文章图片滑块 Markdown 增强语法 ==================== */
+
+/**
+ * 清洗单个图片地址
+ *
+ * 仅允许 http/https、协议相对（//）、以及站内相对路径；
+ * javascript: / data: / vbscript: 等一律丢弃（防 XSS）。
+ *
+ * @param string $url 原始地址
+ * @return string 清洗后的地址，非法返回空串
+ */
+function shufei_sanitize_gallery_url($url)
+{
+    $url = trim((string)$url);
+    if ($url === '') {
+        return '';
+    }
+    // 协议相对
+    if (strpos($url, '//') === 0) {
+        return 'https:' . $url;
+    }
+    if (preg_match('#^https?://#i', $url)) {
+        return $url;
+    }
+    // 相对路径：形如 /a/b.jpg、./a.jpg、a.jpg（不含协议头）
+    if (!preg_match('#^[a-z][a-z0-9+.\-]*:#i', $url)) {
+        return $url;
+    }
+    return '';
+}
+
+/**
+ * 渲染图片滑块 HTML
+ *
+ * @param array $urls    图片地址数组（已按出现顺序）
+ * @param bool  $noslide true=不轮播（网格平铺），false=轮播
+ * @return string HTML，无有效图片时返回空串
+ */
+function shufei_render_post_gallery_html($urls, $noslide = false)
+{
+    $clean = array();
+    foreach ((array)$urls as $u) {
+        $v = shufei_sanitize_gallery_url($u);
+        if ($v !== '') {
+            $clean[] = $v;
+        }
+    }
+    $count = count($clean);
+    if ($count < 1) {
+        return '';
+    }
+
+    if ($noslide) {
+        $html = '<div class="post-gallery post-gallery-noslide" data-count="' . $count . '">';
+        foreach ($clean as $i => $u) {
+            $html .= '<div class="post-gallery-item"><img src="' . htmlspecialchars($u, ENT_QUOTES, 'UTF-8')
+                . '" alt="图片 ' . ($i + 1) . '" loading="lazy" decoding="async"></div>';
+        }
+        $html .= '</div>';
+        return $html;
+    }
+
+    $multi = ($count > 1);
+    $html = '<div class="post-gallery post-gallery-slide" data-slide="' . ($multi ? '1' : '0')
+        . '" data-count="' . $count . '">';
+    $html .= '<div class="post-gallery-viewport"><div class="post-gallery-track">';
+    foreach ($clean as $i => $u) {
+        $html .= '<div class="post-gallery-item"><img src="' . htmlspecialchars($u, ENT_QUOTES, 'UTF-8')
+            . '" alt="图片 ' . ($i + 1) . '" loading="lazy" decoding="async"></div>';
+    }
+    $html .= '</div>';
+
+    if ($multi) {
+        $html .= '<button type="button" class="post-gallery-arrow prev" aria-label="上一张">'
+            . '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>';
+        $html .= '<button type="button" class="post-gallery-arrow next" aria-label="下一张">'
+            . '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>';
+        $html .= '<div class="post-gallery-footer"><div class="post-gallery-dots">';
+        for ($i = 0; $i < $count; $i++) {
+            $html .= '<button type="button" class="post-gallery-dot' . ($i === 0 ? ' active' : '')
+                . '" aria-label="第 ' . ($i + 1) . ' 张"></button>';
+        }
+        $html .= '</div><span class="post-gallery-counter">1 / ' . $count . '</span></div>';
+    }
+
+    $html .= '</div></div>';
+    return $html;
+}
+
+/**
+ * 保护图片滑块短代码 [gallery:...]（Markdown 解析前调用）
+ *
+ * HyperDown 会把裸 URL 自动转成 <a href="url">url</a>，导致 [gallery:url1|url2]
+ * 里的 URL 被包上 HTML 标签而无法作为图片地址使用（video/music 短代码也踩过）。
+ * 解析前整段替换为纯字母数字占位符，解析后原样还原，交给
+ * shufei_process_post_gallery() 在扩展阶段渲染。
+ *
+ * @param string $text Markdown 原始文本
+ * @param array &$blocks 存储占位符 → 原始短代码文本
+ * @return string 替换后的文本
+ */
+function shufei_protect_gallery_shortcodes($text, &$blocks)
+{
+    $blocks = array();
+    if (!is_string($text) || stripos($text, '[gallery:') === false) {
+        return $text;
+    }
+    return preg_replace_callback('/\[gallery:[^\]]*\]/i', function ($m) use (&$blocks) {
+        $key = '%%SHUFEIGALLERY' . count($blocks) . '%%';
+        $blocks[$key] = $m[0];
+        return $key;
+    }, $text);
+}
+
+/**
+ * 还原图片滑块短代码占位符（Markdown 解析后调用）
+ *
+ * @param string $html 已解析的 HTML
+ * @param array $blocks shufei_protect_gallery_shortcodes 产生的占位映射
+ * @return string 还原后的 HTML
+ */
+function shufei_restore_gallery_shortcodes($html, $blocks)
+{
+    if (empty($blocks) || !is_string($html)) {
+        return $html;
+    }
+    foreach ($blocks as $key => $original) {
+        $html = str_replace($key, $original, $html);
+    }
+    return $html;
+}
+
+/**
+ * 处理图库短代码（Markdown 增强语法）
+ *
+ * 语法：
+ *   [gallery:url1|url2|url3]            轮播（默认）
+ *   [gallery:noslide:url1|url2|url3]    不轮播（网格平铺）
+ *
+ * 独占一行时替换整个 <p>；行内出现时也渲染为块级滑块（浏览器自动闭合段落）。
+ * 地址用 | 分隔（URL 中几乎不出现竖线），支持 http/https/协议相对/相对路径。
+ *
+ * @param string $content 已解析的 HTML
+ * @return string 处理后的 HTML
+ */
+function shufei_process_post_gallery($content)
+{
+    if (!is_string($content) || stripos($content, '[gallery:') === false) {
+        return $content;
+    }
+
+    $render = function ($inner) {
+        $inner = trim($inner);
+        $noslide = false;
+        if (stripos($inner, 'noslide:') === 0) {
+            $noslide = true;
+            $inner = substr($inner, 8);
+        }
+        $parts = preg_split('/\s*\|\s*/', $inner);
+        // 兜底：解析器可能已把裸 URL 自动转成 <a href="url">url</a>，提取真实地址
+        $parts = array_map(function ($p) {
+            $p = trim($p);
+            if (preg_match('/<a[^>]*href=["\']([^"\']+)["\'][^>]*>/i', $p, $m)) {
+                return html_entity_decode($m[1], ENT_QUOTES, 'UTF-8');
+            }
+            return html_entity_decode(strip_tags($p), ENT_QUOTES, 'UTF-8');
+        }, $parts);
+        return shufei_render_post_gallery_html($parts, $noslide);
+    };
+
+    // 1. 独占整段：<p>[gallery:...]</p> → 替换整个段落
+    $content = preg_replace_callback(
+        '/<p>\s*\[gallery:([^\]]*)\]\s*<\/p>/i',
+        function ($m) use ($render) {
+            return $render($m[1]);
+        },
+        $content
+    );
+
+    // 2. 兜底：剩余的裸标记（行内或未包 <p> 的情况）
+    $content = preg_replace_callback(
+        '/\[gallery:([^\]]*)\]/i',
+        function ($m) use ($render) {
+            return $render($m[1]);
+        },
+        $content
+    );
+
+    // 3. 清理无效标记留下的空段落（如写了空的 [gallery:]）
+    $content = preg_replace('/<p>\s*<\/p>/', '', $content);
+
+    return $content;
+}

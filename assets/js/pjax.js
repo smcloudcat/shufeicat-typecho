@@ -938,6 +938,10 @@
                 window.initCommentIpRegions();
             }
 
+            if (typeof window.initPostGallery === 'function') {
+                window.initPostGallery();
+            }
+
             if (typeof window.initMermaid === 'function') {
                 window.initMermaid();
             }

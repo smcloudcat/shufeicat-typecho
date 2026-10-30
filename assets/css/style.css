@@ -11567,3 +11567,195 @@ body[data-side-hover="none"] .right-sidebar .widget-list li a:hover {
     }
 }
 
+
+/* ==================== 文章图片滑块 [gallery:] ==================== */
+.post-gallery {
+    margin: 18px 0;
+    border-radius: var(--card-radius, 12px);
+    overflow: hidden;
+}
+
+/* ---- 轮播模式 ---- */
+.post-gallery-slide .post-gallery-viewport {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--card-radius, 12px);
+    background: var(--gallery-bg, #f0f0f3);
+}
+
+.post-gallery-track {
+    display: flex;
+    width: 100%;
+    will-change: transform;
+    transition: transform .42s cubic-bezier(.4, 0, .2, 1);
+}
+
+.post-gallery-item {
+    flex: 0 0 100%;
+    min-width: 100%;
+}
+
+.post-gallery-item img {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-height: 68vh;
+    object-fit: contain;
+    background: var(--gallery-bg, #f0f0f3);
+}
+
+/* 箭头 */
+.post-gallery-arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, .34);
+    color: #fff;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity .2s ease, background .2s ease;
+    z-index: 2;
+}
+
+.post-gallery-arrow.prev { left: 10px; }
+.post-gallery-arrow.next { right: 10px; }
+
+.post-gallery-viewport:hover .post-gallery-arrow { opacity: 1; }
+.post-gallery-arrow:hover { background: rgba(0, 0, 0, .55); }
+
+/* 底部指示点 + 计数 */
+.post-gallery-footer {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 0 10px;
+    pointer-events: none;
+}
+
+.post-gallery-dots {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 9px;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, .28);
+    pointer-events: auto;
+}
+
+.post-gallery-dot {
+    width: 6px;
+    height: 6px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, .55);
+    cursor: pointer;
+    transition: width .25s ease, background .25s ease;
+}
+
+.post-gallery-dot.active {
+    width: 16px;
+    border-radius: 3px;
+    background: #fff;
+}
+
+.post-gallery-counter {
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, .34);
+    color: #fff;
+    font-size: 11px;
+    line-height: 1.5;
+    letter-spacing: .3px;
+    pointer-events: auto;
+}
+
+/* ---- 不轮播（网格平铺）---- */
+.post-gallery-noslide {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.post-gallery-noslide[data-count="1"] {
+    grid-template-columns: 1fr;
+}
+
+.post-gallery-noslide .post-gallery-item {
+    flex: none;
+    min-width: 0;
+    border-radius: calc(var(--card-radius, 12px) - 4px);
+    overflow: hidden;
+}
+
+.post-gallery-noslide .post-gallery-item img {
+    width: 100%;
+    height: 100%;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    border-radius: inherit;
+    transition: transform .35s ease;
+}
+
+.post-gallery-noslide .post-gallery-item:hover img {
+    transform: scale(1.04);
+}
+
+/* ---- 深色主题 ---- */
+[data-theme="dark"] .post-gallery-slide .post-gallery-viewport {
+    --gallery-bg: #1a1a24;
+}
+
+[data-theme="dark"] .post-gallery-item img {
+    --gallery-bg: #1a1a24;
+}
+
+/* ---- 移动端 ---- */
+@media (max-width: 768px) {
+    .post-gallery {
+        margin: 14px 0;
+    }
+
+    .post-gallery-item img {
+        max-height: 52vh;
+    }
+
+    .post-gallery-arrow {
+        width: 30px;
+        height: 30px;
+        opacity: .9;
+    }
+
+    .post-gallery-arrow.prev { left: 6px; }
+    .post-gallery-arrow.next { right: 6px; }
+
+    .post-gallery-dots {
+        padding: 4px 7px;
+    }
+
+    .post-gallery-dot {
+        width: 5px;
+        height: 5px;
+    }
+
+    .post-gallery-dot.active {
+        width: 13px;
+    }
+
+    .post-gallery-noslide {
+        gap: 6px;
+    }
+}

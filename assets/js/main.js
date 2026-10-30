@@ -3540,6 +3540,134 @@ window.initMusicPlayer = function() {
 })();
 
 /**
+ * 文章图片滑块 [gallery:]（2026-10-30 新增）
+ *
+ * 语法：
+ *   [gallery:url1|url2|url3]            轮播（自动播放 + 箭头 + 指示点 + 触摸滑动 + 计数）
+ *   [gallery:noslide:url1|url2|url3]    不轮播（纯 CSS 网格，无需 JS）
+ *
+ * 幂等：同一容器只初始化一次（PJAX 切页 / 预览帧重复调用安全）。
+ * 交互冲突处理：触摸滑动后 400ms 内的 click 会被拦截，避免误开灯箱。
+ */
+window.initPostGallery = function() {
+    var galleries = document.querySelectorAll('.post-gallery-slide[data-slide="1"]');
+    Array.prototype.forEach.call(galleries, function(box) {
+        if (box._galleryBound) return;
+        box._galleryBound = true;
+
+        var track = box.querySelector('.post-gallery-track');
+        var items = box.querySelectorAll('.post-gallery-item');
+        var dots = box.querySelectorAll('.post-gallery-dot');
+        var counter = box.querySelector('.post-gallery-counter');
+        var prevBtn = box.querySelector('.post-gallery-arrow.prev');
+        var nextBtn = box.querySelector('.post-gallery-arrow.next');
+        var total = items.length;
+        if (!track || total < 2) return;
+
+        var index = 0;
+        var timer = null;
+        var paused = false;
+        var touchStartX = 0;
+        var touchStartY = 0;
+        var swipedAt = 0;
+
+        function render() {
+            track.style.transform = 'translateX(' + (-index * 100) + '%)';
+            Array.prototype.forEach.call(dots, function(d, k) {
+                if (k === index) d.classList.add('active');
+                else d.classList.remove('active');
+            });
+            if (counter) counter.textContent = (index + 1) + ' / ' + total;
+        }
+
+        function go(i) {
+            index = ((i % total) + total) % total;
+            render();
+        }
+
+        function startTimer() {
+            stopTimer();
+            timer = setInterval(function() {
+                if (paused || document.hidden) return;
+                go(index + 1);
+            }, 5000);
+        }
+
+        function stopTimer() {
+            if (timer) { clearInterval(timer); timer = null; }
+        }
+
+        function restart() { startTimer(); }
+
+        if (prevBtn) prevBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            go(index - 1);
+            restart();
+        });
+
+        if (nextBtn) nextBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            go(index + 1);
+            restart();
+        });
+
+        Array.prototype.forEach.call(dots, function(d, k) {
+            d.addEventListener('click', function(e) {
+                e.preventDefault();
+                go(k);
+                restart();
+            });
+        });
+
+        // 悬停暂停（桌面）
+        box.addEventListener('mouseenter', function() { paused = true; });
+        box.addEventListener('mouseleave', function() { paused = false; });
+
+        // 触摸滑动（移动端）
+        box.addEventListener('touchstart', function(e) {
+            if (!e.touches || e.touches.length !== 1) return;
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+        }, { passive: true });
+
+        box.addEventListener('touchmove', function(e) {
+            if (!e.touches || e.touches.length !== 1) return;
+            var dx = e.touches[0].clientX - touchStartX;
+            var dy = e.touches[0].clientY - touchStartY;
+            if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 10) {
+                paused = true; // 横向滑动时暂停自动播放
+            }
+        }, { passive: true });
+
+        box.addEventListener('touchend', function(e) {
+            paused = false;
+            var t = e.changedTouches && e.changedTouches[0];
+            if (!t) return;
+            var dx = t.clientX - touchStartX;
+            if (Math.abs(dx) > 40) {
+                go(dx < 0 ? index + 1 : index - 1);
+                restart();
+                swipedAt = Date.now();
+            }
+        });
+
+        // 滑动后拦截误触灯箱（灯箱会把图片包成 <a>，捕获阶段先挡）
+        box.addEventListener('click', function(e) {
+            if (Date.now() - swipedAt > 400) return;
+            if (e.target && e.target.closest) {
+                var a = e.target.closest('a');
+                if (a) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+            }
+        }, true);
+
+        startTimer();
+    });
+};
+
+/**
  * 评论文章引用功能（2026-10-14 新增）
  * 评论表单内"引用文章"按钮 → 搜索站内公开文章 → chips 展示已选，
  * 同步隐藏字段 comment_cites；服务端校验公开性后以 [cite:N] 标记入库，
@@ -5113,6 +5241,7 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(window.initPrismHighlight, 200);
         setTimeout(window.initCopyButtons, 250);
         setTimeout(window.initLightbox, 300);
+        setTimeout(window.initPostGallery, 320);
         window.initPostThumbFallback();
         setTimeout(window.initMarkdownExt, 500);
         setTimeout(window.initTableOfContents, 520);
@@ -5201,6 +5330,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 延迟执行以确保 Lightbox3 完全加载
     setTimeout(window.initLightbox, 300);
+
+    // 图片滑块轮播（[gallery:] 语法，需在灯箱包装之后）
+    setTimeout(window.initPostGallery, 320);
     
     // 初始化点赞功能
     window.initPostLike();
