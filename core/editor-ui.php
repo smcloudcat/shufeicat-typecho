@@ -215,70 +215,6 @@ function shufei_quick_insert_js($post)
     border: 1px solid #ddd;
 }
 
-/* ===== 「更多」下拉（2026-10-16 阶段三：低频按钮收纳）===== */
-/* 面板展开时的全屏防误触遮罩：移动端工具栏换行后，向下展开的面板会盖住
- * 下一行按钮（复现：395px 下点「专注」实际命中面板内「视频」项）——遮罩挡掉
- * 面板外一切点击，点遮罩冒泡到 document 关闭面板 */
-.shufei-qi-more-mask {
-    display: none;
-    position: fixed;
-    inset: 0;
-    z-index: 999;
-}
-.wmd-button-row li.shufei-qi-more.open .shufei-qi-more-mask {
-    display: block;
-}
-.wmd-button-row li.shufei-qi-more {
-    position: relative;
-}
-.shufei-qi-more-panel {
-    position: absolute;
-    top: 100%;
-    right: 0;
-    z-index: 1000;
-    display: none;
-    min-width: 110px;
-    margin-top: 2px;
-    padding: 4px 0;
-    background: #fff;
-    border: 1px solid #d9d9d6;
-    border-radius: 4px;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, .12);
-}
-.wmd-button-row li.shufei-qi-more.open .shufei-qi-more-panel {
-    display: block;
-}
-/* 面板项需盖过原生 #wmd-button-bar .wmd-button-row li{display:inline-block}
- * （(1,1,1) 带 ID，普通类选择器压不过，必须同款 ID 前缀提权） */
-#wmd-button-bar .wmd-button-row .shufei-qi-more-panel li.shufei-qi-btn {
-    display: block;
-    white-space: nowrap;
-    padding: 0 10px;
-    margin-right: 0;
-}
-
-/* 移动端（≤640px）：工具栏会换行，absolute 下拉会盖住下一行按钮导致误触
- * （复现：395px 点「专注」实际命中面板内「视频」项）——改为底部弹出
- * bottom sheet：fixed 贴底、脱离工具栏流、大触摸目标，配防误触遮罩 */
-@media (max-width: 640px) {
-    .shufei-qi-more-panel {
-        position: fixed;
-        left: 8px;
-        right: 8px;
-        bottom: 12px;
-        top: auto;
-        max-height: 60vh;
-        overflow-y: auto;
-        border-radius: 12px;
-        box-shadow: 0 -4px 24px rgba(0, 0, 0, .18);
-        padding: 6px 0;
-    }
-    #wmd-button-bar .wmd-button-row .shufei-qi-more-panel li.shufei-qi-btn {
-        padding: 12px 16px;
-        font-size: 14px;
-    }
-}
-
 /* ===== 图片粘贴/拖拽直传（2026-10-16 阶段三）===== */
 .shufei-paste-toast {
     position: fixed;
@@ -306,7 +242,7 @@ function shufei_quick_insert_js($post)
     background: rgba(255, 107, 107, .04);
 }
 </style>
-<script src="<?php echo $options->themeUrl; ?>/assets/js/admin/editor-quick-insert.js?v=<?php echo shufei_get_theme_version(); ?>"></script>
+<script src="<?php echo $options->themeUrl; ?>/assets/js/admin/editor-quick-insert.js?v=<?php echo filemtime(dirname(__FILE__) . '/../assets/js/admin/editor-quick-insert.js') ?: shufei_get_theme_version(); ?>"></script>
 <script src="<?php echo $options->themeUrl; ?>/assets/js/admin/editor-paste-upload.js?v=<?php echo shufei_get_theme_version(); ?>"></script>
 <?php
 }
@@ -1289,7 +1225,7 @@ body.shufei-focus-mode .shufei-focus-bar {
     }
 }
 </style>
-<script src="<?php echo $options->themeUrl; ?>/assets/js/admin/editor-focus.js?v=<?php echo shufei_get_theme_version(); ?>"></script>
+<script src="<?php echo $options->themeUrl; ?>/assets/js/admin/editor-focus.js?v=<?php echo filemtime(dirname(__FILE__) . '/../assets/js/admin/editor-focus.js') ?: shufei_get_theme_version(); ?>"></script>
 <?php
 }
 
@@ -1405,7 +1341,7 @@ body.shufei-focus-mode .shufei-editor-status {
     display: none !important;
 }
 </style>
-<script src="<?php echo $options->themeUrl; ?>/assets/js/admin/editor-autosave.js?v=<?php echo shufei_get_theme_version(); ?>"></script>
+<script src="<?php echo $options->themeUrl; ?>/assets/js/admin/editor-autosave.js?v=<?php echo filemtime(dirname(__FILE__) . '/../assets/js/admin/editor-autosave.js') ?: shufei_get_theme_version(); ?>"></script>
 <?php
 }
 
@@ -1425,7 +1361,7 @@ function shufei_editor_preview_ui($post)
     $renderUrl = \Typecho\Common::url('usr/themes/ShuFeiCat/core/preview-render.php', $options->siteUrl);
     ?>
 <script>window.SHUFEI_ADMIN = Object.assign(window.SHUFEI_ADMIN || {}, {previewAjaxUrl: <?php echo json_encode($ajaxUrl); ?>, previewRenderUrl: <?php echo json_encode($renderUrl); ?>});</script>
-<script src="<?php echo $options->themeUrl; ?>/assets/js/admin/editor-preview.js?v=<?php echo shufei_get_theme_version(); ?>"></script>
+<script src="<?php echo $options->themeUrl; ?>/assets/js/admin/editor-preview.js?v=<?php echo filemtime(dirname(__FILE__) . '/../assets/js/admin/editor-preview.js') ?: shufei_get_theme_version(); ?>"></script>
 <?php
 }
 
