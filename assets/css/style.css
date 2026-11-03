@@ -8601,7 +8601,8 @@ article.post {
     white-space: pre-wrap;
 }
 .ai-chat-bubble.assistant .ai-chat-bubble-inner {
-    background: rgba(255, 255, 255, 0.85);
+    /* 实色浅灰：半透明气泡叠在半透明面板上会让文字发虚 */
+    background: #f4f6f9;
     border: 1px solid rgba(0, 0, 0, 0.06);
     color: var(--text-color, #333);
     border-top-left-radius: 4px;
@@ -8724,7 +8725,7 @@ article.post {
     border-radius: 8px;
     font-size: 13.5px;
     font-family: inherit;
-    background: rgba(255, 255, 255, 0.9);
+    background: #ffffff;
     color: var(--text-color, #333);
     outline: none;
     transition: border-color 0.2s, box-shadow 0.2s;
@@ -8775,7 +8776,7 @@ article.post {
 }
 .ai-chat-suggest {
     border: 1px solid rgba(0, 0, 0, 0.1);
-    background: var(--card-bg, #fff);
+    background: #ffffff;
     color: #555;
     border-radius: 999px;
     padding: 6px 12px;
@@ -9026,7 +9027,12 @@ article.post {
     max-height: min(70vh, 600px);
     z-index: 1003;
     border-radius: 14px;
-    background: var(--card-bg, #ffffff);
+    /* 浮层不跟随全局半透明 --card-bg：卡片的 0.7 透明会让背后正文透出来、
+       对话内容糊成一片（2026-11-03 主人反馈「透明太高，内容看不清」）。
+       这里用 0.97 + 毛玻璃：保留一丝通透感，但文字始终清晰可读。 */
+    background: rgba(255, 255, 255, 0.97);
+    -webkit-backdrop-filter: saturate(180%) blur(14px);
+    backdrop-filter: saturate(180%) blur(14px);
     border: 1px solid color-mix(in srgb, var(--primary-color, #467B96) 22%, transparent);
     box-shadow: 0 14px 44px rgba(0, 0, 0, 0.16);
     opacity: 0;
