@@ -28,20 +28,36 @@
         return PREVIEW_AJAX && PREVIEW_RENDER;
     }
 
-    /* 全屏预览浮层（复用原生 .preview-frame 样式类） */
+    /* 全屏预览浮层
+     *
+     * 不用原生 .preview / body.fullscreen class：那套规则会把 #text/.submit
+     * 改成 position:absolute + width:50%，导致编辑器区域宽度跳变、右侧内容
+     * 被挤开（2026-11-03 主人反馈「点预览编辑框变宽」）。这里纯 fixed 自绘。
+     */
     function openFrame(token) {
         closeFrame();
-        document.body.classList.add('fullscreen', 'preview');
         frame = document.createElement('iframe');
-        frame.className = 'preview-frame preview-loading';
+        // 保留 preview-frame 类名（既有样式/测试选择器用），但它只在
+        // body.preview 下才有定位规则，本实现不再加该类，故不会生效
+        frame.className = 'preview-frame shufei-preview-frame';
         frame.setAttribute('frameborder', '0');
         frame.setAttribute('sandbox', 'allow-same-origin allow-scripts');
         frame.src = PREVIEW_RENDER + '?token=' + encodeURIComponent(token);
-        frame.style.height = (window.innerHeight - 53) + 'px';
-        frame.addEventListener('load', function () {
-            frame.classList.remove('preview-loading');
-        });
+        frame.style.cssText = 'position:fixed;top:40px;left:0;width:100vw;height:calc(100vh - 40px);'
+            + 'border:0;background:#fff;z-index:100001;';
         document.body.appendChild(frame);
+
+        // 加载提示（iframe 白屏期间给个反馈，load 后移除）
+        var tip = document.createElement('div');
+        tip.id = 'shufei-preview-loading';
+        tip.textContent = '正在生成预览…';
+        tip.style.cssText = 'position:fixed;top:40px;left:0;right:0;bottom:0;background:#fff;'
+            + 'display:flex;align-items:center;justify-content:center;font-size:14px;color:#999;z-index:100000;';
+        document.body.appendChild(tip);
+        frame.addEventListener('load', function () {
+            var t = document.getElementById('shufei-preview-loading');
+            if (t && t.parentNode) t.parentNode.removeChild(t);
+        });
 
         // 顶部退出条（原生预览只有一个隐藏的 #btn-cancel-preview，这里给可见入口）
         var bar = document.createElement('div');
@@ -62,6 +78,9 @@
         frame = null;
         var bar = document.getElementById('shufei-preview-exit-bar');
         if (bar && bar.parentNode) bar.parentNode.removeChild(bar);
+        var tip = document.getElementById('shufei-preview-loading');
+        if (tip && tip.parentNode) tip.parentNode.removeChild(tip);
+        // 清掉历史版本可能残留的原生预览 class（旧版曾添加）
         document.body.classList.remove('fullscreen', 'preview');
         document.removeEventListener('keydown', onEsc);
         window.removeEventListener('message', onMessage);
