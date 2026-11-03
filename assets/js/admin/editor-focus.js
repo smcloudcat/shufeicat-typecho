@@ -22,11 +22,12 @@
 
     /* ===== 偏好 ===== */
     var PREF_KEY = 'shufei_editor_focus_prefs';
-    var prefs = { highlight: true, typewriter: false };
+    var prefs = { highlight: true, typewriter: false, preview: false };
     try {
         var saved = JSON.parse(localStorage.getItem(PREF_KEY) || '{}');
         if (typeof saved.highlight === 'boolean') prefs.highlight = saved.highlight;
         if (typeof saved.typewriter === 'boolean') prefs.typewriter = saved.typewriter;
+        if (typeof saved.preview === 'boolean') prefs.preview = saved.preview;
     } catch (e) { /* localStorage 不可用时用默认值 */ }
 
     function savePrefs() {
@@ -39,6 +40,9 @@
     var wrap = null;        // textarea 包裹容器（高亮条定位基准）
     var hlBar = null;       // 段落高亮条
     var bar = null;         // 悬浮操作条
+    var previewPane = null; // 实时预览面板（专注模式双栏）
+    var previewTimer = 0;   // 输入防抖计时器
+    var previewSeq = 0;     // 请求序号（丢弃过期响应）
     var rafId = 0;
     var originalHeight = textarea.style.height || '';
 
@@ -181,6 +185,7 @@
         bar.className = 'shufei-focus-bar';
         bar.id = 'shufei-focus-bar';
         bar.innerHTML =
+            '<button type="button" class="sf-fb-btn" id="sf-fb-preview" title="实时预览：右侧同步显示渲染效果"><i class="fa fa-columns"></i> 预览</button>' +
             '<button type="button" class="sf-fb-btn" id="sf-fb-highlight" title="当前段落高亮"><i class="fa fa-lightbulb-o"></i> 高亮</button>' +
             '<button type="button" class="sf-fb-btn" id="sf-fb-typewriter" title="打字机模式：当前段居中"><i class="fa fa-i-cursor"></i> 居中</button>' +
             '<span class="sf-fb-sep"></span>' +
@@ -193,6 +198,9 @@
             '<span class="sf-fb-status" id="shufei-focus-status"></span>';
         document.body.appendChild(bar);
 
+        bar.querySelector('#sf-fb-preview').addEventListener('click', function () {
+            setPreview(!prefs.preview);
+        });
         bar.querySelector('#sf-fb-highlight').addEventListener('click', function () {
             prefs.highlight = !prefs.highlight;
             savePrefs();
@@ -219,6 +227,8 @@
 
     function syncBarState() {
         if (!bar) return;
+        var pv = bar.querySelector('#sf-fb-preview');
+        if (pv) pv.classList.toggle('on', prefs.preview);
         bar.querySelector('#sf-fb-highlight').classList.toggle('on', prefs.highlight);
         bar.querySelector('#sf-fb-typewriter').classList.toggle('on', prefs.typewriter);
     }
@@ -273,6 +283,83 @@
         textarea.style.height = h + 'px';
     }
 
+    /* ===== 实时预览面板（专注模式双栏，2026-11-03）=====
+     * 用 preview-ajax 的 preview_live（前台同款渲染管线、不落盘不写缓存），
+     * 输入防抖 700ms 后刷新右栏。请求带序号，过期响应直接丢弃，
+     * 避免慢请求覆盖新内容（打字快时必现）。
+     */
+    function buildPreviewPane() {
+        if (previewPane) return previewPane;
+        previewPane = document.createElement('div');
+        previewPane.id = 'shufei-focus-preview';
+        previewPane.innerHTML =
+            '<div class="sfp-head"><span class="sfp-title">实时预览</span>' +
+            '<span class="sfp-status" id="sfp-status"></span></div>' +
+            '<div class="sfp-body" id="sfp-body"></div>';
+        if (prefs.preview) previewPane.style.display = 'flex';
+        document.body.appendChild(previewPane);
+        return previewPane;
+    }
+
+    function renderPreviewNow() {
+        var cfg = window.SHUFEI_ADMIN || {};
+        var ajax = cfg.previewAjaxUrl;
+        var bodyEl = document.getElementById('sfp-body');
+        var statusEl = document.getElementById('sfp-status');
+        if (!ajax || !bodyEl) {
+            if (statusEl) statusEl.textContent = '接口未就绪';
+            return;
+        }
+        var cidInput = document.querySelector('form[name=write_post] input[name=cid], form[name=write_page] input[name=cid]');
+        var mdInput = document.querySelector('input[name=markdown]');
+        var seq = ++previewSeq;
+        if (statusEl) statusEl.textContent = '渲染中…';
+        var fd = new FormData();
+        fd.append('action', 'preview_live');
+        fd.append('text', textarea.value || '');
+        fd.append('markdown', mdInput ? '1' : '0');
+        fd.append('cid', cidInput ? (cidInput.value || '') : '');
+        fetch(ajax, { method: 'POST', credentials: 'include', body: fd })
+            .then(function (r) { return r.json(); })
+            .then(function (o) {
+                if (seq !== previewSeq) return; // 已有更新的请求，丢弃本次结果
+                if (!o || !o.success) {
+                    if (statusEl) statusEl.textContent = (o && o.message) || '渲染失败';
+                    return;
+                }
+                var top = bodyEl.scrollTop;
+                bodyEl.innerHTML = (o.html && o.html !== '')
+                    ? o.html
+                    : '<p class="sfp-empty">开始输入，这里实时显示渲染效果…</p>';
+                bodyEl.scrollTop = top; // 保持阅读位置
+                if (statusEl) statusEl.textContent = '';
+            })
+            .catch(function () {
+                if (seq !== previewSeq) return;
+                if (statusEl) statusEl.textContent = '请求失败';
+            });
+    }
+
+    function schedulePreview() {
+        if (!focusActive || !prefs.preview) return;
+        clearTimeout(previewTimer);
+        previewTimer = setTimeout(renderPreviewNow, 700);
+    }
+
+    function setPreview(on) {
+        prefs.preview = on;
+        savePrefs();
+        document.body.classList.toggle('shufei-focus-preview', !!on && focusActive);
+        if (on) {
+            buildPreviewPane();
+            previewPane.style.display = 'flex';
+            renderPreviewNow();
+        } else if (previewPane) {
+            previewPane.style.display = 'none';
+        }
+        syncBarState();
+    }
+
     function setFocus(on) {
         if (on === focusActive) return;
         focusActive = on;
@@ -285,8 +372,18 @@
             syncBarState();
             scheduleUpdate();
             window.addEventListener('resize', resizeTextarea);
+            // 恢复上次的实时预览开关
+            document.body.classList.toggle('shufei-focus-preview', prefs.preview);
+            if (prefs.preview) {
+                buildPreviewPane();
+                previewPane.style.display = 'flex';
+                renderPreviewNow();
+            }
         } else {
             textarea.style.height = originalHeight;
+            document.body.classList.remove('shufei-focus-preview');
+            if (previewPane) previewPane.style.display = 'none';
+            clearTimeout(previewTimer);
             if (hlBar) hlBar.classList.remove('on');
             window.removeEventListener('resize', resizeTextarea);
             // 退出时收起抽屉
@@ -307,6 +404,9 @@
     ['input', 'keyup', 'click', 'focus'].forEach(function (ev) {
         textarea.addEventListener(ev, scheduleUpdate);
     });
+    // 实时预览只跟 input（编辑器内容真正变化时才重渲染）
+    textarea.addEventListener('input', schedulePreview);
+    textarea.addEventListener('compositionend', schedulePreview);
     textarea.addEventListener('compositionend', scheduleUpdate);
     textarea.addEventListener('scroll', function () {
         if (rafId) return;

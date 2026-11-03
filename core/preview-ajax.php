@@ -90,28 +90,25 @@ $action = isset($_POST['action']) ? $_POST['action'] : '';
 
 if ($action === 'preview_save') {
     handlePreviewSave();
+} elseif ($action === 'preview_live') {
+    handlePreviewLive();
 } else {
     echo json_encode(array('success' => false, 'message' => '未知操作'));
 }
 exit;
 
 /**
- * 渲染编辑器当前内容并暂存为一次性 token
+ * 用前台同款管线渲染编辑器内容（不落盘，供 preview_save / preview_live 复用）
+ *
+ * @param string $text        正文
+ * @param string $cid         文章 ID（0 表示新文章）
+ * @param bool   $isMarkdown  是否 Markdown
+ * @param bool   $noCache     是否跳过内容缓存（实时预览高频调用必须跳过，
+ *                            否则每次输入都会写一份 cache/content_*.html 并触发旧文件清理）
+ * @return array success/html/fieldsCites/message
  */
-function handlePreviewSave()
+function shufei_preview_render($text, $cid, $isMarkdown, $noCache)
 {
-    $text = isset($_POST['text']) ? (string)$_POST['text'] : '';
-    $title = isset($_POST['title']) ? (string)$_POST['title'] : '';
-    $isMarkdown = !empty($_POST['markdown']) && $_POST['markdown'] !== '0';
-    $cid = isset($_POST['cid']) ? preg_replace('/\D/', '', (string)$_POST['cid']) : '';
-    if ($cid === '') $cid = '0';
-
-    if (trim($text) === '') {
-        echo json_encode(array('success' => false, 'message' => '内容为空，无法预览'));
-        return;
-    }
-
-    // 与前台同款渲染管线：构造假 widget 复用 shufei_render_post_content
     try {
         require_once dirname(__FILE__) . '/markdown.php';
         require_once dirname(__FILE__) . '/media.php'; // shufei_process_images（apply_markdown_ext 依赖）
@@ -128,6 +125,9 @@ function handlePreviewSave()
             'modified' => time(),
             'created' => time(),
         );
+        if ($noCache) {
+            $fakeWidget->__noCache = true;
+        }
         $html = shufei_render_post_content($fakeWidget);
         // 与 post.php 一致的旧 fields 兜底：正文无 [cite: 标记时，按被编辑文章的
         // 自定义字段 shufeiCitePosts 渲染文末引用列表（旧文章迁移前的数据形态），
@@ -149,9 +149,65 @@ function handlePreviewSave()
             }
         }
     } catch (\Throwable $e) {
-        echo json_encode(array('success' => false, 'message' => '渲染失败: ' . $e->getMessage()));
+        return array('success' => false, 'message' => '渲染失败: ' . $e->getMessage());
+    }
+
+    return array('success' => true, 'html' => $html, 'fieldsCites' => $fieldsCites);
+}
+
+/**
+ * 实时预览（专注模式双栏用）：直接返回渲染好的 HTML，不生成 token、不落盘
+ *
+ * 请求频率高（输入防抖后每 700ms 一次），故跳过内容缓存读写。
+ */
+function handlePreviewLive()
+{
+    $text = isset($_POST['text']) ? (string)$_POST['text'] : '';
+    $isMarkdown = !empty($_POST['markdown']) && $_POST['markdown'] !== '0';
+    $cid = isset($_POST['cid']) ? preg_replace('/\D/', '', (string)$_POST['cid']) : '';
+    if ($cid === '') $cid = '0';
+
+    // 空内容直接返回空（不报错，避免边写边看时首次输入前弹提示）
+    if (trim($text) === '') {
+        echo json_encode(array('success' => true, 'html' => ''));
         return;
     }
+
+    $r = shufei_preview_render($text, $cid, $isMarkdown, true);
+    if (empty($r['success'])) {
+        echo json_encode(array('success' => false, 'message' => isset($r['message']) ? $r['message'] : '渲染失败'));
+        return;
+    }
+    $html = $r['html'];
+    if (!empty($r['fieldsCites'])) {
+        $html .= $r['fieldsCites'];
+    }
+    echo json_encode(array('success' => true, 'html' => $html), JSON_UNESCAPED_UNICODE);
+}
+
+/**
+ * 渲染编辑器当前内容并暂存为一次性 token
+ */
+function handlePreviewSave()
+{
+    $text = isset($_POST['text']) ? (string)$_POST['text'] : '';
+    $title = isset($_POST['title']) ? (string)$_POST['title'] : '';
+    $isMarkdown = !empty($_POST['markdown']) && $_POST['markdown'] !== '0';
+    $cid = isset($_POST['cid']) ? preg_replace('/\D/', '', (string)$_POST['cid']) : '';
+    if ($cid === '') $cid = '0';
+
+    if (trim($text) === '') {
+        echo json_encode(array('success' => false, 'message' => '内容为空，无法预览'));
+        return;
+    }
+
+    $r = shufei_preview_render($text, $cid, $isMarkdown, false);
+    if (empty($r['success'])) {
+        echo json_encode($r);
+        return;
+    }
+    $html = $r['html'];
+    $fieldsCites = $r['fieldsCites'];
 
     // 暂存目录（复用主题 cache，带 GC）
     $dir = dirname(__FILE__) . '/cache/preview';

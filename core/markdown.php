@@ -197,6 +197,9 @@ function shufei_render_post_content($widget)
     // 仅对已发布文章/页面启用缓存
     $cid = $widget->cid;
     $rawText = $widget->text;
+    // 实时预览（专注模式双栏）高频调用：跳过缓存读写，避免每次输入都写一份
+    // cache/content_*.html 并触发同 cid 旧文件清理（磁盘抖动 + 无意义写入）
+    $noCache = !empty($widget->__noCache);
     // 加入主题文件版本因子（markdown.php + media.php 修改时间），主题功能改动后旧缓存自动失效
     // 注意：media.php 里的短代码渲染（[gallery:] 等）也在 apply_ext 阶段执行，
     // 只算 markdown.php 的 mtime 会导致改 media.php 后旧缓存不失效（曾踩坑）
@@ -207,7 +210,7 @@ function shufei_render_post_content($widget)
     $cacheDir = dirname($cacheFile);
 
     // 尝试读取缓存（缓存有效期 6 小时）
-    if (file_exists($cacheFile) && (time() - filemtime($cacheFile)) < 21600) {
+    if (!$noCache && file_exists($cacheFile) && (time() - filemtime($cacheFile)) < 21600) {
         $cached = @file_get_contents($cacheFile);
         if ($cached !== false) {
             // 缓存命中后仍需处理回复可见（依赖用户状态）
@@ -262,7 +265,10 @@ function shufei_render_post_content($widget)
     // 写入缓存（回复可见部分不缓存，因为依赖用户状态）
     // 性能优化（2026-08）：写入前清理同 cid 的旧版本缓存文件。
     // 缓存文件名含内容 hash，文章每次编辑都会生成新文件，旧文件永不删除会无限堆积。
-    if (!is_dir($cacheDir)) {
+    // $noCache（实时预览）时整段跳过：内容每次输入都不同，写进去只会变垃圾。
+    if ($noCache) {
+        // 跳过缓存写入与清理
+    } elseif (!is_dir($cacheDir)) {
         @mkdir($cacheDir, 0755, true);
     } else {
         // 仅清理同文章的旧版本（删除 content_{cid}_*，保留当前要写入的文件）
@@ -282,7 +288,9 @@ function shufei_render_post_content($widget)
             }
         }
     }
-    @file_put_contents($cacheFile, $html);
+    if (!$noCache) {
+        @file_put_contents($cacheFile, $html);
+    }
 
     // 处理回复可见
     $html = shufei_parse_reply_content($html, $widget->cid);

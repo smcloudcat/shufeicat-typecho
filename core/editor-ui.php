@@ -1054,6 +1054,221 @@ function shufei_editor_focus_ui($post)
     max-width: 100%;
 }
 
+/* ===== 专注模式 · 实时预览双栏（2026-11-03）=====
+ * 开启后右侧固定一块预览面板，编辑区让出空间；内容由 preview-ajax 的
+ * preview_live 渲染（前台同款管线），输入防抖 700ms 刷新。 */
+body.shufei-focus-mode.shufei-focus-preview .typecho-post-area > [class*="col-tb-9"] {
+    max-width: none;
+    margin: 0;
+    padding-right: 500px;
+}
+
+#shufei-focus-preview {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 480px;
+    box-sizing: border-box;      /* 让 1px 左边框算在 480 内，避免面板宽 481 溢出 1px */
+    display: none;               /* 由 JS 切成 flex */
+    flex-direction: column;
+    background: #FFF;
+    border-left: 1px solid #D9D9D6;
+    box-shadow: -6px 0 20px rgba(0, 0, 0, .06);
+    z-index: 100000;
+}
+
+#shufei-focus-preview .sfp-head {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border-bottom: 1px solid #EFEFEC;
+    background: #FBFBFA;
+    font-size: 12px;
+    color: #888;
+}
+#shufei-focus-preview .sfp-title {
+    font-weight: 600;
+    color: #467B96;
+}
+#shufei-focus-preview .sfp-status {
+    color: #AAA;
+    font-size: 11px;
+}
+
+#shufei-focus-preview .sfp-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 18px 20px 72px;      /* 底部留白避开悬浮操作条 */
+    font-size: 15px;
+    line-height: 1.85;
+    color: #333;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+/* ---- 预览内的基础排版（复刻前台 .post-content 观感）---- */
+#shufei-focus-preview .sfp-body > *:first-child { margin-top: 0; }
+#shufei-focus-preview .sfp-body h1,
+#shufei-focus-preview .sfp-body h2,
+#shufei-focus-preview .sfp-body h3,
+#shufei-focus-preview .sfp-body h4,
+#shufei-focus-preview .sfp-body h5,
+#shufei-focus-preview .sfp-body h6 {
+    margin: 1.1em 0 .5em;
+    line-height: 1.35;
+    font-weight: 600;
+    color: #222;
+}
+#shufei-focus-preview .sfp-body h1 { font-size: 25px; }
+#shufei-focus-preview .sfp-body h2 {
+    font-size: 21px;
+    padding-left: 11px;
+    border-left: 3px solid #467B96;
+}
+#shufei-focus-preview .sfp-body h3 { font-size: 17px; }
+#shufei-focus-preview .sfp-body h4 { font-size: 15px; }
+#shufei-focus-preview .sfp-body p { margin: .6em 0; }
+#shufei-focus-preview .sfp-body ul,
+#shufei-focus-preview .sfp-body ol { margin: .6em 0; padding-left: 1.6em; }
+#shufei-focus-preview .sfp-body li { margin: .25em 0; }
+#shufei-focus-preview .sfp-body a { color: #467B96; text-decoration: underline; text-underline-offset: 2px; }
+#shufei-focus-preview .sfp-body hr {
+    margin: 1.2em 0;
+    border: none;
+    border-top: 1px solid #ECECE8;
+}
+#shufei-focus-preview .sfp-body img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 6px;
+    display: block;
+    margin: 8px auto;
+}
+#shufei-focus-preview .sfp-body blockquote {
+    margin: .8em 0;
+    padding: 8px 14px;
+    border-left: 3px solid #467B96;
+    background: rgba(70, 123, 150, .06);
+    color: #555;
+    border-radius: 0 4px 4px 0;
+}
+#shufei-focus-preview .sfp-body code {
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, .06);
+    font-family: Menlo, Consolas, monospace;
+    font-size: .9em;
+    word-break: break-word;
+}
+#shufei-focus-preview .sfp-body pre {
+    margin: .8em 0;
+    padding: 12px 14px;
+    border-radius: 8px;
+    background: #2B2F36;
+    color: #E6E6E6;
+    overflow-x: auto;
+    font-size: 12.5px;
+    line-height: 1.65;
+}
+#shufei-focus-preview .sfp-body pre code {
+    padding: 0;
+    background: none;
+    color: inherit;
+    font-size: inherit;
+}
+#shufei-focus-preview .sfp-body table {
+    margin: .8em 0;
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 13px;
+}
+#shufei-focus-preview .sfp-body th,
+#shufei-focus-preview .sfp-body td {
+    padding: 6px 10px;
+    border: 1px solid #E6E6E2;
+}
+#shufei-focus-preview .sfp-body th { background: #F7F7F4; font-weight: 600; }
+#shufei-focus-preview .sfp-body mark { background: #FFF3B0; padding: 0 2px; }
+#shufei-focus-preview .sfp-body figure { margin: .8em 0; }
+#shufei-focus-preview .sfp-body figcaption {
+    font-size: 12px;
+    color: #999;
+    text-align: center;
+    margin-top: 4px;
+}
+
+/* 图片滑块：预览里只做横向排列，不做自动播放 */
+#shufei-focus-preview .sfp-body .post-gallery { margin: .8em 0; }
+#shufei-focus-preview .sfp-body .post-gallery-track {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+}
+#shufei-focus-preview .sfp-body .post-gallery-item {
+    flex: 0 0 100%;
+    scroll-snap-align: start;
+}
+#shufei-focus-preview .sfp-body .post-gallery-noslide {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+}
+#shufei-focus-preview .sfp-body .post-gallery-noslide .post-gallery-item { flex: none; }
+#shufei-focus-preview .sfp-body .post-gallery-arrow,
+#shufei-focus-preview .sfp-body .post-gallery-footer { display: none; }
+
+/* 引用卡片 */
+#shufei-focus-preview .sfp-body .post-cite-card {
+    display: block;
+    margin: .8em 0;
+    padding: 9px 12px;
+    border: 1px solid #E6E6E2;
+    border-left: 3px solid #467B96;
+    border-radius: 6px;
+    background: #FAFAF8;
+    text-decoration: none;
+    color: #444;
+    font-size: 13px;
+}
+#shufei-focus-preview .sfp-body .post-cite-inline {
+    display: inline-block;
+    padding: 1px 8px;
+    font-size: 12px;
+}
+
+/* 视频/音乐占位 */
+#shufei-focus-preview .sfp-body .post-video-container,
+#shufei-focus-preview .sfp-body .post-music-wrap { margin: .8em 0; }
+#shufei-focus-preview .sfp-body video { max-width: 100%; border-radius: 8px; }
+
+#shufei-focus-preview .sfp-empty {
+    color: #BBB;
+    font-size: 13px;
+    text-align: center;
+    padding-top: 30px;
+}
+
+/* 移动端：改底部抽屉（编辑区在上、预览在下） */
+@media (max-width: 900px) {
+    body.shufei-focus-mode.shufei-focus-preview .typecho-post-area > [class*="col-tb-9"] {
+        padding-right: 0;
+    }
+
+    #shufei-focus-preview {
+        top: auto;
+        left: 0;
+        width: auto;
+        height: 45vh;
+        border-left: none;
+        border-top: 1px solid #D9D9D6;
+        box-shadow: 0 -6px 20px rgba(0, 0, 0, .08);
+    }
+}
+
 /* ===== 编辑器焦点模式（2026-10-16 · 阶段一：沉浸）===== */
 /* 隐藏后台 chrome（自定义字段与提交栏退出焦点后照常可用） */
 body.shufei-focus-mode header.typecho-head-nav,
