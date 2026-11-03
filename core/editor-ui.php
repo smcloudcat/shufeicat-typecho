@@ -1031,6 +1031,29 @@ function shufei_editor_focus_ui($post)
     }
     ?>
 <style>
+/* ===== 编辑器「预览」tab 宽度约束（2026-11-03）=====
+ * 原生 .wmd-edittab 的「预览」tab 显示 #wmd-preview 后，文章里的长代码块 /
+ * 宽表格会把宽度一路顶出去：form.typecho-post-area 本身是 .container(flex)
+ * 的子项且 min-width:auto，被内容撑到 1080（container 只有 952）→ 主栏
+ * 75%=810、侧栏 25%=270，右侧「发布日期/分类」被推走、整页横向溢出。
+ * 修法：让 flex 链上每一层都可收缩，预览区不超出。 */
+.typecho-post-area,
+.typecho-post-area > [class*="col-tb-9"] {
+    min-width: 0;
+}
+
+#wmd-preview {
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-wrap: break-word;
+    word-break: break-word;
+}
+
+#wmd-preview pre,
+#wmd-preview table {
+    max-width: 100%;
+}
+
 /* ===== 编辑器焦点模式（2026-10-16 · 阶段一：沉浸）===== */
 /* 隐藏后台 chrome（自定义字段与提交栏退出焦点后照常可用） */
 body.shufei-focus-mode header.typecho-head-nav,
