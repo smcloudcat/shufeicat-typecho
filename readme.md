@@ -38,9 +38,11 @@
 
 ### 前台页面
 
-**首页** —— 暗色主题 · 侧边栏目录 · 天气卡片 · AI 站点助手悬浮入口
+**首页** —— 深色 / 日间双主题（一键切换）· 侧边栏目录 · 天气卡片 · AI 站点助手悬浮入口
 
-![首页](https://img-cf.czzu.cn/shufeicat-home)
+![首页 · 暗色](https://img-cf.czzu.cn/shufeicat-home)
+
+![首页 · 日间](https://img-cf.czzu.cn/shufeicat-home-light)
 
 **文章页** —— 图片滑块轮播 · 引用卡片 · 代码高亮与复制 · 文章目录
 
