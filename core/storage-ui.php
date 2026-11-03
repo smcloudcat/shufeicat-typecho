@@ -34,73 +34,196 @@ function shufei_render_storage_profile_ui()
     $fieldsJson = json_encode($driverFields);
     ?>
 <style>
+/* ===== 图片存储 Profile 列表（2026-11-03 重绘：对齐 Typecho 后台设计语言
+ * 2px 圆角 / #E9E9E6 灰按钮 / #D9D9D6 细边框 / #467B96 primary / 白底浅投影，
+ * 去掉原先那套 8px 圆角 + 绿色系 + 蓝底 modal header 的「第三方组件风」）===== */
 .shufei-storage-wrap { padding: 0; }
 .shufei-storage-card {
-    border: 1px solid #e5e5e5; border-radius: 8px; padding: 14px 16px; margin-bottom: 12px;
-    background: #fafbfc; transition: all .2s;
+    border: 1px solid #D9D9D6;
+    border-radius: 2px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    background: #FFF;
+    transition: border-color .15s, background .15s;
 }
-.shufei-storage-card.active { border-color: #52c41a; background: #f6ffed; }
-.shufei-storage-card-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
-.shufei-storage-card-title { font-weight:bold; color:#333; font-size:14px; }
-.shufei-storage-card-driver { color:#888; font-size:12px; margin-left:8px; }
-.shufei-storage-card-actions { display:flex; gap:6px; flex-wrap:wrap; }
+.shufei-storage-card:hover { border-color: #c9c9c4; }
+/* 激活态：浅蓝底 + 左侧主色竖条（inset 阴影，不改变盒模型宽度） */
+.shufei-storage-card.active {
+    border-color: #467B96;
+    background: #F4F8FA;
+    box-shadow: inset 2px 0 0 #467B96;
+}
+.shufei-storage-card-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.shufei-storage-card-title { font-weight: 600; color: #333; font-size: 13px; }
+.shufei-storage-card-driver { color: #999; font-size: 12px; margin-left: 8px; }
+.shufei-storage-card-actions { display: flex; gap: 6px; flex-wrap: wrap; }
 .shufei-storage-btn {
-    display:inline-block; padding:4px 10px; font-size:12px; border-radius:4px; cursor:pointer;
-    border:1px solid #d9d9d9; background:#fff; color:#595959; transition:all .2s;
+    display: inline-block;
+    padding: 0 11px;
+    height: 26px;
+    line-height: 24px;
+    font-size: 12px;
+    border-radius: 2px;
+    cursor: pointer;
+    border: 1px solid #D9D9D6;
+    background: #E9E9E6;
+    color: #666;
+    transition: background .15s, color .15s, border-color .15s;
+    font-family: inherit;
 }
-.shufei-storage-btn:hover { border-color:#467B96; color:#467B96; }
-.shufei-storage-btn.primary { background:#467B96; color:#fff; border-color:#467B96; }
-.shufei-storage-btn.primary:hover { background:#3a6478; }
-.shufei-storage-btn.danger { background:#fff; color:#cf1322; border-color:#ffa39e; }
-.shufei-storage-btn.danger:hover { background:#fff1f0; }
-.shufei-storage-btn.success { background:#52c41a; color:#fff; border-color:#52c41a; }
-.shufei-storage-btn.success:hover { background:#389e0d; }
-.shufei-storage-badge { display:inline-block; padding:2px 8px; font-size:11px; border-radius:10px; background:#52c41a; color:#fff; margin-left:6px; }
+.shufei-storage-btn:hover { background: #dbdbd6; color: #333; }
+.shufei-storage-btn.primary {
+    background: #467B96;
+    color: #FFF;
+    border-color: #467B96;
+}
+.shufei-storage-btn.primary:hover { background: #3c6a81; border-color: #3c6a81; }
+.shufei-storage-btn.success {
+    background: #467B96;
+    color: #FFF;
+    border-color: #467B96;
+}
+.shufei-storage-btn.success:hover { background: #3c6a81; border-color: #3c6a81; }
+.shufei-storage-btn.danger {
+    background: #FFF;
+    color: #cf1322;
+    border-color: #f0c2c0;
+}
+.shufei-storage-btn.danger:hover { background: #fff1f0; border-color: #cf1322; }
+.shufei-storage-badge {
+    display: inline-block;
+    padding: 1px 8px;
+    font-size: 11px;
+    line-height: 1.6;
+    border-radius: 2px;
+    background: rgba(70, 123, 150, .12);
+    color: #467B96;
+    margin-left: 8px;
+    vertical-align: 1px;
+}
 .shufei-storage-add-btn {
-    padding:8px 20px; background:#467B96; color:#fff; border:none; border-radius:6px; cursor:pointer;
-    font-size:13px; font-weight:600; transition:all .2s;
+    padding: 0 14px;
+    height: 30px;
+    line-height: 28px;
+    background: #467B96;
+    color: #FFF;
+    border: 1px solid #467B96;
+    border-radius: 2px;
+    cursor: pointer;
+    font-size: 13px;
+    font-family: inherit;
+    transition: background .15s;
 }
-.shufei-storage-add-btn:hover { background:#3a6478; transform:translateY(-1px); }
+.shufei-storage-add-btn:hover { background: #3c6a81; border-color: #3c6a81; }
 .shufei-storage-modal-mask {
-    position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.45); z-index:10000; display:none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, .45);
+    z-index: 10000;
+    display: none;
 }
 .shufei-storage-modal {
-    position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
-    width:640px; max-width:92vw; max-height:85vh; background:#fff; border-radius:8px;
-    box-shadow:0 8px 32px rgba(0,0,0,0.25); z-index:10001; display:none; flex-direction:column; overflow:hidden;
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 620px;
+    max-width: 92vw;
+    max-height: 85vh;
+    background: #FFF;
+    border: 1px solid #D9D9D6;
+    border-radius: 2px;
+    box-shadow: 0 6px 28px rgba(0, 0, 0, .18);
+    z-index: 10001;
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
 }
-.shufei-storage-modal.show, .shufei-storage-modal-mask.show { display:flex; }
+.shufei-storage-modal.show, .shufei-storage-modal-mask.show { display: flex; }
+/* header 用白底 + 底边框（原来是蓝底白字，和后台其余面板完全不像） */
 .shufei-storage-modal-header {
-    padding:12px 16px; background:#467B96; color:#fff; font-weight:bold; font-size:14px;
-    display:flex; justify-content:space-between; align-items:center;
+    padding: 11px 16px;
+    background: #FBFBFA;
+    border-bottom: 1px solid #E9E9E6;
+    color: #333;
+    font-weight: 600;
+    font-size: 13px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
-.shufei-storage-modal-close { cursor:pointer; font-size:18px; line-height:1; }
-.shufei-storage-modal-body { padding:16px 20px; overflow-y:auto; flex:1; }
-.shufei-storage-modal-footer { padding:12px 16px; border-top:1px solid #f0f0f0; text-align:right; }
-.shufei-storage-field { margin-bottom:14px; }
-.shufei-storage-field label { display:block; font-weight:bold; margin-bottom:6px; color:#333; font-size:13px; }
-.shufei-storage-field input, .shufei-storage-field select, .shufei-storage-field textarea {
-    width:100%; padding:8px 10px; border:1px solid #ddd; border-radius:4px; box-sizing:border-box; font-size:13px;
+.shufei-storage-modal-close {
+    cursor: pointer;
+    font-size: 17px;
+    line-height: 1;
+    color: #999;
+    padding: 2px 4px;
+    border-radius: 2px;
 }
-.shufei-storage-field select { height:auto !important; padding-right:30px !important; line-height:normal !important; }
-.shufei-storage-field .desc { color:#999; font-size:12px; margin-top:4px; line-height:1.6; }
+.shufei-storage-modal-close:hover { color: #333; background: #EFEFEC; }
+.shufei-storage-modal-body { padding: 16px 18px; overflow-y: auto; flex: 1; }
+.shufei-storage-modal-footer {
+    padding: 10px 16px;
+    border-top: 1px solid #E9E9E6;
+    background: #FBFBFA;
+    text-align: right;
+}
+.shufei-storage-field { margin-bottom: 14px; }
+.shufei-storage-field label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: #333;
+    font-size: 12px;
+}
+.shufei-storage-field input,
+.shufei-storage-field select,
+.shufei-storage-field textarea {
+    width: 100%;
+    padding: 7px 9px;
+    border: 1px solid #D9D9D6;
+    border-radius: 2px;
+    box-sizing: border-box;
+    font-size: 13px;
+    font-family: inherit;
+}
+.shufei-storage-field input:focus,
+.shufei-storage-field select:focus,
+.shufei-storage-field textarea:focus {
+    border-color: #467B96;
+    outline: none;
+}
+.shufei-storage-field select { height: auto !important; padding-right: 30px !important; line-height: normal !important; }
+.shufei-storage-field .desc { color: #999; font-size: 12px; margin-top: 4px; line-height: 1.6; }
 .shufei-storage-test-status {
-    margin-top:10px; padding:10px 12px; border-radius:4px; font-size:12px; display:none; line-height:1.6;
+    margin-top: 10px;
+    padding: 8px 11px;
+    border-radius: 2px;
+    font-size: 12px;
+    display: none;
+    line-height: 1.6;
 }
-.shufei-storage-test-status.show { display:block; }
-.shufei-storage-test-status.success { background:#f6ffed; border:1px solid #b7eb8f; color:#389e0d; }
-.shufei-storage-test-status.error { background:#fff2f0; border:1px solid #ffccc7; color:#cf1322; }
-.shufei-storage-wm-image-field, .shufei-storage-wm-text-field { display:none; }
+.shufei-storage-test-status.show { display: block; }
+.shufei-storage-test-status.success { background: #F1F8F3; border: 1px solid #b7dfc3; color: #2f7a45; }
+.shufei-storage-test-status.error { background: #FFF4F2; border: 1px solid #f0c2c0; color: #cf1322; }
+.shufei-storage-wm-image-field, .shufei-storage-wm-text-field { display: none; }
+/* 空列表提示 */
+#shufei-storage-empty { color: #999; font-size: 12px; }
 </style>
 
 <div class="typecho-option cat-group-storage shufei-storage-wrap">
-    <div style="margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
-        <div style="font-weight:bold; color:#333; font-size:14px;">存储 Profile 列表</div>
+    <div style="margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; gap:10px;">
+        <div style="font-weight:600; color:#333; font-size:13px;">存储 Profile 列表</div>
         <button type="button" class="shufei-storage-add-btn" id="shufei-storage-add-btn">+ 新建 Profile</button>
     </div>
     <div id="shufei-storage-list"></div>
-    <div id="shufei-storage-empty" style="text-align:center; padding:30px 0; color:#999; font-size:13px; display:none;">
-        暂无存储 Profile，点击右上角"新建 Profile"添加。
+    <div id="shufei-storage-empty" style="text-align:center; padding:26px 0; color:#999; font-size:12px; display:none;">
+        暂无存储 Profile，点击右上角「新建 Profile」添加。
     </div>
 </div>
 
@@ -132,7 +255,7 @@ function shufei_render_storage_profile_ui()
 </div>
 
 <script>window.SHUFEI_ADMIN = Object.assign(window.SHUFEI_ADMIN || {}, {drivers: <?php echo $driversJson; ?>, driverFields: <?php echo $fieldsJson; ?>, ajaxUrl: <?php echo json_encode($ajaxUrl); ?>});</script>
-<script src="<?php echo $options->themeUrl; ?>/assets/js/admin/storage-profile.js?v=<?php echo shufei_get_theme_version(); ?>"></script>
+<script src="<?php echo $options->themeUrl; ?>/assets/js/admin/storage-profile.js?v=<?php echo filemtime(dirname(__FILE__) . '/../assets/js/admin/storage-profile.js') ?: shufei_get_theme_version(); ?>"></script>
 
     <?php
 }
@@ -190,7 +313,7 @@ function shufei_render_storage_images_ui()
 </div>
 
 <script>window.SHUFEI_ADMIN = Object.assign(window.SHUFEI_ADMIN || {}, {ajaxUrl: <?php echo json_encode($ajaxUrl); ?>});</script>
-<script src="<?php echo $options->themeUrl; ?>/assets/js/admin/storage-images.js?v=<?php echo shufei_get_theme_version(); ?>"></script>
+<script src="<?php echo $options->themeUrl; ?>/assets/js/admin/storage-images.js?v=<?php echo filemtime(dirname(__FILE__) . '/../assets/js/admin/storage-images.js') ?: shufei_get_theme_version(); ?>"></script>
 
     <?php
 }
