@@ -43,7 +43,10 @@
         frame.setAttribute('frameborder', '0');
         frame.setAttribute('sandbox', 'allow-same-origin allow-scripts');
         frame.src = PREVIEW_RENDER + '?token=' + encodeURIComponent(token);
-        frame.style.cssText = 'position:fixed;top:40px;left:0;width:100vw;height:calc(100vh - 40px);'
+        // iframe 是 replaced element：left/right + width:auto 不会拉伸，会退回
+        // 内在尺寸 300×150，必须显式给宽高。用 100%（相对包含块=视口内容区，
+        // 不含传统滚动条）而不是 100vw（含滚动条 → 横向溢出推走右侧栏）。
+        frame.style.cssText = 'position:fixed;top:40px;left:0;width:100%;height:calc(100% - 40px);'
             + 'border:0;background:#fff;z-index:100001;';
         document.body.appendChild(frame);
 

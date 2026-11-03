@@ -418,13 +418,12 @@
             appendSep();
 
             // === 第5组：工具 ===
+            // 原生「全屏」按钮已移除（2026-11-03）：其功能由「专注」模式接管——
+            // 专注模式本身就是全屏沉浸（隐藏后台 chrome + 主栏居中 + 侧栏变抽屉 +
+            // 段落高亮 + 打字机），比原生的左右分栏好用，两个入口并存只会让人犹豫。
             appendOrig('wmd-more-button');        // 摘要
             appendOrig('wmd-undo-button');        // 撤销
             appendOrig('wmd-redo-button');        // 重做
-            appendOrig('wmd-fullscreen-button');  // 全屏
-            if (origBtns['wmd-exit-fullscreen-button']) {
-                appendOrig('wmd-exit-fullscreen-button'); // 退出全屏
-            }
             appendOrig('wmd-help-button');        // 帮助
 
             buttonRow.data('shufei-rebuilt', true);
@@ -469,50 +468,9 @@
             setTimeout(function () { observer.disconnect(); }, 30000);
         }
 
-        // 全屏模式：动态调整 #text 和 #wmd-preview 的 top 位置，避免被工具栏遮挡
-        function adjustFullscreenLayout() {
-            var isFs = $('#text').css('position') === 'absolute';
-            if (isFs) {
-                var barHeight = $('#wmd-button-bar').outerHeight(true) || 53;
-                $('#text').css('top', barHeight + 'px');
-                $('#wmd-preview').css('top', barHeight + 'px');
-                // 让 .submit 覆盖到预览区顶部，避免工具栏换行后露出下方内容
-                $('.submit').css('height', barHeight + 'px');
-            } else {
-                $('#text').css('top', '');
-                $('#wmd-preview').css('top', '');
-                $('.submit').css('height', '');
-            }
-        }
-
-        // 全屏切换时处理 exit-fullscreen 按钮和布局调整
-        $(document).on('click', '#wmd-fullscreen-button, #wmd-exit-fullscreen-button', function () {
-            setTimeout(function () {
-                // 文字化 exit-fullscreen 按钮
-                var exitBtn = $('#wmd-exit-fullscreen-button');
-                if (exitBtn.length) {
-                    var span = exitBtn.find('span');
-                    if (span.length && !span.text()) {
-                        span.css('background-image', 'none').width('auto').text('退出全屏');
-                    }
-                }
-                // 全屏可能重建工具栏，重新 rebuild（含扩展按钮挂载）+ 文字化所有 sprite 按钮
-                $('.wmd-button-row li[id]').each(function () {
-                    var li = $(this);
-                    var id = li.attr('id');
-                    if (origLabels[id]) {
-                        var span = li.find('span');
-                        if (span.length && !span.text()) {
-                            span.css('background-image', 'none').width('auto').text(origLabels[id]);
-                        }
-                    }
-                });
-                rebuildToolbar();
-                appendExtraButtons();
-                // 调整内容区位置
-                adjustFullscreenLayout();
-            }, 100);
-        });
+        // 全屏相关补丁已移除（2026-11-03 合并进专注模式）：
+        // 原 adjustFullscreenLayout 与 #wmd-fullscreen-button 的 click 监听只服务
+        // 原生分栏全屏；按钮不再输出后即为死代码，一并删掉避免误导。
 
         // 绑定按钮点击事件（事件委托，支持动态注入）
         $(document).on('click', '.shufei-qi-btn', function (e) {

@@ -316,6 +316,25 @@
         });
     });
 
+    /* 原生全屏快捷键合并（2026-11-03）
+     * pagedown 自带 Ctrl+J（全屏）/ Ctrl+E（退出全屏），走的是它自己的
+     * doFullScreen → 给 body 加 .fullscreen 走左右分栏。原生「全屏」按钮
+     * 已移除，这两个快捷键改为切换专注模式，避免用户误入旧的全屏模式。
+     * 必须用捕获阶段：pagedown 的 handler 绑在 textarea 冒泡阶段，晚于本监听。 */
+    textarea.addEventListener('keydown', function (e) {
+        if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey) return;
+        var k = (e.key || '').toLowerCase();
+        if (k === 'j') {
+            e.preventDefault();
+            e.stopPropagation();
+            setFocus(!focusActive);
+        } else if (k === 'e' && focusActive) {
+            e.preventDefault();
+            e.stopPropagation();
+            setFocus(false);
+        }
+    }, true);
+
     document.addEventListener('keydown', function (e) {
         // Ctrl/Cmd + Shift + F：切换焦点模式
         if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'F' || e.key === 'f')) {
@@ -344,7 +363,8 @@
         window.SHUFEI_QI_EXTRA.push({
             action: 'editor-focus',
             label: '专注',
-            title: '焦点写作模式 (Ctrl+Shift+F)',
+            // 原生「全屏」已并入本模式（2026-11-03）：专注即全屏沉浸写作
+            title: '专注模式（全屏沉浸写作，Ctrl+J 或 Ctrl+Shift+F），Esc 退出',
         });
         window.SHUFEI_QI_ACTIONS['editor-focus'] = function () { setFocus(!focusActive); };
         // 本脚本注册晚于快捷按钮重建时补挂
