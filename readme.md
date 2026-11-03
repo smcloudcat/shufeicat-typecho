@@ -38,11 +38,11 @@
 
 ### 前台页面
 
-**首页** —— 深色 / 日间双主题（一键切换）· 侧边栏目录 · 天气卡片 · AI 站点助手悬浮入口
-
-![首页 · 暗色](https://img-cf.czzu.cn/shufeicat-home)
+**首页** —— 日间 / 深色双主题（一键切换）· 侧边栏目录 · 天气卡片 · AI 站点助手悬浮入口
 
 ![首页 · 日间](https://img-cf.czzu.cn/shufeicat-home-light)
+
+![首页 · 暗色](https://img-cf.czzu.cn/shufeicat-home)
 
 **文章页** —— 图片滑块轮播 · 引用卡片 · 代码高亮与复制 · 文章目录
 
@@ -50,15 +50,15 @@
 
 ### 移动端界面
 
-**移动端首页预览**
+**移动端首页**（日间 / 深色）
 
-<img src="https://img-cf.czzu.cn/1780233163301_ca0zv8n1.png" width="300" alt="移动端首页">
+<img src="https://img-cf.czzu.cn/shufeicat-mobile-home-light" width="300" alt="移动端首页 · 日间">
 
-<img src="https://img-cf.czzu.cn/1780233205253_dqftuekp.png" width="300" alt="移动端首页2">
+<img src="https://img-cf.czzu.cn/shufeicat-mobile-home-dark" width="300" alt="移动端首页 · 暗色">
 
-**移动端文章页面**
+**移动端文章页** —— 图片滑块轮播（左右滑动切换）、代码块复制、文章目录
 
-<img src="https://img-cf.czzu.cn/1780233244375_q6cwmbsh.png" width="300" alt="移动端文章">
+<img src="https://img-cf.czzu.cn/shufeicat-mobile-article" width="300" alt="移动端文章页">
 
 ### 主题后台
 
