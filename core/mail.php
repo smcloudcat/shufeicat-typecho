@@ -2,8 +2,11 @@
 
 if (!defined('__TYPECHO_ROOT_DIR__')) exit;
 
-/* 邮件通知 */
-\Typecho\Plugin::factory('Widget_Feedback')->finishComment = array('ShuFeiCat_Email', 'send');
+/* 邮件通知
+ * 性能优化（2026-08）：本文件不再无条件加载，改由 functions.php 的
+ * shufei_comment_mail_notify() 在 finishComment 钩子触发（评论发布后）时按需引入。
+ * 钩子注册也移至 functions.php（此处原注册行会导致每个前台请求都解析本文件）。
+ */
 
 class ShuFeiCat_Email
 {
@@ -16,15 +19,24 @@ class ShuFeiCat_Email
             return;
         }
         
-        // 包含本地PHPMailer文件
-        require_once(dirname(__FILE__) . '/phpmailer.php');
-        require_once(dirname(__FILE__) . '/smtp.php');
-        
-        $mail = new PHPMailer(true);
+        // 包含本地 PHPMailer 7.1.1 文件（命名空间方式）
+        require_once(dirname(__FILE__) . '/phpmailer/Exception.php');
+        require_once(dirname(__FILE__) . '/phpmailer/OAuthTokenProvider.php');
+        require_once(dirname(__FILE__) . '/phpmailer/OAuth.php');
+        require_once(dirname(__FILE__) . '/phpmailer/SMTP.php');
+        require_once(dirname(__FILE__) . '/phpmailer/POP3.php');
+        require_once(dirname(__FILE__) . '/phpmailer/DSNConfigurator.php');
+        require_once(dirname(__FILE__) . '/phpmailer/PHPMailer.php');
+
+        $mail = new \PHPMailer\PHPMailer\PHPMailer(true);
         try {
             $mail->isSMTP();
             $mail->SMTPAuth = true;
             $mail->CharSet = 'UTF-8';
+            // 连接与读写超时（秒）：防止 SMTP 不可达时评论提交被长时间阻塞
+            // PHPMailer 默认 Timeout=300s，足以让前端评论请求超时
+            $mail->Timeout = 10;
+            $mail->SMTPKeepAlive = false;
             // 兼容历史拼写错误 'tsl'，统一修正为 'tls'
             $smtpSecure = $options->commentMailSMTPSecure ? $options->commentMailSMTPSecure : 'ssl';
             if ($smtpSecure === 'tsl') {
@@ -40,8 +52,20 @@ class ShuFeiCat_Email
             $mail->isHTML(true);
             
             $text = $comment->text;
-            // 处理画图模式
-            $text = preg_replace('/\{!\{([^\"]*)\}!\}/', '<img style="max-width: 100%;vertical-align: middle;" src="$1"/>', $text);
+            // 转义所有用户可控字段，防止评论者注入 HTML/脚本到站长邮箱
+            $author = htmlspecialchars((string)$comment->author, ENT_QUOTES, 'UTF-8');
+            $title = htmlspecialchars((string)$comment->title, ENT_QUOTES, 'UTF-8');
+            $ip = htmlspecialchars((string)$comment->ip, ENT_QUOTES, 'UTF-8');
+
+            // 先转义正文，再处理画图模式 {!{url}!}（url 仅允许 http/https）
+            $text = htmlspecialchars((string)$text, ENT_QUOTES, 'UTF-8');
+            $text = preg_replace_callback('/\{!\{([^"]*)\}!\}/', function ($m) {
+                $url = html_entity_decode($m[1], ENT_QUOTES, 'UTF-8');
+                if (!preg_match('#^https?://#i', $url)) {
+                    return '';
+                }
+                return '<img style="max-width: 100%;vertical-align: middle;" src="' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '"/>';
+            }, $text);
             
             $mailAccentColor = self::sanitizeColor(isset($options->commentMailAccentColor) ? $options->commentMailAccentColor : '#3498db', '#3498db');
             $articleUrl = self::getArticleUrl($comment->permalink);
@@ -53,11 +77,12 @@ class ShuFeiCat_Email
                 if ($comment->parent != 0) {
                     $db = \Typecho\Db::get();
                     $parentInfo = $db->fetchRow($db->select('mail')->from('table.comments')->where('coid = ?', $comment->parent));
-                    $parentMail = $parentInfo['mail'];
+                    // 父评论可能已被删除，fetchRow 返回 false，需判空
+                    $parentMail = (is_array($parentInfo) && !empty($parentInfo['mail'])) ? $parentInfo['mail'] : '';
                     /* 被回复的人不是自己时，发送邮件 */
-                    if ($parentMail != $comment->mail) {
+                    if ($parentMail !== '' && $parentMail != $comment->mail) {
                         $title = self::renderSubject($options, 'reply', '您在 [{postTitle}] 的评论有了新的回复！', $comment, $articleUrl);
-                        $subtitle = '博主：[ ' . $comment->author . ' ] 在《 <a style="color: ' . $mailAccentColor . ';text-decoration: none;" href="' . $articleUrl . '" target="_blank">' . $comment->title . '</a> 》上回复了您:';
+                        $subtitle = '博主：[ ' . $author . ' ] 在《 <a style="color: ' . $mailAccentColor . ';text-decoration: none;" href="' . $articleUrl . '" target="_blank">' . $title . '</a> 》上回复了您:';
                         $mail->Body = self::renderTemplate($html, self::buildVars($options, $comment, $title, $subtitle, $text, $articleUrl));
                         $mail->addAddress($parentMail);
                         $mail->Subject = $title;
@@ -72,7 +97,7 @@ class ShuFeiCat_Email
                     $authorMail = $authoInfo['mail'];
                     if ($authorMail) {
                         $title = self::renderSubject($options, 'new', '您的文章 [{postTitle}] 收到一条新的评论！', $comment, $articleUrl);
-                        $subtitle = $comment->author . ' [' . $comment->ip . '] 在您的《 <a style="color: ' . $mailAccentColor . ';text-decoration: none;" href="' . $articleUrl . '" target="_blank">' . $comment->title . '</a> 》上发表评论:';
+                        $subtitle = $author . ' [' . $ip . '] 在您的《 <a style="color: ' . $mailAccentColor . ';text-decoration: none;" href="' . $articleUrl . '" target="_blank">' . $title . '</a> 》上发表评论:';
                         $mail->Body = self::renderTemplate($html, self::buildVars($options, $comment, $title, $subtitle, $text, $articleUrl));
                         $mail->addAddress($authorMail);
                         $mail->Subject = $title;
@@ -82,11 +107,12 @@ class ShuFeiCat_Email
                     /* 如果发表的评论是回复别人 */
                     $db = \Typecho\Db::get();
                     $parentInfo = $db->fetchRow($db->select('mail')->from('table.comments')->where('coid = ?', $comment->parent));
-                    $parentMail = $parentInfo['mail'];
+                    // 父评论可能已被删除，fetchRow 返回 false，需判空
+                    $parentMail = (is_array($parentInfo) && !empty($parentInfo['mail'])) ? $parentInfo['mail'] : '';
                     /* 被回复的人不是自己时，发送邮件 */
-                    if ($parentMail != $comment->mail) {
+                    if ($parentMail !== '' && $parentMail != $comment->mail) {
                         $title = self::renderSubject($options, 'reply', '您在 [{postTitle}] 的评论有了新的回复！', $comment, $articleUrl);
-                        $subtitle = $comment->author . ' 在《 <a style="color: ' . $mailAccentColor . ';text-decoration: none;" href="' . $articleUrl . '" target="_blank">' . $comment->title . '</a> 》上回复了您:';
+                        $subtitle = $author . ' 在《 <a style="color: ' . $mailAccentColor . ';text-decoration: none;" href="' . $articleUrl . '" target="_blank">' . $title . '</a> 》上回复了您:';
                         $mail->Body = self::renderTemplate($html, self::buildVars($options, $comment, $title, $subtitle, $text, $articleUrl));
                         $mail->addAddress($parentMail);
                         $mail->Subject = $title;
@@ -144,15 +170,15 @@ class ShuFeiCat_Email
             '{subtitle}' => $subtitle,
             '{content}' => $content,
             '{commentContent}' => $content,
-            '{siteName}' => $options->title,
+            '{siteName}' => htmlspecialchars((string)$options->title, ENT_QUOTES, 'UTF-8'),
             '{siteUrl}' => $options->siteUrl,
-            '{postTitle}' => $comment->title,
-            '{commentAuthor}' => $comment->author,
-            '{commentMail}' => $comment->mail,
-            '{commentIp}' => $comment->ip,
+            '{postTitle}' => htmlspecialchars((string)$comment->title, ENT_QUOTES, 'UTF-8'),
+            '{commentAuthor}' => htmlspecialchars((string)$comment->author, ENT_QUOTES, 'UTF-8'),
+            '{commentMail}' => htmlspecialchars((string)$comment->mail, ENT_QUOTES, 'UTF-8'),
+            '{commentIp}' => htmlspecialchars((string)$comment->ip, ENT_QUOTES, 'UTF-8'),
             '{permalink}' => $articleUrl,
             '{postLink}' => $articleUrl,
-            '{commentLink}' => $comment->permalink,
+            '{commentLink}' => htmlspecialchars((string)$comment->permalink, ENT_QUOTES, 'UTF-8'),
             '{year}' => date('Y'),
         );
     }

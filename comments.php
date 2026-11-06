@@ -31,11 +31,17 @@ function threadedComments($comments, $options) {
         $commentClass .= ' comment-by-author';
     }
 
+    // 评论点赞数（批量查询带静态缓存，整页只查一次库）
+    $likesMap = shufei_get_comment_likes_map($comments->cid);
+    $commentLikes = isset($likesMap[$comments->coid]) ? intval($likesMap[$comments->coid]) : 0;
+    $commentLiked = shufei_has_comment_liked($comments->coid);
+    $isAuthorComment = ($comments->authorId && $comments->authorId == $comments->ownerId) ? '1' : '0';
+
     $avatarUrl = shufei_get_gravatar_url($comments->mail, 40);
     $authorName = htmlspecialchars($comments->author);
     $parentAuthorName = $parentAuthor ? htmlspecialchars($parentAuthor) : '';
 ?>
-    <li itemscope itemtype="http://schema.org/UserComments" id="<?php $comments->theId(); ?>" class="<?php echo $commentClass; ?>">
+    <li itemscope itemtype="http://schema.org/UserComments" id="<?php $comments->theId(); ?>" class="<?php echo $commentClass; ?>" data-coid="<?php echo $comments->coid; ?>" data-likes="<?php echo $commentLikes; ?>" data-created="<?php echo $comments->created; ?>" data-is-author="<?php echo $isAuthorComment; ?>">
         <div class="comment-avatar">
             <img src="<?php echo $avatarUrl; ?>" alt="<?php echo $authorName; ?>" class="avatar" width="40" height="40" />
         </div>
@@ -55,42 +61,65 @@ function threadedComments($comments, $options) {
                     <a href="<?php $comments->permalink(); ?>">
                     <?php endif; ?>
                         <time itemprop="commentTime" datetime="<?php $comments->date('c'); ?>">
-                            <?php $comments->date($options->dateFormat); ?>
+                            <?php $comments->date('Y/m/d H:i'); ?>
                         </time>
                     <?php if ($comments->levels <= 0): ?>
                     </a>
+                    <?php endif; ?>
+                    <?php if (!empty($comments->ip) && !empty($options->commentIpRegionEnabled) && 'on' === $options->commentIpRegionEnabled): ?>
+                    <span class="comment-ip-region" data-ip="<?php echo htmlspecialchars($comments->ip, ENT_QUOTES, 'UTF-8'); ?>" title="<?php _e('IP 归属地'); ?>">
+                        <i class="fa fa-map-marker"></i>
+                        <span class="ip-region-text"></span>
+                    </span>
                     <?php endif; ?>
                 </span>
                 <?php if ('approved' !== $comments->status): ?>
                     <em class="comment-awaiting-moderation"><i class="fa fa-clock-o"></i> 待审核</em>
                 <?php endif; ?>
+                <span class="comment-like-btn<?php if ($commentLiked): ?> liked<?php endif; ?>" data-coid="<?php echo $comments->coid; ?>" title="点赞">
+                    <i class="fa <?php echo $commentLiked ? 'fa-heart' : 'fa-heart-o'; ?>"></i>
+                    <span class="like-count"><?php echo $commentLikes; ?></span>
+                </span>
                 <span class="comment-reply-btn">
                     <?php $comments->reply('<i class="fa fa-reply"></i> 回复'); ?>
                 </span>
             </div>
             <div class="comment-content" itemprop="commentText">
                 <?php
+                // 注意：threadedComments 的 $options 是 listComments 传入的 Config（单项配置），
+                // 不含 themeUrl/commentsMarkdown 等全局选项，须显式取 Widget_Options，
+                // 否则 shufei_parse_emoji_code 拿不到主题 URL，表情图片路径错误无法加载。
                 $commentOptions = \Typecho\Widget::widget('Widget_Options');
                 if ($commentOptions->commentsMarkdown) {
                     $commentText = $comments->text;
                     if ($commentText !== null) {
-                        echo shufei_parse_comment_markdown($commentText);
+                        $commentHtml = shufei_parse_comment_markdown($commentText);
                     } else {
                         ob_start();
                         $comments->content();
                         $commentHtml = ob_get_clean();
                         $commentHtml = shufei_parse_emoji_code($commentHtml, $commentOptions);
-                        echo $commentHtml;
                     }
                 } else {
                     ob_start();
                     $comments->content();
                     $commentHtml = ob_get_clean();
                     $commentHtml = shufei_parse_emoji_code($commentHtml, $commentOptions);
-                    echo $commentHtml;
                 }
+                // 解析评论中的文章引用标记 [quote]...[/quote] 为 <blockquote>
+                $commentHtml = shufei_parse_comment_quote($commentHtml);
+                // 剥离文章引用标记 [cite:N]（引用卡片在正文下方单独渲染）
+                $commentHtml = shufei_strip_comment_cite_markers($commentHtml);
+                echo $commentHtml;
                 ?>
             </div>
+            <?php
+            // 文章引用卡片（2026-10-14 新增）
+            $commentCiteCids = shufei_extract_comment_cites($comments->text);
+            if (!empty($commentCiteCids)) {
+                echo shufei_render_comment_cites($commentCiteCids);
+            }
+            ?>
         </div>
 
         <?php if ($comments->children): ?>
@@ -113,8 +142,21 @@ function threadedComments($comments, $options) {
             </h3>
         </div>
 
-        <ol class="comment-list">
-        <?php $comments->listComments(['before' => '', 'after' => '']); ?>
+        <div class="comment-toolbar">
+            <div class="comment-sort-bar">
+                <span class="sort-label"><i class="fa fa-sort"></i> 排序</span>
+                <div class="sort-options" id="comment-sort-options">
+                    <button type="button" class="sort-btn active" data-sort="default">默认</button>
+                    <button type="button" class="sort-btn" data-sort="time_asc">最早</button>
+                    <button type="button" class="sort-btn" data-sort="time_desc">最新</button>
+                    <button type="button" class="sort-btn" data-sort="likes">点赞</button>
+                    <button type="button" class="sort-btn" data-sort="author">只看作者</button>
+                </div>
+            </div>
+        </div>
+
+        <ol class="comment-list" id="comment-list">
+        <?php $comments->listComments(['before' => '', 'after' => '', 'commentIpRegionEnabled' => $this->options->commentIpRegionEnabled]); ?>
         </ol>
 
         <nav class="page-navigator">
@@ -173,16 +215,44 @@ function threadedComments($comments, $options) {
                     </label>
                     <textarea rows="6" cols="50" name="text" id="textarea" class="textarea"
                               required placeholder="<?php _e('写下你的评论...'); ?>"><?php $this->remember('text'); ?></textarea>
-                    <div class="emoji-panel" id="emoji-panel">
-                        <button type="button" class="emoji-toggle" id="emoji-toggle" aria-label="<?php _e('表情面板'); ?>" aria-expanded="false">
-                            <i class="fa fa-smile-o" aria-hidden="true"></i> <?php _e('表情'); ?>
-                        </button>
+                    <div class="comment-tools-row">
+                        <div class="emoji-panel" id="emoji-panel">
+                            <button type="button" class="emoji-toggle" id="emoji-toggle" aria-label="<?php _e('表情面板'); ?>" aria-expanded="false">
+                                <i class="fa fa-smile-o" aria-hidden="true"></i> <?php _e('表情'); ?>
+                            </button>
+                        </div>
+                        <div class="cite-article-panel" id="cite-article-panel">
+                            <button type="button" class="cite-article-toggle" id="cite-article-toggle" data-cid="<?php echo $this->cid; ?>" aria-label="<?php _e('引用文章'); ?>" aria-expanded="false">
+                                <i class="fa fa-quote-right" aria-hidden="true"></i> <?php _e('引用文章'); ?>
+                            </button>
+                        </div>
                     </div>
                 </div>
+
+                <?php /* 文章引用选择器（2026-10-14 新增）：搜索并选择要引用的站内文章 */ ?>
+                <div class="comment-cite-picker" id="comment-cite-picker" hidden>
+                    <div class="cite-search-row">
+                        <i class="fa fa-search" aria-hidden="true"></i>
+                        <input type="text" id="cite-search-input" placeholder="<?php _e('搜索文章标题…'); ?>" autocomplete="off" maxlength="50">
+                    </div>
+                    <div class="cite-results" id="cite-results" role="listbox"></div>
+                    <div class="cite-picker-tip"><?php _e('点击选择，最多可引用 5 篇文章'); ?></div>
+                </div>
+                <div class="comment-cite-chips" id="comment-cite-chips"></div>
+                <input type="hidden" name="comment_cites" id="comment-cites-input" value="">
 
                 <?php if (shufei_is_turnstile_enabled() && !empty(shufei_get_turnstile_site_key())): ?>
                 <div class="turnstile-container">
                     <div id="cf-turnstile" class="cf-turnstile" data-sitekey="<?php echo htmlspecialchars(shufei_get_turnstile_site_key()); ?>" data-theme="auto"></div>
+                </div>
+                <?php elseif (shufei_is_geetest_enabled() && !empty(shufei_get_geetest_captcha_id())): ?>
+                <div class="geetest-container">
+                    <div id="geetest-captcha" data-captcha-id="<?php echo htmlspecialchars(shufei_get_geetest_captcha_id()); ?>"></div>
+                </div>
+                <?php elseif (shufei_is_catcaptcha_enabled() && !empty(shufei_get_catcaptcha_site_key())): ?>
+                <div class="catcaptcha-container">
+                    <div id="catcaptcha-box" data-api-base="<?php echo htmlspecialchars(shufei_get_catcaptcha_api_base()); ?>" data-site-key="<?php echo htmlspecialchars(shufei_get_catcaptcha_site_key()); ?>" data-action="<?php echo htmlspecialchars(shufei_get_catcaptcha_action()); ?>"></div>
+                    <input type="hidden" name="catcaptcha_ticket" id="catcaptcha-ticket" value="">
                 </div>
                 <?php elseif (shufei_is_captcha_enabled()): ?>
                 <div class="captcha-container">

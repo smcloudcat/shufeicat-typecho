@@ -11,6 +11,18 @@
     $articleAlert = $this->fields->articleAlert;
     // 获取点赞功能控制
     $disableLike = $this->fields->disableLike;
+    // 判断文章 AI 总结
+    // 全局AI助手模式：开启后所有公开文章自动启用（密码文章未解锁时 $this->hidden 为 true，不显示）
+    $aiSummaryEnabled = false;
+    $aiGlobalMode = false;
+    if (class_exists('AiSummary') && AiSummary::isEnabled() && !$this->hidden) {
+        $aiGlobalMode = AiSummary::isGlobalMode();
+        $aiSummaryEnabled = $aiGlobalMode ? true : AiSummary::isArticleEnabled($this->cid);
+    }
+    $aiSummaryCached = ($aiSummaryEnabled && class_exists('AiSummary')) ? AiSummary::getCached($this->cid) : null;
+    // AI 摘要连续对话（off / summary_only / on）
+    $aiChatMode = ($aiSummaryEnabled && class_exists('AiChat')) ? AiChat::getMode() : 'off';
+    $aiChatOn = ($aiChatMode === 'on');
     ?>
     <?php if (!empty($articleAlert)): ?>
     <div class="article-alert-box" id="article-alert-box">
@@ -27,7 +39,7 @@
         </div>
     </div>
     <?php endif; ?>
-    <article class="post post-single <?php echo !empty($thumbnail) ? 'has-thumbnail' : ''; ?>" itemscope itemtype="http://schema.org/BlogPosting">
+    <article class="post post-single <?php echo !empty($thumbnail) ? 'has-thumbnail' : ''; ?>" data-cid="<?php echo $this->cid; ?>" data-ai-summary="<?php echo $aiSummaryEnabled ? '1' : '0'; ?>" itemscope itemtype="http://schema.org/BlogPosting">
         <header class="post-header" <?php if (!empty($thumbnail)): ?>style="background-image: url(<?php echo htmlspecialchars($thumbnail); ?>);"<?php endif; ?>>
             <div class="post-header-overlay">
                 <h1 class="post-title" itemprop="name headline">
@@ -63,29 +75,57 @@
                 </ul>
             </div>
         </header>
-        
+
+        <?php if ($aiSummaryEnabled && ($aiSummaryCached !== null || $aiGlobalMode)): ?>
+        <div class="ai-summary-box" id="ai-summary-box" data-cid="<?php echo $this->cid; ?>"<?php if (!$aiSummaryCached && $aiGlobalMode): ?> data-ai-auto="1"<?php endif; ?>>
+            <div class="ai-summary-header">
+                <i class="fa fa-magic"></i> <span><?php _e('AI 文章摘要'); ?></span>
+                <?php if ($aiSummaryCached !== null): ?>
+                <span class="ai-summary-source"><?php _e('已缓存'); ?></span>
+                <?php endif; ?>
+            </div>
+            <div class="ai-summary-content" id="ai-summary-content">
+                <?php if ($aiSummaryCached !== null): ?>
+                <p><?php echo nl2br(htmlspecialchars($aiSummaryCached)); ?></p>
+                <?php else: ?>
+                <div class="ai-summary-loading"><i class="fa fa-spinner fa-spin"></i> <?php _e('正在生成 AI 摘要...'); ?></div>
+                <?php endif; ?>
+            </div>
+            <div class="ai-summary-footer">
+                <?php if ($aiChatOn): ?>
+                <button type="button" class="ai-chat-toggle ai-post-ask" id="ai-post-ask" title="<?php _e('打开 AI 站点助手，基于本文提问'); ?>">
+                    <i class="fa fa-comments-o"></i> <?php _e('问 AI 助手'); ?>
+                </button>
+                <?php endif; ?>
+                <button type="button" class="ai-summary-regenerate" id="ai-summary-regenerate" title="<?php _e('重新生成'); ?>">
+                    <i class="fa fa-refresh"></i> <?php _e('重新生成'); ?>
+                </button>
+                <button type="button" class="ai-summary-collapse" id="ai-summary-collapse" title="<?php _e('折叠'); ?>">
+                    <i class="fa fa-chevron-up"></i>
+                </button>
+            </div>
+        </div>
+        <?php endif; ?>
+
         <div class="post-content" itemprop="articleBody">
             <?php if ($this->hidden): ?>
-                <div class="password-protection">
-                    <div class="password-lock-icon">
-                        <i class="fa fa-lock"></i>
-                    </div>
-                    <h2 class="password-title">文章已加密~</h2>
-                    <p class="password-desc">这是一篇受密码保护的文章，请输入正确的密码来查看全文内容。</p>
-                    <?php $this->content(); ?>
-                    <p class="password-hint"><i class="fa fa-info-circle"></i> 请联系博主获取访问密码</p>
-                </div>
+                <?php echo shufei_render_password_protection($this); ?>
             <?php else: ?>
                 <?php echo shufei_render_post_content($this); ?>
             <?php endif; ?>
         </div>
         
+        <?php if (!$this->hidden && strpos((string)$this->text, '[cite:') === false): ?>
+        <?php echo shufei_render_article_cites(shufei_get_article_cites(isset($this->fields->shufeiCitePosts) ? $this->fields->shufeiCitePosts : '')); ?>
+        <?php endif; ?>
+        
         <?php if (count($this->tags) > 0): ?>
-        <p itemprop="keywords" class="tags">
-            <i class="fa fa-tags"></i>
-            <?php _e('标签'); ?>: 
-            <?php $this->tags(', ', true, 'none'); ?>
-        </p>
+        <div class="post-tags" itemprop="keywords">
+            <span class="post-tags-label"><i class="fa fa-tags"></i><?php _e('标签'); ?></span>
+            <?php foreach ($this->tags as $_tag): ?>
+            <a class="tag-pill" href="<?php echo $_tag['permalink']; ?>"><?php echo htmlspecialchars($_tag['name']); ?></a>
+            <?php endforeach; ?>
+        </div>
         <?php endif; ?>
         
     </article>
@@ -106,10 +146,27 @@
                     <span class="stat-value post-likes-count" data-cid="<?php echo $this->cid; ?>"><?php echo shufei_get_likes($this->cid); ?></span>
                 </span>
             </div>
-            <button class="post-like-btn <?php echo shufei_has_liked($this->cid) ? 'liked' : ''; ?>" data-cid="<?php echo $this->cid; ?>" <?php echo shufei_has_liked($this->cid) ? 'disabled' : ''; ?>>
-                <i class="fa fa-thumbs-up"></i>
-                <span class="like-text"><?php echo shufei_has_liked($this->cid) ? '已点赞' : '点赞'; ?></span>
-            </button>
+            <div class="post-action-btns">
+                <button class="post-like-btn <?php echo shufei_has_liked($this->cid) ? 'liked' : ''; ?>" data-cid="<?php echo $this->cid; ?>" <?php echo shufei_has_liked($this->cid) ? 'disabled' : ''; ?>>
+                    <i class="fa fa-thumbs-up"></i>
+                    <span class="like-text"><?php echo shufei_has_liked($this->cid) ? '已点赞' : '点赞'; ?></span>
+                </button>
+                <button class="post-fav-btn" id="post-fav-btn" data-cid="<?php echo $this->cid; ?>" title="收藏文章">
+                    <i class="fa fa-heart-o"></i>
+                    <span class="fav-text">收藏</span>
+                </button>
+            </div>
+        </div>
+    </div>
+    <?php else: ?>
+    <div class="post-like-box">
+        <div class="like-box-inner">
+            <div class="post-action-btns">
+                <button class="post-fav-btn" id="post-fav-btn" data-cid="<?php echo $this->cid; ?>" title="收藏文章">
+                    <i class="fa fa-heart-o"></i>
+                    <span class="fav-text">收藏</span>
+                </button>
+            </div>
         </div>
     </div>
     <?php endif; ?>
@@ -124,6 +181,70 @@
             <i class="fa fa-angle-right"></i>
         </li>
     </ul>
+
+    <?php
+    // 文章投票卡片：仅在配置了投票问题时显示
+    $_voteConfig = shufei_get_vote_config($this->cid);
+    if ($_voteConfig):
+        $_voteCheck = shufei_check_voted($this->cid);
+        $_voteCounts = shufei_get_vote_counts($this->cid, $_voteConfig['options']);
+        $_voteExpired = ($_voteConfig['deadline'] > 0 && time() > $_voteConfig['deadline']);
+        $_voteShowResults = $_voteCheck['voted'] || $_voteExpired;
+    ?>
+    <div class="post-vote-card" id="post-vote-card"
+         data-cid="<?php echo $this->cid; ?>"
+         data-voted="<?php echo $_voteCheck['voted'] ? '1' : '0'; ?>"
+         data-option="<?php echo $_voteCheck['option'] !== null ? $_voteCheck['option'] : ''; ?>"
+         data-expired="<?php echo $_voteExpired ? '1' : '0'; ?>"
+         data-deadline="<?php echo $_voteConfig['deadline']; ?>">
+        <div class="vote-card-header">
+            <div class="vote-card-title">
+                <i class="fa fa-bar-chart-o"></i>
+                <span><?php echo htmlspecialchars($_voteConfig['question']); ?></span>
+            </div>
+            <?php if ($_voteExpired): ?>
+            <span class="vote-badge vote-badge-ended">已截止</span>
+            <?php elseif ($_voteConfig['deadline'] > 0): ?>
+            <span class="vote-badge vote-badge-active">截止 <?php echo htmlspecialchars($_voteConfig['deadlineText']); ?></span>
+            <?php endif; ?>
+        </div>
+        <div class="vote-card-body">
+            <?php foreach ($_voteConfig['options'] as $_idx => $_opt):
+                $_cnt = isset($_voteCounts['counts'][$_idx]) ? $_voteCounts['counts'][$_idx] : 0;
+                $_pct = $_voteCounts['total'] > 0 ? round(($_cnt / $_voteCounts['total']) * 100) : 0;
+                $_isMine = ($_voteCheck['option'] === $_idx);
+            ?>
+            <div class="vote-option<?php echo $_isMine ? ' vote-option-mine' : ''; ?><?php echo $_voteShowResults ? ' vote-option-readonly' : ''; ?>"
+                 data-index="<?php echo $_idx; ?>">
+                <div class="vote-option-bar" style="width: <?php echo $_voteShowResults ? $_pct : 0; ?>%"></div>
+                <div class="vote-option-content">
+                    <span class="vote-option-label">
+                        <?php if ($_isMine): ?><i class="fa fa-check-circle"></i><?php endif; ?>
+                        <?php echo htmlspecialchars($_opt); ?>
+                    </span>
+                    <?php if ($_voteShowResults): ?>
+                    <span class="vote-option-stats">
+                        <span class="vote-pct"><?php echo $_pct; ?>%</span>
+                        <span class="vote-cnt">(<?php echo $_cnt; ?>票)</span>
+                    </span>
+                    <?php endif; ?>
+                </div>
+            </div>
+            <?php endforeach; ?>
+        </div>
+        <div class="vote-card-footer">
+            <span class="vote-total">
+                <i class="fa fa-users"></i>
+                共 <strong><?php echo $_voteCounts['total']; ?></strong> 人参与
+            </span>
+            <?php if (!$_voteCheck['voted'] && !$_voteExpired): ?>
+            <span class="vote-hint">点击选项进行投票</span>
+            <?php elseif ($_voteCheck['voted']): ?>
+            <span class="vote-hint">您已投票，感谢参与</span>
+            <?php endif; ?>
+        </div>
+    </div>
+    <?php endif; ?>
 
     <?php $this->need('comments.php'); ?>
 </div><!-- end #main-->

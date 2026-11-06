@@ -16,24 +16,60 @@ if (!defined('__TYPECHO_ROOT_DIR__')) {
 }
 
 require_once dirname(__FILE__) . '/post-stats.php';
+require_once dirname(__FILE__) . '/vote.php';
+require_once dirname(__FILE__) . '/password-rate-limit.php';
+require_once dirname(__FILE__) . '/ai-moderation.php';
+require_once dirname(__FILE__) . '/ai-provider.php';
+require_once dirname(__FILE__) . '/ai-summary.php';
+require_once dirname(__FILE__) . '/ai-chat.php';
+
+// 计算站点根 URL（与后台/核心保持一致），保证 Cookie 前缀一致
+// 直接访问本文件时 Request::getRequestRoot() 会基于脚本路径动态计算（得到 /usr/themes/ShuFeiCat/core），
+// 与页面渲染上下文（站点根）不一致，会导致密码 cookie 写入的 key 与页面读取的 key 不同；
+// 故显式定义 __TYPECHO_ROOT_URL__ 走 Options::___rootUrl() 的常量分支
+if (!defined('__TYPECHO_ROOT_URL__')) {
+    if (defined('__TYPECHO_SITE_URL__')) {
+        define('__TYPECHO_ROOT_URL__', __TYPECHO_SITE_URL__);
+    } else {
+        $isSecure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+            || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
+        $protocol = $isSecure ? 'https' : 'http';
+        $host = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : (isset($_SERVER['SERVER_NAME']) ? $_SERVER['SERVER_NAME'] : '');
+        $scriptName = isset($_SERVER['SCRIPT_NAME']) ? $_SERVER['SCRIPT_NAME'] : '';
+        $basePath = '';
+        if ($scriptName && defined('__TYPECHO_ROOT_DIR__')) {
+            $relPath = str_replace('\\', '/', substr(__FILE__, strlen(__TYPECHO_ROOT_DIR__)));
+            if ($relPath && substr($scriptName, -strlen($relPath)) === $relPath) {
+                $basePath = substr($scriptName, 0, -strlen($relPath));
+            }
+        }
+        define('__TYPECHO_ROOT_URL__', rtrim($protocol . '://' . $host . $basePath, '/'));
+    }
+}
 
 $action = isset($_GET['action']) ? $_GET['action'] : '';
 
 header('Content-Type: application/json');
 
-// CSRF 防护：校验 Typecho 安全 token
-// 使用固定 suffix 生成 token，避免 PJAX 切换页面或 CDN/反代场景下
-// 前端 getRequestUrl() 与后端 HTTP_REFERER 不一致导致校验失败
+// CSRF 防护：基于 session 的独立 token 校验
+// 原实现依赖 Widget\Security，独立访问本文件时上下文不完整会导致 token 不一致
+// 改用 session token：header.php 生成写入 $_SESSION，本文件校验
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 $csrfToken = isset($_POST['_']) ? $_POST['_'] : '';
-$expectedToken = '';
-if (class_exists('\Widget\Security')) {
-    try {
-        $security = \Widget\Security::alloc();
-        $expectedToken = $security->getToken('shufei_ajax');
-    } catch (\Throwable $e) {
-        // 安全组件初始化失败时拒绝所有请求
-        echo json_encode(array('success' => false, 'message' => '安全校验失败'));
-        exit;
+$sessionKey = 'shufei_ajax_token';
+$expectedToken = isset($_SESSION[$sessionKey]) ? $_SESSION[$sessionKey] : '';
+
+// token 为空或校验失败，尝试用 Typecho 原生 Security 回退（兼容旧版）
+if (empty($expectedToken)) {
+    if (class_exists('\Widget\Security')) {
+        try {
+            $security = \Widget\Security::alloc();
+            $expectedToken = $security->getToken('shufei_ajax');
+        } catch (\Throwable $e) {
+            $expectedToken = '';
+        }
     }
 }
 
@@ -53,6 +89,16 @@ switch ($action) {
         echo json_encode($result);
         break;
 
+    case 'comment_like':
+        $coid = isset($_POST['coid']) ? intval($_POST['coid']) : 0;
+        if ($coid <= 0) {
+            echo json_encode(array('success' => false, 'message' => '参数错误'));
+            exit;
+        }
+        $result = shufei_add_comment_like($coid);
+        echo json_encode($result);
+        break;
+
     case 'view':
         $cid = isset($_POST['cid']) ? intval($_POST['cid']) : 0;
         if ($cid <= 0) {
@@ -61,6 +107,206 @@ switch ($action) {
         }
         $views = shufei_add_view($cid);
         echo json_encode(array('success' => true, 'views' => $views));
+        break;
+
+    case 'password_verify':
+        // 密码文章/页面验证（AJAX 版，替代核心 POST 流程，避免密码错误时核心抛 403 异常）
+        $cid = isset($_POST['cid']) ? intval($_POST['cid']) : 0;
+        $password = isset($_POST['password']) ? (string)$_POST['password'] : '';
+        if ($cid <= 0) {
+            echo json_encode(array('success' => false, 'message' => '参数错误'));
+            exit;
+        }
+
+        // 限速：IP + CID 维度，防止无限爆破
+        if (!shufei_password_rate_allowed($cid)) {
+            echo json_encode(array('success' => false, 'message' => '尝试次数过多，请稍后再试'));
+            exit;
+        }
+
+        // 初始化 Cookie 前缀（与核心一致），验证通过后写入密码 cookie
+        $options = \Typecho\Widget::widget('Widget_Options');
+        \Typecho\Cookie::setPrefix($options->rootUrl);
+
+        $db = \Typecho\Db::get();
+        $row = $db->fetchRow($db->select('password')->from('table.contents')->where('cid = ?', $cid));
+        $realPassword = isset($row['password']) ? $row['password'] : '';
+
+        if ($realPassword !== '' && hash_equals($realPassword, $password)) {
+            // 密码正确：写入密码 cookie（与会话 cookie 一致），前端再 Pjax/跳转刷新内容
+            \Typecho\Cookie::set('protectPassword_' . $cid, $password);
+            shufei_password_rate_record($cid, true);
+            echo json_encode(array('success' => true));
+        } else {
+            shufei_password_rate_record($cid, false);
+            echo json_encode(array('success' => false, 'message' => '密码错误，请重新输入'));
+        }
+        break;
+
+    case 'vote':
+        $cid = isset($_POST['cid']) ? intval($_POST['cid']) : 0;
+        $optionIndex = isset($_POST['option']) ? intval($_POST['option']) : -1;
+        if ($cid <= 0) {
+            echo json_encode(array('success' => false, 'message' => '参数错误'));
+            exit;
+        }
+        $result = shufei_submit_vote($cid, $optionIndex);
+        // 投票成功后返回最新统计
+        if ($result['success']) {
+            $config = shufei_get_vote_config($cid);
+            if ($config) {
+                $counts = shufei_get_vote_counts($cid, $config['options']);
+                $result['counts'] = $counts['counts'];
+                $result['total'] = $counts['total'];
+                $result['option'] = $optionIndex;
+            }
+        }
+        echo json_encode($result);
+        break;
+
+    case 'get_vote_results':
+        $cid = isset($_POST['cid']) ? intval($_POST['cid']) : 0;
+        if ($cid <= 0) {
+            echo json_encode(array('success' => false, 'message' => '参数错误'));
+            exit;
+        }
+        $config = shufei_get_vote_config($cid);
+        if (!$config) {
+            echo json_encode(array('success' => false, 'message' => '未开启投票'));
+            exit;
+        }
+        $check = shufei_check_voted($cid);
+        $counts = shufei_get_vote_counts($cid, $config['options']);
+        $isExpired = ($config['deadline'] > 0 && time() > $config['deadline']);
+        echo json_encode(array(
+            'success'  => true,
+            'question' => $config['question'],
+            'options'  => $config['options'],
+            'counts'   => $counts['counts'],
+            'total'    => $counts['total'],
+            'voted'    => $check['voted'],
+            'option'   => $check['option'],
+            'expired'  => $isExpired,
+            'deadline' => $config['deadline']
+        ));
+        break;
+
+    case 'article_search':
+        // 评论文章引用选择器：搜索本站公开文章（隐私锁同 AI 工具标准）
+        $q = isset($_POST['q']) ? trim((string)$_POST['q']) : '';
+        if (function_exists('mb_substr')) {
+            $q = mb_substr($q, 0, 50, 'UTF-8');
+        } else {
+            $q = substr($q, 0, 150);
+        }
+        $exclude = isset($_POST['exclude']) ? intval($_POST['exclude']) : 0;
+        $limit = isset($_POST['limit']) ? intval($_POST['limit']) : 10;
+        if ($limit < 1) $limit = 10;
+        if ($limit > 20) $limit = 20;
+        try {
+            $db = \Typecho\Db::get();
+            $prefix = $db->getPrefix();
+            $select = $db->select('cid, title, created')
+                ->from($prefix . 'contents')
+                ->where('type = ?', 'post')
+                ->where('status = ?', 'publish')
+                ->where('(password IS NULL OR password = ?)', '')
+                ->order('created', \Typecho\Db::SORT_DESC)
+                ->limit($limit);
+            if ($exclude > 0) {
+                // 排除当前文章：引用"其他"文章
+                $select->where('cid <> ?', $exclude);
+            }
+            if ($q !== '') {
+                $esc = str_replace(array('\\', '%', '_'), array('\\\\', '\\%', '\\_'), $q);
+                $select->where('title LIKE ?', '%' . $esc . '%');
+            }
+            $rows = $db->fetchAll($select);
+            $articles = array();
+            foreach ($rows as $row) {
+                $articles[] = array(
+                    'cid'   => intval($row['cid']),
+                    'title' => (string)$row['title'],
+                    'date'  => date('Y-m-d', intval($row['created'])),
+                );
+            }
+            echo json_encode(array('success' => true, 'articles' => $articles));
+        } catch (\Throwable $e) {
+            error_log('[ShuFeiCat] article_search 失败: ' . $e->getMessage());
+            echo json_encode(array('success' => false, 'message' => '搜索失败，请稍后重试'));
+        }
+        break;
+
+    case 'ai_summary':
+        $cid = isset($_POST['cid']) ? intval($_POST['cid']) : 0;
+        if ($cid <= 0) {
+            echo json_encode(array('success' => false, 'message' => '参数错误'));
+            exit;
+        }
+        // 流式输出：需后台开启且请求带 stream=1
+        $wantStream = (isset($_POST['stream']) && $_POST['stream'] === '1') && AiSummary::isStreamEnabled();
+        if ($wantStream) {
+            // 关闭输出缓冲，确保逐块推送
+            while (ob_get_level() > 0) {
+                @ob_end_clean();
+            }
+            header('Content-Type: text/event-stream; charset=utf-8');
+            header('Cache-Control: no-cache');
+            header('X-Accel-Buffering: no');
+            // 发送一个空行建立 SSE 连接
+            echo "data: {\"start\":true}\n\n";
+            if (function_exists('flush')) {
+                @flush();
+            }
+
+            $result = AiSummary::generateStream($cid, function ($delta) {
+                echo 'data: ' . json_encode(array('delta' => $delta), JSON_UNESCAPED_UNICODE) . "\n\n";
+                if (function_exists('flush')) {
+                    @flush();
+                }
+            });
+
+            // 发送结束事件
+            echo 'data: ' . json_encode(array(
+                'done' => true,
+                'success' => $result['success'],
+                'summary' => $result['summary'],
+                'message' => $result['message'],
+            ), JSON_UNESCAPED_UNICODE) . "\n\n";
+            if (function_exists('flush')) {
+                @flush();
+            }
+            exit;
+        }
+        $result = AiSummary::generate($cid);
+        echo json_encode($result, JSON_UNESCAPED_UNICODE);
+        break;
+
+    case 'ai_chat':
+        // AI 摘要连续对话（访客可用，需后台开启 aiChatMode=on）
+        $cid = isset($_POST['cid']) ? intval($_POST['cid']) : 0;
+        $message = isset($_POST['message']) ? (string)$_POST['message'] : '';
+        $history = array();
+        if (isset($_POST['history']) && $_POST['history'] !== '') {
+            $decoded = json_decode((string)$_POST['history'], true);
+            if (is_array($decoded)) {
+                $history = $decoded;
+            }
+        }
+        // 流式分支：SSE 逐字输出（start/status/delta/reset/notice/done/error）
+        if (isset($_POST['stream']) && $_POST['stream'] === '1') {
+            header('Content-Type: text/event-stream; charset=utf-8');
+            header('Cache-Control: no-cache');
+            header('X-Accel-Buffering: no');
+            while (ob_get_level() > 0) { ob_end_clean(); }
+            AiChat::handleStream($cid, $message, $history, function ($event) {
+                echo 'data: ' . json_encode($event, JSON_UNESCAPED_UNICODE) . "\n\n";
+                if (function_exists('flush')) { flush(); }
+            });
+            break;
+        }
+        $result = AiChat::handle($cid, $message, $history);
+        echo json_encode($result, JSON_UNESCAPED_UNICODE);
         break;
 
     default:

@@ -4,8 +4,9 @@
  *
  * @package ShuFeiCat
  * @author YunCat
- * @version 1.4.1
+ * @version 1.5.0
  * @link https://lwcat.cn
+ * @license https://www.gnu.org/licenses/agpl-3.0.html AGPL-3.0
  */
 
 if (!defined('__TYPECHO_ROOT_DIR__')) exit;
@@ -29,7 +30,19 @@ $this->need('header.php');
     <?php endif; ?>
     
     <?php if ($this->have()): ?>
-    <div id="ajax-post-list" class="post-list-<?php echo !empty($this->options->postListStyle) ? $this->options->postListStyle : 'classic'; ?>">
+    <?php
+    // 列表美化设置（列表美化 Tab）：默认值与主题原有外观一致
+    $lbOpt = function_exists('shufei_get_list_beautify_options') ? shufei_get_list_beautify_options() : array();
+    $lbHover = isset($lbOpt['hover']) ? $lbOpt['hover'] : 'lift';
+    $lbAccent = isset($lbOpt['accent']) ? $lbOpt['accent'] : 'off';
+    $lbExcerpt = isset($lbOpt['excerpt']) ? $lbOpt['excerpt'] : 'on';
+    $lbMeta = (isset($lbOpt['meta']) && is_array($lbOpt['meta'])) ? implode(' ', $lbOpt['meta']) : 'author date category comments';
+    ?>
+    <div id="ajax-post-list" class="post-list-<?php echo !empty($this->options->postListStyle) ? $this->options->postListStyle : 'classic'; ?>"
+         data-list-hover="<?php echo htmlspecialchars($lbHover); ?>"
+         data-list-accent="<?php echo htmlspecialchars($lbAccent); ?>"
+         data-list-excerpt="<?php echo htmlspecialchars($lbExcerpt); ?>"
+         data-list-meta="<?php echo htmlspecialchars($lbMeta); ?>">
     <?php
     // 获取所有置顶文章的CID
     $stickyCids = shufei_get_sticky_cids();
@@ -85,6 +98,12 @@ $this->need('header.php');
     }
 
     $postListStyle = !empty($this->options->postListStyle) ? $this->options->postListStyle : 'classic';
+
+    // 性能优化：批量预加载 fields/categories/author，消除列表页逐篇查询的 N+1 问题
+    // （约 60 次 SQL/页 → 3 次左右；预置后模板中 $post->fields 等直接命中缓存）
+    if (!empty($allPosts) && function_exists('shufei_preload_list_data')) {
+        shufei_preload_list_data($allPosts);
+    }
     ?>
     <?php foreach ($allPosts as $post): ?>
         <?php
@@ -138,11 +157,116 @@ $this->need('header.php');
         </article>
     <?php endif; ?>
 
-    <nav class="page-navigator" id="ajax-page-nav">
-        <?php $this->pageNav('<i class="fa fa-angle-left"></i> ' . _t('上一页'), _t('下一页') . ' <i class="fa fa-angle-right"></i>', 2); ?>
-    </nav>
+    <?php if (!empty($this->options->postListPager) && $this->options->postListPager === 'loadmore'): ?>
+        <?php
+        $lmCurrent = intval($this->_currentPage);
+        $lmTotal = intval($this->getTotalPage());
+        $lmNext = '';
+        if ($lmCurrent < $lmTotal) {
+            ob_start();
+            $this->pageLink('__NEXT__', 'next');
+            $lmHtml = ob_get_clean();
+            if (preg_match('/href="([^"]+)"/i', $lmHtml, $lmM)) {
+                $lmNext = htmlspecialchars($lmM[1]);
+            }
+        }
+        ?>
+        <div class="load-more-wrap" id="load-more-wrap"<?php echo $lmNext ? ' data-next="' . $lmNext . '"' : ''; ?>>
+            <?php if ($lmNext): ?>
+            <button type="button" class="load-more-btn" id="load-more-btn">
+                <i class="fa fa-chevron-down"></i> <?php _e('加载更多'); ?>
+            </button>
+            <div class="load-more-tip"><?php _e('已加载'); ?> <?php echo $lmCurrent; ?> <?php _e('/'); ?> <?php echo $lmTotal; ?> <?php _e('页'); ?></div>
+            <?php else: ?>
+            <div class="load-more-end"><?php _e('没有更多内容了'); ?></div>
+            <?php endif; ?>
+        </div>
+    <?php else: ?>
+        <nav class="page-navigator" id="ajax-page-nav">
+            <?php $this->pageNav('<i class="fa fa-angle-left"></i> ' . _t('上一页'), _t('下一页') . ' <i class="fa fa-angle-right"></i>', 2); ?>
+        </nav>
+    <?php endif; ?>
+
+    <?php
+    // 全局AI助手：站点级入口已合并进右下角悬浮操作组（见 footer.php 的 #float-ai-btn / #ai-site-box）
+    // 首页不再输出内嵌卡片，避免与悬浮窗重复
+    ?>
 </div><!-- end #main-->
 
 <?php $this->need('sidebar-right.php'); ?>
+
+<?php
+// 首页弹窗公告
+$noticeMode = !empty($this->options->noticePopupMode) ? $this->options->noticePopupMode : 'off';
+$noticeContent = isset($this->options->noticePopupContent) ? trim($this->options->noticePopupContent) : '';
+if ($this->is('index') && $noticeMode !== 'off' && $noticeContent !== ''):
+    $noticeTitle = !empty($this->options->noticePopupTitle) ? $this->options->noticePopupTitle : '公告';
+    $noticeHash = substr(md5($noticeTitle . '|' . $noticeContent), 0, 12);
+?>
+<div id="shufei-notice-mask" data-mode="<?php echo htmlspecialchars($noticeMode); ?>" data-hash="<?php echo htmlspecialchars($noticeHash); ?>" hidden>
+    <div class="shufei-notice-dialog" role="dialog" aria-modal="true" aria-labelledby="shufei-notice-title">
+        <div class="shufei-notice-head">
+            <span id="shufei-notice-title"><i class="fa fa-bullhorn"></i> <?php echo htmlspecialchars($noticeTitle); ?></span>
+            <button type="button" class="shufei-notice-close" id="shufei-notice-close" aria-label="<?php _e('关闭'); ?>">&times;</button>
+        </div>
+        <div class="shufei-notice-body"><?php echo $noticeContent; ?></div>
+        <div class="shufei-notice-foot">
+            <button type="button" class="shufei-notice-ok" id="shufei-notice-ok"><?php _e('我知道了'); ?></button>
+        </div>
+    </div>
+</div>
+<style>
+#shufei-notice-mask{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:20px;}
+#shufei-notice-mask[hidden]{display:none;}
+.shufei-notice-dialog{background:var(--card-bg,#fff);color:inherit;max-width:480px;width:100%;max-height:80vh;display:flex;flex-direction:column;border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.25);overflow:hidden;animation:shufei-notice-in .25s ease;}
+@keyframes shufei-notice-in{from{opacity:0;transform:translateY(12px) scale(.97);}to{opacity:1;transform:none;}}
+.shufei-notice-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;font-size:16px;font-weight:600;border-bottom:1px solid rgba(128,128,128,.2);}
+.shufei-notice-head i{color:var(--primary-color,#FF6B6B);}
+.shufei-notice-close{background:none;border:none;font-size:22px;line-height:1;cursor:pointer;color:inherit;opacity:.6;padding:0 4px;}
+.shufei-notice-close:hover{opacity:1;color:var(--primary-color,#FF6B6B);}
+.shufei-notice-body{padding:18px;overflow-y:auto;font-size:14px;line-height:1.7;word-break:break-word;}
+.shufei-notice-body a{color:var(--primary-color,#FF6B6B);}
+.shufei-notice-foot{padding:12px 18px 16px;text-align:right;border-top:1px solid rgba(128,128,128,.2);}
+.shufei-notice-ok{background:linear-gradient(135deg,var(--primary-color,#FF6B6B) 0%,var(--primary-hover,#FF6B6B) 100%);color:#fff;border:none;border-radius:8px;padding:8px 22px;font-size:14px;cursor:pointer;box-shadow:0 4px 12px color-mix(in srgb,var(--primary-color,#FF6B6B) 30%,transparent);transition:transform .15s ease,box-shadow .15s ease;}
+.shufei-notice-ok:hover{transform:translateY(-1px);box-shadow:0 6px 16px color-mix(in srgb,var(--primary-color,#FF6B6B) 40%,transparent);}
+.shufei-notice-ok:active{transform:translateY(0);}
+@media (max-width:480px){.shufei-notice-dialog{max-width:100%;}}
+</style>
+<script>
+(function(){
+    var mask = document.getElementById('shufei-notice-mask');
+    if (!mask) return;
+    var mode = mask.getAttribute('data-mode');
+    var hash = mask.getAttribute('data-hash');
+    var key = 'shufei_notice_' + hash;
+    try {
+        if (mode === 'once') {
+            if (localStorage.getItem(key) === '1') return;
+        } else if (mode === 'daily') {
+            var today = new Date();
+            var day = today.getFullYear() + '-' + (today.getMonth()+1) + '-' + today.getDate();
+            if (localStorage.getItem(key) === day) return;
+        }
+    } catch (e) {}
+    mask.hidden = false;
+    document.body.style.overflow = 'hidden';
+    function close(){
+        try {
+            if (mode === 'once') {
+                localStorage.setItem(key, '1');
+            } else if (mode === 'daily') {
+                var today = new Date();
+                localStorage.setItem(key, today.getFullYear() + '-' + (today.getMonth()+1) + '-' + today.getDate());
+            }
+        } catch (e) {}
+        mask.hidden = true;
+        document.body.style.overflow = '';
+    }
+    document.getElementById('shufei-notice-close').addEventListener('click', close);
+    document.getElementById('shufei-notice-ok').addEventListener('click', close);
+    mask.addEventListener('click', function(e){ if (e.target === mask) close(); });
+})();
+</script>
+<?php endif; ?>
 
 <?php $this->need('footer.php'); ?>

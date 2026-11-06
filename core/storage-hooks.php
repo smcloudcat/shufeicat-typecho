@@ -351,8 +351,8 @@ class ShufeiStorageHooks
             $ch = curl_init();
             curl_setopt($ch, CURLOPT_URL, $path);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
             curl_setopt($ch, CURLOPT_TIMEOUT, 30);
             $data = curl_exec($ch);
             curl_close($ch);

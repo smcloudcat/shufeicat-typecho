@@ -110,8 +110,8 @@ abstract class ShufeiStorageDriver
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, strtoupper($method));
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
         curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 30);
         curl_setopt($ch, CURLOPT_TIMEOUT, isset($options['timeout']) ? $options['timeout'] : 120);
 
@@ -120,36 +120,90 @@ abstract class ShufeiStorageDriver
         $multipart = isset($options['multipart']) ? $options['multipart'] : null;
 
         if ($multipart !== null) {
-            // multipart 表单：手动构造 body，避免使用 CURLFile（某些共享主机上会导致 segfault）
+            // multipart 表单：优先流式写入临时文件再上传，避免大文件整读入内存（2-3 倍内存占用导致 OOM）
+            // 不使用 CURLFile（某些共享主机上会导致 segfault），改用 CURLOPT_INFILE 流式上传
             $boundary = '----ShufeiBoundary' . md5(uniqid('', true));
-            $bodyStr = '';
-            foreach ($multipart as $fieldName => $field) {
-                if (is_array($field) && isset($field['file'])) {
-                    // 文件字段
-                    $filePath = $field['file'];
-                    $fileName = isset($field['name']) ? $field['name'] : basename($filePath);
-                    $fileMime = isset($field['mime']) ? $field['mime'] : 'application/octet-stream';
-                    $fileContent = @file_get_contents($filePath);
-                    if ($fileContent === false) {
-                        return array('code' => 0, 'body' => '', 'error' => 'read file failed: ' . $filePath);
+            $tmp = @tmpfile();
+            if ($tmp === false) {
+                // 无法创建临时文件时回退到内存拼接（小文件场景）
+                $bodyStr = '';
+                foreach ($multipart as $fieldName => $field) {
+                    if (is_array($field) && isset($field['file'])) {
+                        // 文件字段
+                        $filePath = $field['file'];
+                        $fileName = isset($field['name']) ? $field['name'] : basename($filePath);
+                        $fileMime = isset($field['mime']) ? $field['mime'] : 'application/octet-stream';
+                        $fileContent = @file_get_contents($filePath);
+                        if ($fileContent === false) {
+                            return array('code' => 0, 'body' => '', 'error' => 'read file failed: ' . $filePath);
+                        }
+                        $bodyStr .= '--' . $boundary . "\r\n";
+                        $bodyStr .= 'Content-Disposition: form-data; name="' . $fieldName . '"; filename="' . $fileName . '"' . "\r\n";
+                        $bodyStr .= 'Content-Type: ' . $fileMime . "\r\n\r\n";
+                        $bodyStr .= $fileContent . "\r\n";
+                    } else {
+                        // 普通字段
+                        $bodyStr .= '--' . $boundary . "\r\n";
+                        $bodyStr .= 'Content-Disposition: form-data; name="' . $fieldName . '"' . "\r\n\r\n";
+                        $bodyStr .= $field . "\r\n";
                     }
-                    $bodyStr .= '--' . $boundary . "\r\n";
-                    $bodyStr .= 'Content-Disposition: form-data; name="' . $fieldName . '"; filename="' . $fileName . '"' . "\r\n";
-                    $bodyStr .= 'Content-Type: ' . $fileMime . "\r\n\r\n";
-                    $bodyStr .= $fileContent . "\r\n";
-                } else {
-                    // 普通字段
-                    $bodyStr .= '--' . $boundary . "\r\n";
-                    $bodyStr .= 'Content-Disposition: form-data; name="' . $fieldName . '"' . "\r\n\r\n";
-                    $bodyStr .= $field . "\r\n";
                 }
-            }
-            $bodyStr .= '--' . $boundary . "--\r\n";
+                $bodyStr .= '--' . $boundary . "--\r\n";
 
-            curl_setopt($ch, CURLOPT_POST, true);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, $bodyStr);
-            $headers[] = 'Content-Type: multipart/form-data; boundary=' . $boundary;
-            $headers[] = 'Content-Length: ' . strlen($bodyStr);
+                curl_setopt($ch, CURLOPT_POST, true);
+                curl_setopt($ch, CURLOPT_POSTFIELDS, $bodyStr);
+                $headers[] = 'Content-Type: multipart/form-data; boundary=' . $boundary;
+                $headers[] = 'Content-Length: ' . strlen($bodyStr);
+            } else {
+                // 流式：将 multipart body 分块写入临时文件，再通过文件句柄上传，避免大文件整读入内存
+                $totalSize = 0;
+                foreach ($multipart as $fieldName => $field) {
+                    if (is_array($field) && isset($field['file'])) {
+                        // 文件字段：分块流式写入
+                        $filePath = $field['file'];
+                        $fileName = isset($field['name']) ? $field['name'] : basename($filePath);
+                        $fileMime = isset($field['mime']) ? $field['mime'] : 'application/octet-stream';
+                        $head = '--' . $boundary . "\r\n"
+                            . 'Content-Disposition: form-data; name="' . $fieldName . '"; filename="' . $fileName . '"' . "\r\n"
+                            . 'Content-Type: ' . $fileMime . "\r\n\r\n";
+                        fwrite($tmp, $head);
+                        $totalSize += strlen($head);
+                        $fh = @fopen($filePath, 'rb');
+                        if ($fh === false) {
+                            fclose($tmp);
+                            return array('code' => 0, 'body' => '', 'error' => 'read file failed: ' . $filePath);
+                        }
+                        while (!feof($fh)) {
+                            $chunk = fread($fh, 8192);
+                            if ($chunk === false) {
+                                break;
+                            }
+                            fwrite($tmp, $chunk);
+                            $totalSize += strlen($chunk);
+                        }
+                        fclose($fh);
+                        fwrite($tmp, "\r\n");
+                        $totalSize += 2;
+                    } else {
+                        // 普通字段
+                        $part = '--' . $boundary . "\r\n"
+                            . 'Content-Disposition: form-data; name="' . $fieldName . '"' . "\r\n\r\n"
+                            . $field . "\r\n";
+                        fwrite($tmp, $part);
+                        $totalSize += strlen($part);
+                    }
+                }
+                $tail = '--' . $boundary . "--\r\n";
+                fwrite($tmp, $tail);
+                $totalSize += strlen($tail);
+                rewind($tmp);
+
+                curl_setopt($ch, CURLOPT_UPLOAD, true);
+                curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
+                curl_setopt($ch, CURLOPT_INFILE, $tmp);
+                curl_setopt($ch, CURLOPT_INFILESIZE, $totalSize);
+                $headers[] = 'Content-Type: multipart/form-data; boundary=' . $boundary;
+            }
         } elseif ($body !== null) {
             curl_setopt($ch, CURLOPT_POST, true);
             curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
@@ -166,6 +220,11 @@ abstract class ShufeiStorageDriver
         $error = curl_error($ch);
         curl_close($ch);
 
+        // 释放流式上传的临时文件句柄
+        if (isset($tmp) && is_resource($tmp)) {
+            fclose($tmp);
+        }
+
         // 保存错误信息供调用方诊断
         if ($error) {
             $this->lastError = 'cURL错误: ' . $error;
@@ -178,6 +237,30 @@ abstract class ShufeiStorageDriver
             'body' => $response,
             'error' => $error,
         );
+    }
+
+    /**
+     * 流式计算文件的 SHA256（用于 S3/COS 签名），避免 file_get_contents 整读大文件导致 OOM
+     *
+     * @param string $path
+     * @return string|false 无法读取时返回 false
+     */
+    protected function hashFileSha256($path)
+    {
+        $fh = @fopen($path, 'rb');
+        if ($fh === false) {
+            return false;
+        }
+        $ctx = hash_init('sha256');
+        while (!feof($fh)) {
+            $chunk = fread($fh, 32768);
+            if ($chunk === false) {
+                break;
+            }
+            hash_update($ctx, $chunk);
+        }
+        fclose($fh);
+        return hash_final($ctx);
     }
 
     /**
@@ -328,7 +411,32 @@ class ShufeiStorageDriverLocal extends ShufeiStorageDriver
         if ($rel === '') {
             return false;
         }
-        $fullPath = __TYPECHO_ROOT_DIR__ . '/' . $rel;
+
+        // 安全校验：拒绝空字节、绝对路径、目录穿越（..），并确保目标位于上传根目录之内，防止越权删除任意文件
+        if (strpos($rel, "\0") !== false) {
+            return false;
+        }
+        $normalized = str_replace('\\', '/', $rel);
+        if ($normalized === '' || $normalized[0] == '/' || preg_match('/^[a-zA-Z]:\//', $normalized)) {
+            return false; // 空路径或绝对路径
+        }
+        if (strpos($normalized, '..') !== false) {
+            return false; // 目录穿越
+        }
+
+        $uploadRootDef = defined('__TYPECHO_UPLOAD_DIR__') ? __TYPECHO_UPLOAD_DIR__ : '/usr/uploads';
+        $rootAbs = realpath(__TYPECHO_ROOT_DIR__ . '/' . ltrim($uploadRootDef, '/'));
+        $dirAbs = realpath(dirname(__TYPECHO_ROOT_DIR__ . '/' . $normalized));
+        if ($rootAbs === false || $dirAbs === false) {
+            return false;
+        }
+        // 目标目录必须位于上传根目录之内
+        $rootPrefix = rtrim($rootAbs, '/\\') . DIRECTORY_SEPARATOR;
+        if ($dirAbs !== $rootAbs && strncmp($dirAbs, $rootPrefix, strlen($rootPrefix)) !== 0) {
+            return false;
+        }
+
+        $fullPath = $dirAbs . DIRECTORY_SEPARATOR . basename($normalized);
         return @unlink($fullPath);
     }
 
@@ -427,9 +535,21 @@ class ShufeiStorageDriverLocal extends ShufeiStorageDriver
 
 /**
  * Lsky Pro 兰空图床
+ *
+ * 接口文档（v2）：https://www.ltimg.com/pages/doc
+ *  - 上传：POST /api/v2/upload         （multipart: file, storage_id 可选）
+ *  - 资料：GET  /api/v2/user/profile   （验证 Token）
+ *  - 列表：GET  /api/v2/user/photos    （分页参数 page、per_page）
+ *  - 删除：DELETE /api/v2/user/photos  （请求体 JSON 数组 [id, ...]）
+ * 认证：Authorization: Bearer {token}，Accept: application/json
+ *
+ * v1 接口（/api/v1/*）仅保留上传与连接测试，无批量删除/列表接口。
  */
 class ShufeiStorageDriverLsky extends ShufeiStorageDriver
 {
+    /** @var string|null 探测到的 storage_id 缓存（null=未探测，''=探测失败） */
+    private static $detectedStorageId = null;
+
     public function id() { return 'lsky'; }
     public function name() { return 'Lsky Pro 兰空图床'; }
 
@@ -438,8 +558,8 @@ class ShufeiStorageDriverLsky extends ShufeiStorageDriver
         return array(
             array(
                 'name' => 'api_url', 'label' => 'API 地址', 'type' => 'text',
-                'default' => '', 'placeholder' => '如 https://img.example.com',
-                'required' => true, 'help' => '兰空图床站点地址，不要带尾部斜杠',
+                'default' => '', 'placeholder' => '如 https://www.ltimg.com',
+                'required' => true, 'help' => '兰空图床站点地址，可带或不带 /api/v2 后缀（系统会自动处理）',
             ),
             array(
                 'name' => 'api_token', 'label' => 'API Token', 'type' => 'password',
@@ -452,24 +572,134 @@ class ShufeiStorageDriverLsky extends ShufeiStorageDriver
                 'required' => true, 'help' => '兰空图床 2.x 选择 v2，1.x 选择 v1',
             ),
             array(
-                'name' => 'strategy_id', 'label' => '存储策略 ID（可选）', 'type' => 'text',
-                'default' => '', 'placeholder' => '',
-                'required' => false, 'help' => '仅 v2，留空使用默认策略',
+                'name' => 'storage_id', 'label' => '存储策略 ID（可留空，但会影响上传速度）', 'type' => 'text',
+                'default' => '', 'placeholder' => '留空自动探测，或填如 7',
+                'required' => false, 'help' => '仅 v2。留空时上传前自动探测可用策略；ltimg.com 公共服务为 7；自建兰空请填后台「存储策略」中的 ID',
             ),
         );
     }
 
+    /**
+     * 读取 storage_id 配置（兼容旧名 strategy_id）
+     */
+    private function getStorageId(array $config)
+    {
+        if (isset($config['storage_id']) && $config['storage_id'] !== '') {
+            return $config['storage_id'];
+        }
+        // 向后兼容：旧版本字段名为 strategy_id
+        if (isset($config['strategy_id']) && $config['strategy_id'] !== '') {
+            return $config['strategy_id'];
+        }
+        return '';
+    }
+
+    /**
+     * 规范化 API 地址：去除尾部斜杠及误带的 /api/v1、/api/v2 后缀
+     * 用户可能按文档标题填成 https://www.ltimg.com/api/v2，需自动纠正
+     */
+    private function normalizeApiUrl($url)
+    {
+        $url = trim($url);
+        $url = rtrim($url, '/');
+        // 去除误带的 /api/v2 或 /api/v1 后缀（不区分大小写）
+        $url = preg_replace('#/api/v[12]$#i', '', $url);
+        return $url;
+    }
+
+    /**
+     * 读取 API 版本，缺省时回退 v2（兼容旧 Profile 缺少该字段的情况）
+     */
+    private function getVersion(array $config)
+    {
+        $v = isset($config['api_version']) ? trim($config['api_version']) : '';
+        if ($v !== 'v1' && $v !== 'v2') {
+            $v = 'v2';
+        }
+        return $v;
+    }
+
+    /**
+     * 自动探测可用的 storage_id（仅 v2）
+     * 遍历 1-20，用 1x1 测试图片尝试上传，成功后立即删除测试图片。
+     * 探测结果缓存在静态属性中，避免单次请求内重复探测。
+     *
+     * @return string|int 探测到的 storage_id，失败返回 ''
+     */
+    private function detectStorageId(array $config)
+    {
+        // 静态缓存：同一请求内只探测一次
+        if (self::$detectedStorageId !== null) {
+            return self::$detectedStorageId;
+        }
+
+        $apiUrl = $this->normalizeApiUrl($config['api_url']);
+        $token = isset($config['api_token']) ? $config['api_token'] : '';
+        $url = $this->joinUrl($apiUrl, 'api/v2/upload');
+        $headers = array('Authorization: Bearer ' . $token, 'Accept: application/json');
+
+        // 1x1 透明 PNG（67 字节）
+        $testPng = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==');
+        $tmpFile = tempnam(sys_get_temp_dir(), 'lsky_probe_');
+        if ($tmpFile === false) {
+            self::$detectedStorageId = '';
+            return '';
+        }
+        file_put_contents($tmpFile, $testPng);
+
+        $detected = '';
+        for ($sid = 1; $sid <= 20; $sid++) {
+            $multipart = array(
+                'file' => array(
+                    'file' => $tmpFile,
+                    'mime' => 'image/png',
+                    'name' => 'probe.png',
+                ),
+                'storage_id' => strval($sid),
+            );
+            $resp = $this->httpRequest($url, 'POST', array(
+                'multipart' => $multipart,
+                'headers' => $headers,
+                'timeout' => 30,
+            ));
+            if ($resp['error']) {
+                continue;
+            }
+            $data = json_decode($resp['body'], true);
+            if (isset($data['status']) && $data['status'] === 'success') {
+                $detected = strval($sid);
+                // 立即删除测试图片，避免污染图床
+                if (isset($data['data']['id'])) {
+                    $delUrl = $this->joinUrl($apiUrl, 'api/v2/user/photos');
+                    $this->httpRequest($delUrl, 'DELETE', array(
+                        'headers' => array(
+                            'Authorization: Bearer ' . $token,
+                            'Accept: application/json',
+                            'Content-Type: application/json',
+                        ),
+                        'body' => json_encode(array(intval($data['data']['id']))),
+                        'timeout' => 10,
+                    ));
+                }
+                break;
+            }
+        }
+        @unlink($tmpFile);
+        self::$detectedStorageId = $detected;
+        return $detected;
+    }
+
     public function upload($localPath, $remoteName, $mime, array $config)
     {
-        $apiUrl = $this->normalizeUrl($config['api_url']);
+        $apiUrl = $this->normalizeApiUrl($config['api_url']);
         $token = isset($config['api_token']) ? $config['api_token'] : '';
-        $version = isset($config['api_version']) ? $config['api_version'] : 'v2';
+        $version = $this->getVersion($config);
 
         if ($version === 'v1') {
             $url = $this->joinUrl($apiUrl, 'api/v1/upload');
             $headers = array('Authorization: ' . $token);
         } else {
-            $url = $this->joinUrl($apiUrl, 'api/v1/upload');
+            $url = $this->joinUrl($apiUrl, 'api/v2/upload');
             $headers = array('Authorization: Bearer ' . $token, 'Accept: application/json');
         }
 
@@ -481,8 +711,15 @@ class ShufeiStorageDriverLsky extends ShufeiStorageDriver
             ),
         );
 
-        if ($version === 'v2' && !empty($config['strategy_id'])) {
-            $multipart['strategy_id'] = $config['strategy_id'];
+        if ($version === 'v2') {
+            $storageId = $this->getStorageId($config);
+            if ($storageId === '') {
+                // storage_id 未配置时自动探测
+                $storageId = $this->detectStorageId($config);
+            }
+            if ($storageId !== '') {
+                $multipart['storage_id'] = $storageId;
+            }
         }
 
         $resp = $this->httpRequest($url, 'POST', array(
@@ -492,27 +729,61 @@ class ShufeiStorageDriverLsky extends ShufeiStorageDriver
         ));
 
         if ($resp['error']) {
+            // httpRequest 已设置 lastError
             return false;
         }
 
         $data = json_decode($resp['body'], true);
-        if (!$data || !isset($data['status']) || $data['status'] !== true) {
-            // v2 返回 status: true；v1 返回 code: 200
-            if (!$data || !isset($data['code']) || $data['code'] != 200) {
-                return false;
-            }
+        if (!$data) {
+            $this->lastError = '响应解析失败: ' . substr((string)$resp['body'], 0, 300);
+            return false;
         }
 
-        $urlField = isset($data['data']['links']['url']) ? $data['data']['links']['url']
-                  : (isset($data['data']['url']) ? $data['data']['url'] : null);
+        // v2 返回 status: "success"（字符串）；v1 返回 code: 200（整数）
+        $ok = false;
+        if ($version === 'v2') {
+            $ok = isset($data['status']) && $data['status'] === 'success';
+        } else {
+            $ok = isset($data['code']) && $data['code'] == 200;
+        }
+        if (!$ok) {
+            // 提取 API 返回的具体错误信息，便于前端诊断（如"存储 不能为空"）
+            $msg = isset($data['message']) ? $data['message'] : '上传失败';
+            $detail = '';
+            if (isset($data['data']['errors']) && is_array($data['data']['errors'])) {
+                $parts = array();
+                foreach ($data['data']['errors'] as $field => $errs) {
+                    if (is_array($errs)) {
+                        $parts[] = $field . ': ' . implode('; ', $errs);
+                    } else {
+                        $parts[] = $field . ': ' . $errs;
+                    }
+                }
+                $detail = ' (' . implode(', ', $parts) . ')';
+            }
+            $this->lastError = $msg . $detail;
+            return false;
+        }
+
+        // v2: data.public_url；v1: data.url 或 data.links.url
+        $urlField = null;
+        $imageId = '';
+        if ($version === 'v2') {
+            $urlField = isset($data['data']['public_url']) ? $data['data']['public_url'] : null;
+            $imageId = isset($data['data']['id']) ? strval($data['data']['id']) : '';
+        } else {
+            $urlField = isset($data['data']['url']) ? $data['data']['url']
+                : (isset($data['data']['links']['url']) ? $data['data']['links']['url'] : null);
+        }
         if (!$urlField) {
             return false;
         }
 
-        $size = filesize($localPath);
+        $size = is_file($localPath) ? filesize($localPath) : 0;
         return array(
             'url' => $urlField,
-            'key' => $urlField,
+            // v2 用 image_id 作为 key，便于后续删除；v1 无 id 时退化为 URL
+            'key' => $imageId !== '' ? $imageId : $urlField,
             'size' => $size,
             'name' => basename($remoteName),
         );
@@ -520,25 +791,127 @@ class ShufeiStorageDriverLsky extends ShufeiStorageDriver
 
     public function delete(array $meta, array $config)
     {
-        // Lsky 删除需 sha1 文件名，复杂且不通用，返回 true 不真删
-        return true;
+        $version = $this->getVersion($config);
+        // v1 无批量删除接口，跳过
+        if ($version === 'v1') {
+            return true;
+        }
+
+        // 解析 image_id：优先 meta.id，其次 meta.key（数字时视为 id）
+        $imageId = 0;
+        if (isset($meta['id']) && $meta['id'] !== '') {
+            $imageId = intval($meta['id']);
+        } elseif (isset($meta['key']) && is_numeric($meta['key'])) {
+            $imageId = intval($meta['key']);
+        }
+
+        if (!$imageId) {
+            // 无 image_id 无法删除，返回 true 不阻塞 Typecho 删除流程
+            return true;
+        }
+
+        $apiUrl = $this->normalizeApiUrl($config['api_url']);
+        $token = isset($config['api_token']) ? $config['api_token'] : '';
+        $url = $this->joinUrl($apiUrl, 'api/v2/user/photos');
+        $headers = array(
+            'Authorization: Bearer ' . $token,
+            'Accept: application/json',
+            'Content-Type: application/json',
+        );
+        $body = json_encode(array($imageId));
+
+        $resp = $this->httpRequest($url, 'DELETE', array(
+            'headers' => $headers,
+            'body' => $body,
+            'timeout' => 20,
+        ));
+
+        if ($resp['error']) {
+            return false;
+        }
+        return $resp['code'] >= 200 && $resp['code'] < 300;
+    }
+
+    /**
+     * 列出当前用户上传的图片（仅 v2）
+     * 接口：GET /api/v2/user/photos?page=N&per_page=M
+     */
+    public function listImages(array $config, $page = 1, $limit = 20)
+    {
+        $version = $this->getVersion($config);
+        if ($version === 'v1') {
+            return array('success' => false, 'message' => 'Lsky Pro v1 暂不支持图片列表查询');
+        }
+
+        $apiUrl = $this->normalizeApiUrl($config['api_url']);
+        $token = isset($config['api_token']) ? $config['api_token'] : '';
+        $page = max(1, intval($page));
+        $limit = max(1, min(100, intval($limit)));
+
+        $url = $this->joinUrl($apiUrl, 'api/v2/user/photos?page=' . $page . '&per_page=' . $limit);
+        $headers = array('Authorization: Bearer ' . $token, 'Accept: application/json');
+
+        $resp = $this->httpRequest($url, 'GET', array('headers' => $headers, 'timeout' => 20));
+        if ($resp['error']) {
+            return array('success' => false, 'message' => '请求失败: ' . $resp['error']);
+        }
+        if ($resp['code'] !== 200) {
+            return array('success' => false, 'message' => 'HTTP ' . $resp['code'] . ': ' . substr((string)$resp['body'], 0, 200));
+        }
+
+        $data = json_decode($resp['body'], true);
+        if (!$data || !isset($data['data']['data'])) {
+            return array('success' => false, 'message' => isset($data['message']) ? $data['message'] : '解析响应失败');
+        }
+
+        $list = array();
+        foreach ($data['data']['data'] as $item) {
+            $list[] = array(
+                'id'   => isset($item['id']) ? strval($item['id']) : '',
+                'url'  => isset($item['public_url']) ? $item['public_url']
+                    : (isset($item['thumbnail_url']) ? $item['thumbnail_url'] : ''),
+                'name' => isset($item['name']) ? $item['name']
+                    : (isset($item['filename']) ? $item['filename'] : ''),
+                'size' => 0,
+                'time' => isset($item['created_at']) ? $item['created_at'] : '',
+                'key'  => isset($item['id']) ? strval($item['id']) : '',
+            );
+        }
+
+        $total = isset($data['data']['meta']['total']) ? intval($data['data']['meta']['total']) : count($list);
+
+        return array(
+            'success' => true,
+            'message' => '获取成功',
+            'data' => array(
+                'total' => $total,
+                'page'  => $page,
+                'limit' => $limit,
+                'list'  => $list,
+            ),
+        );
     }
 
     public function testConnection(array $config)
     {
+        // 兼容旧 Profile：api_version 缺失时回退 v2，避免 validateRequired 误报"API 版本不能为空"
+        $config['api_version'] = $this->getVersion($config);
         $errors = $this->validateRequired($config, $this->configFields());
         if ($errors) {
             return array('success' => false, 'message' => implode('；', $errors));
         }
-        $apiUrl = $this->normalizeUrl($config['api_url']);
+        $apiUrl = $this->normalizeApiUrl($config['api_url']);
         $token = $config['api_token'];
-        $version = isset($config['api_version']) ? $config['api_version'] : 'v2';
+        $version = $config['api_version'];
 
         // 通过 profile 接口验证 token
-        $url = $this->joinUrl($apiUrl, 'api/v1/profile');
-        $headers = $version === 'v1'
-            ? array('Authorization: ' . $token)
-            : array('Authorization: Bearer ' . $token, 'Accept: application/json');
+        if ($version === 'v1') {
+            $url = $this->joinUrl($apiUrl, 'api/v1/profile');
+            $headers = array('Authorization: ' . $token);
+        } else {
+            $url = $this->joinUrl($apiUrl, 'api/v2/user/profile');
+            $headers = array('Authorization: Bearer ' . $token, 'Accept: application/json');
+        }
 
         $resp = $this->httpRequest($url, 'GET', array('headers' => $headers, 'timeout' => 20));
         if ($resp['error']) {
@@ -548,8 +921,15 @@ class ShufeiStorageDriverLsky extends ShufeiStorageDriver
             return array('success' => false, 'message' => '认证失败 (HTTP ' . $resp['code'] . ')，请检查 Token 或 API 版本');
         }
         $data = json_decode($resp['body'], true);
+        $name = isset($data['data']['name']) ? $data['data']['name'] : '';
         $email = isset($data['data']['email']) ? $data['data']['email'] : '';
-        return array('success' => true, 'message' => '✓ 认证成功' . ($email ? '，账户：' . $email : ''));
+        $display = $name !== '' ? $name : $email;
+        $msg = '✓ 认证成功' . ($display ? '，账户：' . $display : '');
+        // v2 且 storage_id 未配置时提示将自动探测
+        if ($version === 'v2' && $this->getStorageId($config) === '') {
+            $msg .= '；存储策略 ID 未配置，将在上传时自动探测';
+        }
+        return array('success' => true, 'message' => $msg);
     }
 }
 
@@ -587,19 +967,33 @@ class ShufeiStorageDriverS3 extends ShufeiStorageDriver
         $host = $this->resolveHost($config);
 
         $url = $this->buildRequestUrl($config, $host, $key);
-        $headers = $this->signRequestV4($config, 'PUT', $url, $host, $key, $mime, '', file_get_contents($localPath));
+
+        // 流式计算内容哈希用于签名，避免整读大文件导致 OOM
+        $payloadHash = $this->hashFileSha256($localPath);
+        if ($payloadHash === false) {
+            return false;
+        }
+        $headers = $this->signRequestV4($config, 'PUT', $url, $host, $key, $mime, $payloadHash, $payloadHash);
 
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'PUT');
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
         curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 30);
         curl_setopt($ch, CURLOPT_TIMEOUT, 300);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, file_get_contents($localPath));
+        // 流式上传，避免整读文件
+        $fh = @fopen($localPath, 'rb');
+        if ($fh === false) {
+            return false;
+        }
+        curl_setopt($ch, CURLOPT_UPLOAD, true);
+        curl_setopt($ch, CURLOPT_INFILE, $fh);
+        curl_setopt($ch, CURLOPT_INFILESIZE, filesize($localPath));
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         $resp = curl_exec($ch);
+        fclose($fh);
         $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $err = curl_error($ch);
         curl_close($ch);
@@ -630,8 +1024,8 @@ class ShufeiStorageDriverS3 extends ShufeiStorageDriver
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'DELETE');
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         curl_exec($ch);
         $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -656,8 +1050,8 @@ class ShufeiStorageDriverS3 extends ShufeiStorageDriver
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         curl_setopt($ch, CURLOPT_TIMEOUT, 20);
         $resp = curl_exec($ch);
@@ -760,7 +1154,8 @@ class ShufeiStorageDriverS3 extends ShufeiStorageDriver
             $canonicalQuery = implode('&', $parts);
         }
 
-        $payloadHash = hash('sha256', $body);
+        // 优先使用调用方流式预计算的哈希，否则按需对内容取哈希
+        $payloadHash = ($hashedPayload !== '') ? $hashedPayload : hash('sha256', $body);
 
         $canonicalHeaders = "host:" . $host . "\n"
             . "x-amz-content-sha256:" . $payloadHash . "\n"
@@ -825,17 +1220,23 @@ class ShufeiStorageDriverWebDAV extends ShufeiStorageDriver
     public function upload($localPath, $remoteName, $mime, array $config)
     {
         $url = $this->buildUrl($config, $remoteName);
-        $data = file_get_contents($localPath);
 
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'PUT');
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
         curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 30);
         curl_setopt($ch, CURLOPT_TIMEOUT, 300);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+        // 流式上传，避免整读文件导致 OOM
+        $fh = @fopen($localPath, 'rb');
+        if ($fh === false) {
+            return false;
+        }
+        curl_setopt($ch, CURLOPT_UPLOAD, true);
+        curl_setopt($ch, CURLOPT_INFILE, $fh);
+        curl_setopt($ch, CURLOPT_INFILESIZE, filesize($localPath));
         $headers = array('Content-Type: ' . $mime);
         if (!empty($config['username'])) {
             $headers[] = 'Authorization: Basic ' . base64_encode($config['username'] . ':' . (isset($config['password']) ? $config['password'] : ''));
@@ -845,6 +1246,7 @@ class ShufeiStorageDriverWebDAV extends ShufeiStorageDriver
         $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $err = curl_error($ch);
         curl_close($ch);
+        fclose($fh);
 
         if ($err || $code < 200 || $code >= 300) {
             return false;
@@ -872,8 +1274,8 @@ class ShufeiStorageDriverWebDAV extends ShufeiStorageDriver
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'DELETE');
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
         $headers = array();
         if (!empty($config['username'])) {
             $headers[] = 'Authorization: Basic ' . base64_encode($config['username'] . ':' . (isset($config['password']) ? $config['password'] : ''));
@@ -899,8 +1301,8 @@ class ShufeiStorageDriverWebDAV extends ShufeiStorageDriver
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'PROPFIND');
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
         curl_setopt($ch, CURLOPT_TIMEOUT, 20);
         curl_setopt($ch, CURLOPT_HTTPHEADER, array('Depth: 0'));
         if (!empty($config['username'])) {
@@ -955,18 +1357,25 @@ class ShufeiStorageDriverAliyunOss extends ShufeiStorageDriver
     {
         $key = $this->buildKey($config, $remoteName);
         $url = $this->buildSignedUrl($config, $key, 'PUT', $mime);
-        $data = file_get_contents($localPath);
 
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'PUT');
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
         curl_setopt($ch, CURLOPT_TIMEOUT, 300);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+        // 流式上传，避免整读文件导致 OOM
+        $fh = @fopen($localPath, 'rb');
+        if ($fh === false) {
+            return false;
+        }
+        curl_setopt($ch, CURLOPT_UPLOAD, true);
+        curl_setopt($ch, CURLOPT_INFILE, $fh);
+        curl_setopt($ch, CURLOPT_INFILESIZE, filesize($localPath));
         curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: ' . $mime, 'Date: ' . gmdate('D, d M Y H:i:s \G\M\T')));
         $resp = curl_exec($ch);
+        fclose($fh);
         $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $err = curl_error($ch);
         curl_close($ch);
@@ -993,8 +1402,8 @@ class ShufeiStorageDriverAliyunOss extends ShufeiStorageDriver
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'DELETE');
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
         curl_exec($ch);
         $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
@@ -1017,8 +1426,8 @@ class ShufeiStorageDriverAliyunOss extends ShufeiStorageDriver
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
         curl_setopt($ch, CURLOPT_TIMEOUT, 20);
         $resp = curl_exec($ch);
         $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -1104,18 +1513,31 @@ class ShufeiStorageDriverTencentCos extends ShufeiStorageDriver
     {
         $key = $this->buildKey($config, $remoteName);
         $url = $this->buildUrl($config, $key);
-        $headers = $this->signV5($config, 'put', $key, $mime, file_get_contents($localPath));
+        // 流式计算内容哈希用于签名，避免整读大文件导致 OOM
+        $payloadHash = $this->hashFileSha256($localPath);
+        if ($payloadHash === false) {
+            return false;
+        }
+        $headers = $this->signV5($config, 'put', $key, $mime, $payloadHash);
 
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'PUT');
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
         curl_setopt($ch, CURLOPT_TIMEOUT, 300);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, file_get_contents($localPath));
+        // 流式上传，避免整读文件导致 OOM
+        $fh = @fopen($localPath, 'rb');
+        if ($fh === false) {
+            return false;
+        }
+        curl_setopt($ch, CURLOPT_UPLOAD, true);
+        curl_setopt($ch, CURLOPT_INFILE, $fh);
+        curl_setopt($ch, CURLOPT_INFILESIZE, filesize($localPath));
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         $resp = curl_exec($ch);
+        fclose($fh);
         $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $err = curl_error($ch);
         curl_close($ch);
@@ -1143,8 +1565,8 @@ class ShufeiStorageDriverTencentCos extends ShufeiStorageDriver
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'DELETE');
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         curl_exec($ch);
         $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -1169,8 +1591,8 @@ class ShufeiStorageDriverTencentCos extends ShufeiStorageDriver
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
         curl_setopt($ch, CURLOPT_TIMEOUT, 20);
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         $resp = curl_exec($ch);
@@ -1270,7 +1692,8 @@ class ShufeiStorageDriverTencentCos extends ShufeiStorageDriver
             $signedHeaderList[] = strtolower($k);
         }
         $signedHeaders = implode(';', $signedHeaderList);
-        $hashedPayload = hash('sha256', $body);
+        // 调用方传入 64 位十六进制哈希时直接使用（流式预计算），否则按需对内容取哈希
+        $hashedPayload = (strlen($body) === 64 && ctype_xdigit($body)) ? strtolower($body) : hash('sha256', $body);
 
         $canonicalRequest = $httpMethod . "\n" . $canonicalUri . "\n" . $canonicalQueryString . "\n" . $canonicalHeaders . "\n" . $signedHeaders . "\n" . $hashedPayload;
 
@@ -1366,8 +1789,8 @@ class ShufeiStorageDriverQiniuKodo extends ShufeiStorageDriver
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_POST, true);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
         curl_setopt($ch, CURLOPT_HTTPHEADER, array('Authorization: QBox ' . $config['access_key'] . ':' . $accessToken));
         curl_exec($ch);
         $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -1394,8 +1817,8 @@ class ShufeiStorageDriverQiniuKodo extends ShufeiStorageDriver
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
         curl_setopt($ch, CURLOPT_TIMEOUT, 20);
         curl_setopt($ch, CURLOPT_HTTPHEADER, array('Authorization: QBox ' . $config['access_key'] . ':' . $accessToken));
         $resp = curl_exec($ch);
@@ -1485,23 +1908,31 @@ class ShufeiStorageDriverUpyun extends ShufeiStorageDriver
         $key = $this->buildKey($config, $remoteName);
         $endpoint = isset($config['endpoint']) ? $config['endpoint'] : 'v0.api.upyun.com';
         $url = 'https://' . $endpoint . '/' . $config['bucket'] . '/' . $key;
-        $data = file_get_contents($localPath);
 
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'PUT');
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
         curl_setopt($ch, CURLOPT_TIMEOUT, 300);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+        // 流式上传，避免整读文件导致 OOM
+        $fh = @fopen($localPath, 'rb');
+        if ($fh === false) {
+            return false;
+        }
+        $fileSize = filesize($localPath);
+        curl_setopt($ch, CURLOPT_UPLOAD, true);
+        curl_setopt($ch, CURLOPT_INFILE, $fh);
+        curl_setopt($ch, CURLOPT_INFILESIZE, $fileSize);
         $auth = 'Basic ' . base64_encode($config['operator'] . ':' . $config['password']);
         curl_setopt($ch, CURLOPT_HTTPHEADER, array(
             'Authorization: ' . $auth,
             'Content-Type: ' . $mime,
-            'Content-Length: ' . strlen($data),
+            'Content-Length: ' . $fileSize,
         ));
         $resp = curl_exec($ch);
+        fclose($fh);
         $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $err = curl_error($ch);
         curl_close($ch);
@@ -1530,8 +1961,8 @@ class ShufeiStorageDriverUpyun extends ShufeiStorageDriver
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'DELETE');
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
         $auth = 'Basic ' . base64_encode($config['operator'] . ':' . $config['password']);
         curl_setopt($ch, CURLOPT_HTTPHEADER, array('Authorization: ' . $auth));
         curl_exec($ch);
@@ -1556,8 +1987,8 @@ class ShufeiStorageDriverUpyun extends ShufeiStorageDriver
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
         curl_setopt($ch, CURLOPT_TIMEOUT, 20);
         $auth = 'Basic ' . base64_encode($config['operator'] . ':' . $config['password']);
         curl_setopt($ch, CURLOPT_HTTPHEADER, array('Authorization: ' . $auth));

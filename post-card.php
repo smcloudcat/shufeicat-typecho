@@ -16,7 +16,9 @@
 
 <?php if ($postListStyle === 'classic'): ?>
 <article class="post <?php echo $hasThumb ? 'has-thumbnail' : ''; ?> <?php echo $isSticky ? 'post-sticky' : ''; ?>"
+         data-cid="<?php echo $post->cid; ?>"
          itemscope itemtype="http://schema.org/BlogPosting"
+         <?php if ($hasThumb): ?>data-thumb="<?php echo shufei_sanitize_url($thumbnail); ?>" data-thumb-fallback="<?php echo shufei_sanitize_url(shufei_get_random_thumbnail()); ?>"<?php endif; ?>
          style="<?php echo $hasThumb ? 'background-image: url(' . shufei_sanitize_url($thumbnail) . ');' : ''; ?>">
     <a href="<?php echo $post->permalink(); ?>" class="post-link" aria-label="<?php $post->title(); ?>"></a>
 
@@ -41,14 +43,14 @@
             <?php endif; ?>
             <div class="post-footer">
                 <ul class="post-meta-inline">
-                    <li itemprop="author" itemscope itemtype="http://schema.org/Person">
+                    <li class="meta-author" itemprop="author" itemscope itemtype="http://schema.org/Person">
                         <a itemprop="name" href="<?php $post->author->permalink(); ?>" rel="author"><?php $post->author(); ?></a>
                     </li>
-                    <li>
+                    <li class="meta-date">
                         <time datetime="<?php $post->date('c'); ?>" itemprop="datePublished"><?php $post->date(); ?></time>
                     </li>
-                    <li><?php $post->category(','); ?></li>
-                    <li itemprop="interactionCount">
+                    <li class="meta-category"><?php $post->category(','); ?></li>
+                    <li class="meta-comments" itemprop="interactionCount">
                         <a itemprop="discussionUrl" href="<?php $post->permalink() ?>#comments"><?php $post->commentsNum(_t('0'), _t('1'), _t('%d')); ?></a>
                     </li>
                 </ul>
@@ -57,8 +59,40 @@
     </div>
 </article>
 
+<?php elseif ($postListStyle === 'minimal'): ?>
+<article class="post minimal-item <?php echo $isSticky ? 'post-sticky' : ''; ?>"
+         data-cid="<?php echo $post->cid; ?>"
+         itemscope itemtype="http://schema.org/BlogPosting">
+    <a href="<?php echo $post->permalink(); ?>" class="post-link" aria-label="<?php $post->title(); ?>"></a>
+
+    <div class="minimal-row">
+        <div class="minimal-date" itemprop="datePublished">
+            <time datetime="<?php $post->date('c'); ?>"><?php $post->date('m/d'); ?></time>
+        </div>
+        <h2 class="minimal-title" itemprop="name headline">
+            <a itemprop="url" href="<?php $post->permalink(); ?>"><?php $post->title(); ?></a>
+        </h2>
+        <div class="minimal-meta">
+            <?php if (!$post->hidden): ?>
+            <span class="minimal-comments meta-comments" title="评论数">
+                <i class="fa fa-comment-o"></i> <?php $post->commentsNum(_t('0'), _t('1'), _t('%d')); ?>
+            </span>
+            <?php endif; ?>
+            <span class="minimal-category meta-category" title="分类">
+                <i class="fa fa-folder-o"></i> <?php $post->category(','); ?>
+            </span>
+        </div>
+    </div>
+    <?php if (!$post->hidden && !empty($excerpt)): ?>
+    <div class="minimal-excerpt" itemprop="description">
+        <p class="excerpt-text"><?php echo htmlspecialchars($excerpt); ?></p>
+    </div>
+    <?php endif; ?>
+</article>
+
 <?php else: ?>
 <article class="post <?php echo $hasThumb ? 'has-thumbnail' : 'no-thumbnail'; ?> <?php echo $isSticky ? 'post-sticky' : ''; ?>"
+         data-cid="<?php echo $post->cid; ?>"
          itemscope itemtype="http://schema.org/BlogPosting">
     <a href="<?php echo $post->permalink(); ?>" class="post-link" aria-label="<?php $post->title(); ?>"></a>
 
@@ -72,7 +106,8 @@
     <?php if ($hasThumb): ?>
     <div class="post-thumbnail-side">
         <a href="<?php $post->permalink(); ?>" class="thumbnail-link-side" title="<?php $post->title(); ?>">
-            <img src="<?php echo shufei_sanitize_url($thumbnail); ?>" alt="<?php $post->title(); ?>" class="thumbnail-img-side" />
+            <!-- 性能优化：loading=lazy 折叠线以下图片延迟加载；decoding=async 避免解码阻塞主线程 -->
+            <img src="<?php echo shufei_sanitize_url($thumbnail); ?>" alt="<?php $post->title(); ?>" class="thumbnail-img-side" loading="lazy" decoding="async" data-fallback="<?php echo shufei_sanitize_url(shufei_get_random_thumbnail()); ?>" onerror="this.onerror=null;this.src=this.getAttribute('data-fallback');" />
         </a>
     </div>
     <?php endif; ?>
@@ -83,9 +118,9 @@
                 <a itemprop="url" href="<?php $post->permalink(); ?>"><?php $post->title(); ?></a>
             </h2>
             <ul class="post-meta-top">
-                <li><i class="fa fa-user"></i> <a href="<?php $post->author->permalink(); ?>" rel="author"><?php $post->author(); ?></a></li>
-                <li><i class="fa fa-calendar"></i> <time datetime="<?php $post->date('c'); ?>" itemprop="datePublished"><?php $post->date(); ?></time></li>
-                <li><i class="fa fa-folder-o"></i> <?php $post->category(','); ?></li>
+                <li class="meta-author"><i class="fa fa-user"></i> <a href="<?php $post->author->permalink(); ?>" rel="author"><?php $post->author(); ?></a></li>
+                <li class="meta-date"><i class="fa fa-calendar"></i> <time datetime="<?php $post->date('c'); ?>" itemprop="datePublished"><?php $post->date(); ?></time></li>
+                <li class="meta-category"><i class="fa fa-folder-o"></i> <?php $post->category(','); ?></li>
             </ul>
         </header>
         <div class="post-excerpt" itemprop="articleBody">

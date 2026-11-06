@@ -85,14 +85,97 @@
     </div>
 </footer><!-- end #footer -->
 
-<!-- 返回顶部按钮 -->
-<div id="back-to-top" title="<?php _e('返回顶部'); ?>">
-    <i class="fa fa-angle-up"></i>
+<?php
+// ===== AI 站点助手：全站悬浮球 + 悬浮窗 =====
+// 条件：摘要总开关开 + 全局模式 + 对话模式 on（与首页入口一致）
+$siteAiOn = false;
+if (class_exists('AiSummary') && class_exists('AiChat')
+    && AiSummary::isEnabled() && AiSummary::isGlobalMode() && AiChat::isEnabled()) {
+    $siteAiOn = true;
+}
+// 文章页带本文上下文（cid），其余页面为站点级（0）；JS 会在 pjax 切换后二次校正
+$siteAiCid = 0;
+if ($siteAiOn && isset($this->cid) && $this->cid && $this->is('post')) {
+    $siteAiCid = intval($this->cid);
+}
+?>
+<?php if ($siteAiOn): ?>
+<!-- AI 站点助手：悬浮窗（对话区 ID 全站唯一，由 initAiChat 绑定）
+     入口（悬浮球）已合并进右下角悬浮操作组：点 #float-actions-toggle 展开后点 #float-ai-btn -->
+<div class="ai-summary-box ai-site-assistant" id="ai-site-box"
+     data-cid="<?php echo $siteAiCid; ?>"
+     data-ai-chat="1"
+     data-ai-scope="global"
+     data-ai-chat-max="<?php echo AiChat::getMaxRounds(); ?>"
+     role="dialog" aria-label="<?php _e('AI 站点助手'); ?>">
+    <div class="ai-summary-header ai-site-header">
+        <i class="fa fa-comments"></i>
+        <span class="ai-site-title"><?php _e('AI 站点助手'); ?></span>
+        <span class="ai-site-scope" id="ai-site-scope"><?php echo $siteAiCid ? _t('本文') : _t('全站'); ?></span>
+        <button type="button" class="ai-site-close" id="ai-chat-toggle"
+                title="<?php _e('收起'); ?>" aria-label="<?php _e('收起'); ?>">
+            <i class="fa fa-chevron-down"></i>
+        </button>
+    </div>
+    <div class="ai-chat-area" id="ai-chat-area">
+        <div class="ai-chat-messages" id="ai-chat-messages"></div>
+        <div class="ai-chat-suggests" id="ai-chat-suggests"></div>
+        <div class="ai-chat-inputbar">
+            <input type="text" class="ai-chat-input" id="ai-chat-input" maxlength="1000"
+                placeholder="<?php _e('向 AI 提问本站内容…'); ?>" autocomplete="off">
+            <button type="button" class="ai-chat-send" id="ai-chat-send" title="<?php _e('发送'); ?>">
+                <i class="fa fa-paper-plane"></i>
+            </button>
+        </div>
+        <div class="ai-chat-footnote"><?php _e('全站共享对话 · 内容由 AI 生成，仅供参考'); ?></div>
+    </div>
+    <div class="ai-summary-footer">
+        <button type="button" class="ai-chat-reset" id="ai-chat-reset" title="<?php _e('清空对话记录，开启新对话'); ?>">
+            <i class="fa fa-eraser"></i> <?php _e('新对话'); ?>
+        </button>
+        <span class="ai-site-max"><?php printf(_t('最多 %d 轮'), AiChat::getMaxRounds()); ?></span>
+    </div>
 </div>
+<?php endif; ?>
 
-<!-- 手机端文章目录触发按钮（仅文章页且拥有目录时显示） -->
-<div id="mobile-toc-btn" title="<?php _e('文章目录'); ?>">
-    <i class="fa fa-list-ul"></i>
+<!-- 悬浮操作组：多个悬浮球折叠为展开按钮，点击展开显示全部悬浮球 -->
+<div id="float-actions" class="float-actions">
+    <div class="float-actions-list" id="float-actions-list">
+        <!-- 返回顶部按钮 -->
+        <div id="back-to-top" title="<?php _e('返回顶部'); ?>">
+            <i class="fa fa-angle-up"></i>
+        </div>
+
+        <!-- 文章页浮动收藏按钮（仅文章页显示，位于返回顶部/手机目录按钮上方） -->
+        <div id="float-fav-btn" title="<?php _e('收藏文章'); ?>" style="display:none;">
+            <i class="fa fa-heart-o"></i>
+        </div>
+
+        <!-- AI 总结悬浮弹球（始终渲染，默认隐藏，由 JS 根据文章是否开启 AI 摘要控制显隐） -->
+        <div class="ai-summary-ball" id="ai-summary-ball" data-cid="<?php echo $this->cid; ?>" title="<?php _e('AI 文章摘要'); ?>" style="display:none;">
+            <span class="ai-ball-pulse"></span>
+            <i class="fa fa-magic"></i>
+        </div>
+
+        <!-- 手机端文章目录触发按钮（仅文章页且拥有目录时显示） -->
+        <div id="mobile-toc-btn" title="<?php _e('文章目录'); ?>">
+            <i class="fa fa-list-ul"></i>
+        </div>
+
+        <?php if ($siteAiOn): ?>
+        <!-- AI 站点助手入口（原独立悬浮球，已与展开按钮合并：展开列表后点它开对话窗） -->
+        <div class="float-ai-btn" id="float-ai-btn" role="button" tabindex="0" title="<?php _e('AI 站点助手'); ?>" aria-label="<?php _e('AI 站点助手'); ?>">
+            <span class="ai-ball-pulse"></span>
+            <i class="fa fa-comments"></i>
+        </div>
+        <?php endif; ?>
+    </div>
+
+    <!-- 折叠展开按钮：默认收起，点击展开悬浮球；AI 开启时以 AI 助手外观呈现 -->
+    <button type="button" id="float-actions-toggle" class="float-actions-toggle<?php echo $siteAiOn ? ' is-ai' : ''; ?>" title="<?php echo $siteAiOn ? _t('AI 助手与快捷工具') : _t('展开/收起悬浮按钮'); ?>" aria-label="<?php echo $siteAiOn ? _t('AI 助手与快捷工具') : _t('展开/收起悬浮按钮'); ?>">
+        <?php if ($siteAiOn): ?><span class="ai-ball-pulse"></span><?php endif; ?>
+        <i class="fa <?php echo $siteAiOn ? 'fa-comments' : 'fa-plus'; ?>"></i>
+    </button>
 </div>
 
 <!-- 手机端文章目录侧边栏（从右侧划出） -->
@@ -122,18 +205,27 @@ $themeUrl = rtrim($this->options->themeUrl, '/') . '/';
 // JS 资源路径配置
 // 添加版本号以防止缓存问题：使用文件修改时间，文件更新后自动刷新缓存
 $themeDir = dirname(__FILE__);
-$mainJsMtime = filemtime($themeDir . '/assets/js/main.js');
-$ajaxJsMtime = filemtime($themeDir . '/assets/js/ajax.js');
-$pjaxJsMtime = filemtime($themeDir . '/assets/js/pjax.js');
+// 是否加载压缩版资源（默认开启）
+$useMin = empty($this->options->minifyAssets) || $this->options->minifyAssets === 'on';
+$mainJsFile = $useMin && file_exists($themeDir . '/assets/js/main.min.js') ? 'main.min.js' : 'main.js';
+$pjaxJsFile = $useMin && file_exists($themeDir . '/assets/js/pjax.min.js') ? 'pjax.min.js' : 'pjax.js';
+$loadMoreJsFile = $useMin && file_exists($themeDir . '/assets/js/load-more.min.js') ? 'load-more.min.js' : 'load-more.js';
+// AI 消息 Markdown 渲染器（前后台共用，仅 AI 站点助手开启时加载）
+$aiMdJsFile = $useMin && file_exists($themeDir . '/assets/js/ai-markdown.min.js') ? 'ai-markdown.min.js' : 'ai-markdown.js';
+$mainJsMtime = filemtime($themeDir . '/assets/js/' . $mainJsFile);
+$pjaxJsMtime = filemtime($themeDir . '/assets/js/' . $pjaxJsFile);
+$loadMoreJsMtime = filemtime($themeDir . '/assets/js/' . $loadMoreJsFile);
+$aiMdJsMtime = @filemtime($themeDir . '/assets/js/' . $aiMdJsFile);
 $jsUrls = [
     'jquery' => $themeUrl . 'assets/vendor/jquery/jquery.min.js',
-    'main' => $themeUrl . 'assets/js/main.js?v=' . ($mainJsMtime ?: shufei_get_theme_version()),
-    'ajax' => $themeUrl . 'assets/js/ajax.js?v=' . ($ajaxJsMtime ?: shufei_get_theme_version()),
-    'pjax' => $themeUrl . 'assets/js/pjax.js?v=' . ($pjaxJsMtime ?: shufei_get_theme_version()),
+    'main' => $themeUrl . 'assets/js/' . $mainJsFile . '?v=' . ($mainJsMtime ?: shufei_get_theme_version()),
+    'aimd' => $themeUrl . 'assets/js/' . $aiMdJsFile . '?v=' . ($aiMdJsMtime ?: shufei_get_theme_version()),
+    'pjax' => $themeUrl . 'assets/js/' . $pjaxJsFile . '?v=' . ($pjaxJsMtime ?: shufei_get_theme_version()),
+    'loadmore' => $themeUrl . 'assets/js/' . $loadMoreJsFile . '?v=' . ($loadMoreJsMtime ?: shufei_get_theme_version()),
     'pjax_lib' => $themeUrl . 'assets/vendor/pjax/pjax.min.js',
     'prism' => $themeUrl . 'assets/vendor/prismjs/prism.js',
     'prismAutoloader' => $themeUrl . 'assets/vendor/prismjs/plugins/autoloader/prism-autoloader.min.js',
-    'lightbox' => $themeUrl . 'assets/vendor/lightbox2/js/lightbox.min.js',
+    'lightbox' => $themeUrl . 'assets/vendor/lightbox3/lightbox3.min.js',
     'mermaid' => $themeUrl . 'assets/vendor/mermaid/mermaid.min.js',
     'echarts' => $themeUrl . 'assets/vendor/echarts/echarts.min.js',
     'katex' => $themeUrl . 'assets/vendor/katex/katex.min.js',
@@ -145,11 +237,11 @@ $jsUrls = [
 // 根据配置调整资源路径
 if ($resourceMode === 'cdn') {
     // 使用官方CDN
-    $jsUrls['jquery'] = 'https://cdn.jsdelivr.net/npm/jquery@4.0.0/dist/jquery.min.js';
+    $jsUrls['jquery'] = 'https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js';
     $jsUrls['pjax_lib'] = 'https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js';
     $jsUrls['prism'] = 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js';
     $jsUrls['prismAutoloader'] = 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/autoloader/prism-autoloader.min.js';
-    $jsUrls['lightbox'] = 'https://cdn.jsdelivr.net/npm/lightbox2@2.11.4/dist/js/lightbox.min.js';
+    $jsUrls['lightbox'] = 'https://cdn.jsdelivr.net/npm/lightbox3@1.1.0/dist/lightbox3.min.js';
     $jsUrls['mermaid'] = 'https://cdn.jsdelivr.net/npm/mermaid@10.9.6/dist/mermaid.min.js';
     $jsUrls['echarts'] = 'https://cdn.jsdelivr.net/npm/echarts@6.1.0/dist/echarts.min.js';
     $jsUrls['katex'] = 'https://cdn.jsdelivr.net/npm/katex@0.17.0/dist/katex.min.js';
@@ -157,13 +249,14 @@ if ($resourceMode === 'cdn') {
 } elseif ($resourceMode === 'custom' && $customCdn) {
     // 使用自建CDN
     $jsUrls['jquery'] = $customCdn . '/assets/vendor/jquery/jquery.min.js';
-    $jsUrls['main'] = $customCdn . '/assets/js/main.js?v=' . ($mainJsMtime ?: shufei_get_theme_version());
-    $jsUrls['ajax'] = $customCdn . '/assets/js/ajax.js?v=' . ($ajaxJsMtime ?: shufei_get_theme_version());
-    $jsUrls['pjax'] = $customCdn . '/assets/js/pjax.js?v=' . ($pjaxJsMtime ?: shufei_get_theme_version());
+    $jsUrls['main'] = $customCdn . '/assets/js/' . $mainJsFile . '?v=' . ($mainJsMtime ?: shufei_get_theme_version());
+    $jsUrls['aimd'] = $customCdn . '/assets/js/' . $aiMdJsFile . '?v=' . ($aiMdJsMtime ?: shufei_get_theme_version());
+    $jsUrls['pjax'] = $customCdn . '/assets/js/' . $pjaxJsFile . '?v=' . ($pjaxJsMtime ?: shufei_get_theme_version());
+    $jsUrls['loadmore'] = $customCdn . '/assets/js/' . $loadMoreJsFile . '?v=' . ($loadMoreJsMtime ?: shufei_get_theme_version());
     $jsUrls['pjax_lib'] = $customCdn . '/assets/vendor/pjax/pjax.min.js';
     $jsUrls['prism'] = $customCdn . '/assets/vendor/prismjs/prism.js';
     $jsUrls['prismAutoloader'] = $customCdn . '/assets/vendor/prismjs/plugins/autoloader/prism-autoloader.min.js';
-    $jsUrls['lightbox'] = $customCdn . '/assets/vendor/lightbox2/js/lightbox.min.js';
+    $jsUrls['lightbox'] = $customCdn . '/assets/vendor/lightbox3/lightbox3.min.js';
     $jsUrls['mermaid'] = $customCdn . '/assets/vendor/mermaid/mermaid.min.js';
     $jsUrls['echarts'] = $customCdn . '/assets/vendor/echarts/echarts.min.js';
     $jsUrls['katex'] = $customCdn . '/assets/vendor/katex/katex.min.js';
@@ -175,7 +268,7 @@ if ($resourceMode === 'cdn') {
 ?>
 
 <!-- 以下重型库均改为按需加载：仅当页面存在对应内容时，由 main.js 动态注入脚本 -->
-<!-- jQuery / Lightbox2 / Prism.js / Mermaid / ECharts / KaTeX -->
+<!-- jQuery / Lightbox3 / Prism.js / Mermaid / ECharts / KaTeX -->
 
 <!-- Pjax加载配置 + 按需加载资源地址 -->
 <?php
@@ -193,6 +286,7 @@ if ($resourceMode !== 'cdn') {
 window.pjaxEnabled = <?php echo (!empty($this->options->pjaxLoad) && $this->options->pjaxLoad === 'on') ? 'true' : 'false'; ?>;
 window.pjaxLoadStyle = '<?php echo !empty($this->options->pjaxLoadStyle) ? $this->options->pjaxLoadStyle : 'progress'; ?>';
 window.pjaxTimeout = <?php echo !empty($this->options->pjaxTimeout) ? intval($this->options->pjaxTimeout) : 10000; ?>;
+window.aiSummaryStream = <?php echo (!empty($this->options->aiSummaryStream) && $this->options->aiSummaryStream === 'on') ? 'true' : 'false'; ?>;
 window.codeHighlightEnabled = <?php echo (empty($this->options->codeHighlightEnabled) || $this->options->codeHighlightEnabled !== 'off') ? 'true' : 'false'; ?>;
 window.mermaidEnabled = <?php echo (!empty($this->options->mermaidEnabled) && $this->options->mermaidEnabled === 'on') ? 'true' : 'false'; ?>;
 window.echartsEnabled = <?php echo (!empty($this->options->echartsEnabled) && $this->options->echartsEnabled === 'on') ? 'true' : 'false'; ?>;
@@ -211,6 +305,11 @@ window.vendorScripts = {
 };
 </script>
 
+<?php if (!empty($siteAiOn)): ?>
+<!-- AI 消息 Markdown 渲染器（仅 AI 站点助手开启时加载；须在主脚本之前，defer 保序） -->
+<script src="<?php echo $jsUrls['aimd']; ?>" defer></script>
+<?php endif; ?>
+
 <!-- 主题主脚本 -->
 <script src="<?php echo $jsUrls['main']; ?>" defer></script>
 
@@ -220,6 +319,11 @@ window.vendorScripts = {
 
 <!-- Pjax加载脚本 -->
 <script src="<?php echo $jsUrls['pjax']; ?>" defer></script>
+<?php endif; ?>
+
+<!-- 加载更多脚本（仅开启"加载更多"翻页时加载，与 Pjax 的条件判断保持一致） -->
+<?php if (!empty($this->options->postListPager) && $this->options->postListPager === 'loadmore'): ?>
+<script src="<?php echo $jsUrls['loadmore']; ?>" defer></script>
 <?php endif; ?>
 
 </body>
