@@ -213,6 +213,41 @@ class AiProvider
      * 注意：custom_responses 的地址保存在 responsesUrl（chatUrl 为空），
      * 必须单独判断，否则会误报「未配置」。
      */
+    /**
+     * 把 curl 原始报错翻译成可操作的中文提示（2026-10-31）
+     *
+     * 用户看到「Recv failure: Connection reset by peer」这类英文很难判断是
+     * 地址错、密钥错还是服务器网络不通——按关键词给出方向性解释。
+     *
+     * @param string $error curl_error() 原始文本
+     * @return string 中文补充说明（无可解释时返回空串）
+     */
+    private static function explainCurlError($error)
+    {
+        if ($error === '' || $error === null) {
+            return '';
+        }
+        if (stripos($error, 'SSL certificate') !== false) {
+            return '（SSL 证书校验失败，建议联系主机商修复 CA 证书）';
+        }
+        if (stripos($error, 'Could not resolve') !== false) {
+            return '（域名解析失败，请检查接口地址是否拼写正确）';
+        }
+        if (stripos($error, 'Connection reset') !== false
+            || stripos($error, 'Recv failure') !== false
+            || stripos($error, 'SSL connect error') !== false) {
+            return '（连接被中断：本站服务器到该地址的网络可能被阻断，或被目标站拒绝访问。'
+                . '建议改用国内可直连的接口，如 DeepSeek 官方 / 阿里云百炼 / 智谱）';
+        }
+        if (stripos($error, 'timed out') !== false || stripos($error, 'Timeout') !== false) {
+            return '（连接超时：目标地址不可达，或本站服务器到该地址网络较慢）';
+        }
+        if (stripos($error, "Couldn't connect") !== false || stripos($error, 'Failed to connect') !== false) {
+            return '（无法连接到服务器：请检查地址与端口，或确认本站服务器能访问该地址）';
+        }
+        return '';
+    }
+
     public function isConfigured()
     {
         if ($this->provider === 'deepseek' || $this->provider === 'openai') {
@@ -397,7 +432,7 @@ class AiProvider
         curl_close($ch);
 
         if ($error) {
-            return array('success' => false, 'tool_unsupported' => false, 'message' => '连接失败: ' . $error, 'http_code' => 0);
+            return array('success' => false, 'tool_unsupported' => false, 'message' => '连接失败: ' . $error . self::explainCurlError($error), 'http_code' => 0);
         }
         if ($httpCode !== 200) {
             $apiError = self::extractApiError($response);
@@ -650,8 +685,7 @@ class AiProvider
         curl_close($ch);
 
         if ($error) {
-            $hint = (stripos($error, 'SSL certificate') !== false)
-                ? '（SSL证书问题，建议联系主机商修复CA证书）' : '';
+            $hint = self::explainCurlError($error);
             return array('success' => false, 'content' => $content, 'message' => '连接失败: ' . $error . $hint, 'http_code' => 0, 'stream_unsupported' => false);
         }
         if ($httpCode !== 200) {
@@ -794,7 +828,7 @@ class AiProvider
         curl_close($ch);
 
         if ($error) {
-            return array('success' => false, 'models' => array(), 'message' => '连接失败: ' . $error);
+            return array('success' => false, 'models' => array(), 'message' => '连接失败: ' . $error . self::explainCurlError($error));
         }
         if ($httpCode !== 200) {
             $apiError = self::extractApiError($response);
@@ -853,8 +887,7 @@ class AiProvider
         curl_close($ch);
 
         if ($error) {
-            $hint = (stripos($error, 'SSL certificate') !== false)
-                ? '（SSL证书问题，建议联系主机商修复CA证书）' : '';
+            $hint = self::explainCurlError($error);
             return array('success' => false, 'message' => '连接失败: ' . $error . $hint, 'http_code' => 0);
         }
 
