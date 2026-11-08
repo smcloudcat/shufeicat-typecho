@@ -98,6 +98,20 @@ $action = isset($_POST['action']) ? (string) $_POST['action'] : '';
 try {
     switch ($action) {
         case 'apply':
+            // 防覆盖守卫（2026-11-08）：用户已应用过官方推荐样式（8 套）后，
+            // 本通用推荐弹窗已退役；若旧页面缓存里仍残留弹窗并被误点，
+            // 不能再写入那 6 项旧值，否则会冲掉刚选好的外观。
+            // 只记录版本号让提醒收尾，返回 skipped 让前端静默关闭。
+            if (shufei_recommended_style_applied()) {
+                shufei_record_style_version();
+                echo json_encode(array(
+                    'success' => true,
+                    'message' => '您已应用过官方推荐样式，已跳过通用推荐（避免覆盖当前外观）',
+                    'version' => shufei_get_style_version(),
+                    'skipped' => true,
+                ));
+                break;
+            }
             $settings = shufei_apply_recommended_settings();
             echo json_encode(array(
                 'success'  => true,

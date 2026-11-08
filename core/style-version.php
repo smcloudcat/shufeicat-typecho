@@ -76,18 +76,44 @@ function shufei_style_version_seen()
 
 /**
  * 是否需要提醒
- * 没有记录，或当前样式版本号比记录的新，返回 true
+ *
+ * 【2026-11-08 起停用，恒返回 false】
+ * 本弹窗的「推荐设置」是 1.4 时代的固定 6 项值（渐变 / 暗色渐变 /
+ * 透明度 / Pjax / 天气），与 1.5.0 的「官方推荐样式（8 套）」引导弹窗
+ * 职责重叠且取值不一致。老用户从 1.4 升级上来时两个弹窗会先后出现：
+ * 先选完 8 套之一并应用 → reload 后本弹窗又弹 → 误点「立即设置」会
+ * 用旧推荐覆盖掉刚应用的样式，且 syncForm() 还会把旧值灌回表单。
+ *
+ * 1.5.0 中 Pjax / 天气等项的默认值本就已开启，本弹窗已完全冗余。
+ * 官方推荐样式弹窗（functions.php 的 shufei-rec-overlay）作为唯一推荐
+ * 入口，本机制退役。保留本文件其余函数与 style-ajax.php 端点供历史数据
+ * 与旧页面兼容（端点另有防覆盖守卫）。
  *
  * @return bool
  */
 function shufei_style_reminder_needed()
 {
-    $current = shufei_get_style_version();
-    $seen = shufei_style_version_seen();
-    if ($seen === '') {
-        return true;
+    return false;
+}
+
+/**
+ * 用户是否已应用过官方推荐样式（8 套引导弹窗写入 applied）
+ *
+ * 用于 style-ajax.php 的防覆盖守卫：即使旧页面缓存里残留着通用推荐弹窗，
+ * 误点「立即设置」也不能把用户已选好的样式冲掉。
+ * 直接查库避免与 style-presets.php 产生加载耦合。
+ *
+ * @return bool
+ */
+function shufei_recommended_style_applied()
+{
+    try {
+        $db = \Typecho\Db::get();
+        $row = $db->fetchRow($db->select('value')->from('table.options')->where('name = ?', 'shufeiStyleRecommendTip'));
+        return ($row && isset($row['value']) && (string) $row['value'] === 'applied');
+    } catch (\Throwable $e) {
+        return false;
     }
-    return version_compare($current, $seen, '>');
 }
 
 /**

@@ -2450,7 +2450,8 @@ function themeConfig($form)
     // 输出图片管理 UI
     shufei_render_storage_images_ui();
 
-    // 输出推荐设置提醒弹窗
+    // 旧版「推荐设置版本」弹窗已退役（1.5.0 起与 8 套推荐样式重复且会互相覆盖），
+    // 保留调用以兼容历史配置；函数内部恒不输出，推荐入口统一为上方 8 套引导弹窗
     shufei_render_style_reminder();
 
     // 输出 AI 设置助手（开关字段 + 悬浮窗；关闭时只输出一条说明）
