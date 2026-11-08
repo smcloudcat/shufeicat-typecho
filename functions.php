@@ -1115,7 +1115,8 @@ function themeConfig($form)
         if (file_exists(dirname(__FILE__) . '/core/style-presets.php')) {
             require_once dirname(__FILE__) . '/core/style-presets.php';
         }
-        if (shufei_style_tip_status() === '') {
+        // 一次性引导：老站升级自动静默，只有全新安装展示一次
+        if (shufei_style_tip_should_show()) {
             $recommended = shufei_recommended_presets();
             $recommendedJson = json_encode($recommended, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
             $recCards = '';
@@ -1199,8 +1200,8 @@ function themeConfig($form)
                 . 'alert((res&&res.message)?res.message:"应用失败");btn.disabled=false;btn.innerHTML="立即应用所选风格";'
                 . '}).catch(function(){btn.disabled=false;btn.innerHTML="立即应用所选风格";alert("网络错误，请重试");});'
                 . '});'
-                . 'laterBtn.addEventListener("click",function(){hide();});'
-                . 'neverBtn.addEventListener("click",function(){post({action:"tip",mode:"dismissed"}).then(hide).catch(hide);});'
+                . 'laterBtn.addEventListener("click",function(){post({action:"tip",mode:"later"}).then(hide).catch(hide);});'
+                . 'neverBtn.addEventListener("click",function(){post({action:"tip",mode:"never"}).then(hide).catch(hide);});'
                 . '})();'
                 . '</script>';
         }

@@ -97,11 +97,12 @@ function shufei_style_reminder_needed()
 }
 
 /**
- * 用户是否已应用过官方推荐样式（8 套引导弹窗写入 applied）
+ * 推荐样式引导是否已处理过（8 套官方推荐）
  *
  * 用于 style-ajax.php 的防覆盖守卫：即使旧页面缓存里残留着通用推荐弹窗，
  * 误点「立即设置」也不能把用户已选好的样式冲掉。
  * 直接查库避免与 style-presets.php 产生加载耦合。
+ * 只要「状态非空」或「本版本已展示过引导」就算已处理。
  *
  * @return bool
  */
@@ -109,10 +110,16 @@ function shufei_recommended_style_applied()
 {
     try {
         $db = \Typecho\Db::get();
-        $row = $db->fetchRow($db->select('value')->from('table.options')->where('name = ?', 'shufeiStyleRecommendTip'));
-        return ($row && isset($row['value']) && (string) $row['value'] === 'applied');
-    } catch (\Throwable $e) {
+        foreach (array('shufeiStyleRecommendTip', 'shufeiStyleTipVersion') as $name) {
+            $row = $db->fetchRow($db->select('value')->from('table.options')->where('name = ?', $name));
+            if ($row && isset($row['value']) && (string) $row['value'] !== '') {
+                return true;
+            }
+        }
         return false;
+    } catch (\Throwable $e) {
+        // 读不到时保守跳过，绝不让旧推荐值覆盖用户外观
+        return true;
     }
 }
 

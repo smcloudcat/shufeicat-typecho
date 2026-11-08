@@ -405,7 +405,7 @@ function shufei_style_presets_apply($id)
 /**
  * 读取推荐样式引导弹窗状态
  *
- * @return string ''（未看过）/ applied（已应用过推荐）/ dismissed（主动不再显示）
+ * @return string ''（未处理）/ applied（已应用过推荐）/ dismissed / later
  */
 function shufei_style_tip_status()
 {
@@ -443,4 +443,101 @@ function shufei_style_tip_set($value)
     } catch (\Throwable $e) {
         return false;
     }
+}
+
+/**
+ * 当前请求是否为后台「设置外观」页面
+ *
+ * themeConfig() 在切换主题（Themes/Edit::activeTheme）时也会被调用来生成
+ * 默认配置，若在那里写状态，全新安装的用户还没看到弹窗就被标记为已处理。
+ * 因此只在真正渲染设置页时才执行引导逻辑。
+ *
+ * @return bool
+ */
+function shufei_style_tip_is_config_page()
+{
+    $uri = isset($_SERVER['REQUEST_URI']) ? (string) $_SERVER['REQUEST_URI'] : '';
+    $script = isset($_SERVER['SCRIPT_NAME']) ? (string) $_SERVER['SCRIPT_NAME'] : '';
+    return (strpos($uri, 'options-theme.php') !== false
+        || strpos($script, 'options-theme.php') !== false);
+}
+
+/**
+ * 读写推荐引导专用的 options 项
+ *
+ * @param string $name
+ * @return string
+ */
+function shufei_style_tip_option_get($name)
+{
+    try {
+        $db = \Typecho\Db::get();
+        $row = $db->fetchRow($db->select('value')->from('table.options')->where('name = ?', $name));
+        return ($row && isset($row['value'])) ? (string) $row['value'] : '';
+    } catch (\Throwable $e) {
+        return '';
+    }
+}
+
+/**
+ * @param string $name
+ * @param string $value
+ * @return bool
+ */
+function shufei_style_tip_option_set($name, $value)
+{
+    try {
+        $db = \Typecho\Db::get();
+        $row = $db->fetchRow($db->select('value')->from('table.options')->where('name = ?', $name));
+        if ($row) {
+            $db->query($db->update('table.options')->rows(array('value' => (string) $value))
+                ->where('name = ?', $name));
+        } else {
+            $db->query($db->insert('table.options')->rows(array(
+                'name'  => $name,
+                'user'  => 0,
+                'value' => (string) $value,
+            )));
+        }
+        return true;
+    } catch (\Throwable $e) {
+        return false;
+    }
+}
+
+/**
+ * 是否需要展示 8 套官方推荐样式引导（按主题版本触发）
+ *
+ * 每个主题版本引导一次：版本变化（全新安装，或 1.5.0 → 1.5.1 这类升级）
+ * 时重新展示一次，让老用户也能看到新版本的推荐样式；同一版本内只展示
+ * 一次，展示当下就落库，用户点「下次再说」或直接离开都不会被反复打扰。
+ *
+ * 「不再显示这个提示」是永久意愿，写入 shufeiStyleTipNever 后各版本都跳过；
+ * 同时兼容 1.5.0 遗留下来的 dismissed 状态。
+ *
+ * @return bool
+ */
+function shufei_style_tip_should_show()
+{
+    if (!shufei_style_tip_is_config_page()) {
+        return false;
+    }
+
+    if (shufei_style_tip_option_get('shufeiStyleTipNever') === '1'
+        || shufei_style_tip_status() === 'dismissed') {
+        return false;
+    }
+
+    $current = function_exists('shufei_get_theme_version')
+        ? (string) shufei_get_theme_version()
+        : '1.5.1';
+    $shown = shufei_style_tip_option_get('shufeiStyleTipVersion');
+
+    if ($shown === $current) {
+        return false;
+    }
+
+    // 版本变化 → 展示一次，立刻落库（本版本内不再弹）
+    shufei_style_tip_option_set('shufeiStyleTipVersion', $current);
+    return true;
 }

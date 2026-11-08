@@ -216,8 +216,13 @@ try {
 
         case 'tip':
             $mode = isset($_POST['mode']) ? (string) $_POST['mode'] : '';
-            if ($mode === 'applied' || $mode === 'dismissed') {
-                shufei_style_tip_set($mode);
+            // later 也要落库：否则「下次再说」后每次进设置外观都会重复弹窗
+            if ($mode === 'applied' || $mode === 'dismissed' || $mode === 'later' || $mode === 'never') {
+                shufei_style_tip_set($mode === 'never' ? 'dismissed' : $mode);
+            }
+            // 「不再显示这个提示」是跨版本的永久意愿
+            if ($mode === 'never' && function_exists('shufei_style_tip_option_set')) {
+                shufei_style_tip_option_set('shufeiStyleTipNever', '1');
             }
             echo json_encode(array('success' => true));
             break;
