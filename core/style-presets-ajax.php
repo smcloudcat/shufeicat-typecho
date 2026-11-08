@@ -87,6 +87,8 @@ try {
 
 // 载入样式预设核心逻辑
 require_once dirname(__FILE__) . '/style-presets.php';
+// 应用样式时同步标记旧版「推荐设置版本」已处理（避免升级后残留弹窗覆盖）
+require_once dirname(__FILE__) . '/style-version.php';
 
 // CSRF 防护：校验 Origin/Referer 同源
 require_once dirname(__FILE__) . '/admin-csrf.php';
@@ -199,6 +201,12 @@ try {
                 echo json_encode(array('success' => false, 'message' => '未找到该样式预设，可能已被删除'));
                 break;
             }
+            // 老用户从 1.4 升级到 1.5 时，官方推荐样式弹窗与旧版「推荐设置版本」
+            // 弹窗会先后出现；应用样式后同步把旧版本号记为已处理，reload 后
+            // 旧弹窗就不会再冒出来，也就没有误点覆盖刚选外观的机会。
+            if (function_exists('shufei_record_style_version')) {
+                shufei_record_style_version();
+            }
             echo json_encode(array(
                 'success' => true,
                 'message' => '已应用样式「' . (isset($preset['name']) ? $preset['name'] : '') . '」，请点击下方的「保存设置」按钮持久化',
@@ -208,8 +216,13 @@ try {
 
         case 'tip':
             $mode = isset($_POST['mode']) ? (string) $_POST['mode'] : '';
-            if ($mode === 'applied' || $mode === 'dismissed') {
-                shufei_style_tip_set($mode);
+            // later 也要落库：否则「下次再说」后每次进设置外观都会重复弹窗
+            if ($mode === 'applied' || $mode === 'dismissed' || $mode === 'later' || $mode === 'never') {
+                shufei_style_tip_set($mode === 'never' ? 'dismissed' : $mode);
+            }
+            // 「不再显示这个提示」是跨版本的永久意愿
+            if ($mode === 'never' && function_exists('shufei_style_tip_option_set')) {
+                shufei_style_tip_option_set('shufeiStyleTipNever', '1');
             }
             echo json_encode(array('success' => true));
             break;

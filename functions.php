@@ -1115,7 +1115,8 @@ function themeConfig($form)
         if (file_exists(dirname(__FILE__) . '/core/style-presets.php')) {
             require_once dirname(__FILE__) . '/core/style-presets.php';
         }
-        if (shufei_style_tip_status() === '') {
+        // 一次性引导：老站升级自动静默，只有全新安装展示一次
+        if (shufei_style_tip_should_show()) {
             $recommended = shufei_recommended_presets();
             $recommendedJson = json_encode($recommended, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
             $recCards = '';
@@ -1199,8 +1200,8 @@ function themeConfig($form)
                 . 'alert((res&&res.message)?res.message:"应用失败");btn.disabled=false;btn.innerHTML="立即应用所选风格";'
                 . '}).catch(function(){btn.disabled=false;btn.innerHTML="立即应用所选风格";alert("网络错误，请重试");});'
                 . '});'
-                . 'laterBtn.addEventListener("click",function(){hide();});'
-                . 'neverBtn.addEventListener("click",function(){post({action:"tip",mode:"dismissed"}).then(hide).catch(hide);});'
+                . 'laterBtn.addEventListener("click",function(){post({action:"tip",mode:"later"}).then(hide).catch(hide);});'
+                . 'neverBtn.addEventListener("click",function(){post({action:"tip",mode:"never"}).then(hide).catch(hide);});'
                 . '})();'
                 . '</script>';
         }
@@ -2450,7 +2451,8 @@ function themeConfig($form)
     // 输出图片管理 UI
     shufei_render_storage_images_ui();
 
-    // 输出推荐设置提醒弹窗
+    // 旧版「推荐设置版本」弹窗已退役（1.5.0 起与 8 套推荐样式重复且会互相覆盖），
+    // 保留调用以兼容历史配置；函数内部恒不输出，推荐入口统一为上方 8 套引导弹窗
     shufei_render_style_reminder();
 
     // 输出 AI 设置助手（开关字段 + 悬浮窗；关闭时只输出一条说明）
